@@ -49,6 +49,23 @@ export default function AuthForm({ mode }: { mode: Mode }) {
     }
   };
 
+  const handleDeveloperLogin = async () => {
+    try {
+      await handleSignIn('developer@example.com', 'password');
+      router.push('/dashboard');
+    } catch (error: any) {
+      let description = error.message;
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        description = 'Could not log in. Please sign up with email "developer@example.com" and password "password" first.';
+      }
+      toast({
+        title: 'Developer Login Failed',
+        description,
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900">
       <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md dark:bg-gray-800">
@@ -95,6 +112,15 @@ export default function AuthForm({ mode }: { mode: Mode }) {
         >
           Google
         </Button>
+        {mode === 'login' && (
+          <Button
+            variant="secondary"
+            className="w-full"
+            onClick={handleDeveloperLogin}
+          >
+            Log in as a developer
+          </Button>
+        )}
       </div>
     </div>
   );
