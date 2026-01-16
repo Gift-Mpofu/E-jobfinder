@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { FC } from "react";
-import { Upload, FileText, BarChart2, CheckCircle, XCircle, Lightbulb, BrainCircuit, ArrowRight, Zap, ChevronsRight } from "lucide-react";
+import { Upload, FileText, BarChart2, CheckCircle, XCircle, Lightbulb, BrainCircuit, ArrowRight, Zap, ChevronsRight, Frown, Meh, Smile } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -110,6 +110,34 @@ export default function Dashboard() {
     </div>
   );
 
+  const getScoreFeedback = (score: number) => {
+    if (score < 40) {
+      return {
+        color: 'text-red-500 dark:text-red-400',
+        progressColor: 'bg-red-500 dark:bg-red-400',
+        Icon: Frown,
+        message: "Don't Apply (Yet!)",
+        suggestion: "Significant improvements are needed. Focus on the suggestions below before applying.",
+      };
+    }
+    if (score < 75) {
+      return {
+        color: 'text-yellow-500 dark:text-yellow-400',
+        progressColor: 'bg-yellow-500 dark:bg-yellow-400',
+        Icon: Meh,
+        message: 'Maybe Apply',
+        suggestion: 'Your CV is a decent match, but could be much stronger. Consider the improvements below.',
+      };
+    }
+    return {
+      color: 'text-green-500 dark:text-green-400',
+      progressColor: 'bg-green-500 dark:bg-green-400',
+      Icon: Smile,
+      message: 'Yes, Apply!',
+      suggestion: 'Your profile is a strong fit for this role. Good luck!',
+    };
+  };
+
   const scanModeConfig = {
     quick: {
       name: 'Quick Scan',
@@ -127,6 +155,8 @@ export default function Dashboard() {
     }
   }
 
+  const scoreFeedback = analysisResult ? getScoreFeedback(analysisResult.matchScore) : null;
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="p-4 border-b border-border/40">
@@ -139,7 +169,7 @@ export default function Dashboard() {
       </header>
 
       <main className="container mx-auto p-4 lg:p-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+        <div className="grid grid-cols-1 gap-8">
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -238,71 +268,74 @@ export default function Dashboard() {
             </CardFooter>
           </Card>
 
-          <div className="sticky top-8">
-            <Card className="shadow-lg transition-all duration-500 ease-in-out">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart2 className="text-primary" />
-                  <span>Angine Results</span>
-                </CardTitle>
-                <CardDescription>
-                  {analysisResult ? 'Here is a breakdown of your compatibility.' : 'Your analysis will appear here.'}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isAnalyzing && (
-                  <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-                    <BrainCircuit className="w-16 h-16 text-primary animate-pulse" />
-                    <p className="text-muted-foreground">Performing {scanType} scan...</p>
-                    <Progress value={50} className="w-full animate-pulse" />
-                  </div>
-                )}
-                {!isAnalyzing && !analysisResult && (
-                  <div className="flex flex-col items-center justify-center min-h-[400px] text-center text-muted-foreground p-8">
-                    <BarChart2 className="w-16 h-16 mb-4" />
-                    <h3 className="font-semibold text-lg text-foreground">Ready to find your perfect job?</h3>
-                    <p>Provide your info, select a scan mode, and let Angine find your optimal path.</p>
-                  </div>
-                )}
-                {analysisResult && (
-                  <div className="space-y-8 animate-in fade-in-50 duration-500">
-                    <div>
-                      <h3 className="text-lg font-semibold tracking-tight">Match Score</h3>
-                      <div className="flex items-center gap-4 mt-2">
-                        <Progress value={analysisResult.matchScore} className="h-3" />
-                        <span className="text-2xl font-bold text-primary">{analysisResult.matchScore}%</span>
-                      </div>
+          <Card className="shadow-lg transition-all duration-500 ease-in-out">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart2 className="text-primary" />
+                <span>Angine Results</span>
+              </CardTitle>
+              <CardDescription>
+                {analysisResult ? 'Here is a breakdown of your compatibility.' : 'Your analysis will appear here.'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isAnalyzing && (
+                <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+                  <BrainCircuit className="w-16 h-16 text-primary animate-pulse" />
+                  <p className="text-muted-foreground">Performing {scanType} scan...</p>
+                  <Progress value={50} className="w-full animate-pulse" />
+                </div>
+              )}
+              {!isAnalyzing && !analysisResult && (
+                <div className="flex flex-col items-center justify-center min-h-[400px] text-center text-muted-foreground p-8">
+                  <BarChart2 className="w-16 h-16 mb-4" />
+                  <h3 className="font-semibold text-lg text-foreground">Ready to find your perfect job?</h3>
+                  <p>Provide your info, select a scan mode, and let Angine find your optimal path.</p>
+                </div>
+              )}
+              {analysisResult && scoreFeedback && (
+                <div className="space-y-8 animate-in fade-in-50 duration-500">
+                  <div className="text-center p-6 border rounded-lg bg-card">
+                    <h3 className="text-lg font-semibold tracking-tight">Match Score</h3>
+                    <div className="flex items-center justify-center gap-4 mt-2">
+                      <scoreFeedback.Icon className={`h-12 w-12 ${scoreFeedback.color}`} />
+                      <span className={`text-6xl font-bold ${scoreFeedback.color}`}>{analysisResult.matchScore}%</span>
                     </div>
-
-                    <ResultItem icon={<CheckCircle />} title="Strengths">
-                      <div className="flex flex-wrap gap-2">
-                        {analysisResult.strengths.map((strength) => (
-                          <Badge key={strength} variant="secondary">{strength}</Badge>
-                        ))}
-                      </div>
-                    </ResultItem>
-
-                    <ResultItem icon={<XCircle />} title="Missing Keywords">
-                      <div className="flex flex-wrap gap-2">
-                        {analysisResult.missingKeywords.map((keyword) => (
-                          <Badge key={keyword} variant="destructive">{keyword}</Badge>
-                        ))}
-                      </div>
-                    </ResultItem>
-                    
-                    <ResultItem icon={<Lightbulb />} title="Improvement Suggestions">
-                      <p className="whitespace-pre-wrap">{analysisResult.improvementSuggestions}</p>
-                    </ResultItem>
-                    
-                    <ResultItem icon={<BrainCircuit />} title="Expert Reasoning">
-                      <p className="whitespace-pre-wrap">{analysisResult.reasoning}</p>
-                    </ResultItem>
-
+                    <Progress value={analysisResult.matchScore} className="h-3 mt-4" indicatorClassName={scoreFeedback.progressColor} />
+                     <div className="mt-4">
+                      <p className={`text-xl font-bold ${scoreFeedback.color}`}>{scoreFeedback.message}</p>
+                      <p className="text-sm text-muted-foreground">{scoreFeedback.suggestion}</p>
+                    </div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+
+                  <ResultItem icon={<CheckCircle />} title="Strengths">
+                    <div className="flex flex-wrap gap-2">
+                      {analysisResult.strengths.map((strength) => (
+                        <Badge key={strength} variant="secondary">{strength}</Badge>
+                      ))}
+                    </div>
+                  </ResultItem>
+
+                  <ResultItem icon={<XCircle />} title="Missing Keywords">
+                    <div className="flex flex-wrap gap-2">
+                      {analysisResult.missingKeywords.map((keyword) => (
+                        <Badge key={keyword} variant="destructive">{keyword}</Badge>
+                      ))}
+                    </div>
+                  </ResultItem>
+                  
+                  <ResultItem icon={<Lightbulb />} title="Improvement Suggestions">
+                    <p className="whitespace-pre-wrap">{analysisResult.improvementSuggestions}</p>
+                  </ResultItem>
+                  
+                  <ResultItem icon={<BrainCircuit />} title="Expert Reasoning">
+                    <p className="whitespace-pre-wrap">{analysisResult.reasoning}</p>
+                  </ResultItem>
+
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </main>
     </div>
