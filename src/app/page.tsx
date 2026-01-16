@@ -73,7 +73,7 @@ export default function Home() {
       </header>
 
       <main className="container mx-auto p-4 lg:p-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
