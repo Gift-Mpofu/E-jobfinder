@@ -10,14 +10,14 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-export const CvAnalysisInputSchema = z.object({
+const CvAnalysisInputSchema = z.object({
   cvContent: z.string().describe("The full text content of the user's CV."),
   jobDescription: z.string().describe('The full text of the job description the user is targeting.'),
   scanType: z.enum(['quick', 'deep']).describe('The type of analysis to perform.'),
 });
 export type CvAnalysisInput = z.infer<typeof CvAnalysisInputSchema>;
 
-export const CvAnalysisOutputSchema = z.object({
+const CvAnalysisOutputSchema = z.object({
   matchScore: z.number().min(0).max(100).describe('A score from 0-100 representing how well the CV matches the job description.'),
   strengths: z.array(z.string()).describe('A list of key strengths and skills from the CV that are relevant to the job.'),
   missingKeywords: z.array(z.string()).describe('A list of critical keywords and skills mentioned in the job description that are missing from the CV.'),
