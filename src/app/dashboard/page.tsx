@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import type { FC } from "react";
-import { Upload, FileText, BarChart2, CheckCircle, XCircle, Lightbulb, BrainCircuit, ArrowRight, Zap, ChevronsRight, Frown, Meh, Smile } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Upload, FileText, BarChart2, CheckCircle, XCircle, Lightbulb, BrainCircuit, ArrowRight, Zap, ChevronsRight, Frown, Meh, Smile, LogOut, Bell, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,9 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { analyzeCv, type CvAnalysisOutput } from "@/ai/flows/cv-analyzer-flow";
+import { handleSignOut } from "@/firebase/auth";
+import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
+import { ChartTooltipContent } from "@/components/ui/chart";
 
 
 export default function Dashboard() {
@@ -24,6 +28,7 @@ export default function Dashboard() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [scanType, setScanType] = useState<'quick' | 'deep'>('quick');
   const { toast } = useToast();
+  const router = useRouter();
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
@@ -100,6 +105,20 @@ export default function Dashboard() {
     }
   };
 
+  const onSignOut = async () => {
+    try {
+      await handleSignOut();
+      router.push('/login');
+    } catch (error) {
+      console.error("Sign out failed", error);
+      toast({
+        variant: "destructive",
+        title: "Sign Out Failed",
+        description: "An error occurred while signing out.",
+      });
+    }
+  };
+
   const ResultItem: FC<{ icon: React.ReactNode; title: string; children: React.ReactNode }> = ({ icon, title, children }) => (
     <div className="flex items-start gap-4">
       <div className="flex-shrink-0 text-primary">{icon}</div>
@@ -162,8 +181,14 @@ export default function Dashboard() {
       <header className="p-4 border-b border-border/40">
         <div className="container mx-auto flex items-center justify-between">
           <h1 className="text-2xl font-bold text-primary font-headline">Angine</h1>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
             <ThemeToggle />
+            <Button variant="ghost" size="icon">
+              <Bell className="h-5 w-5" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={onSignOut}>
+              <LogOut className="h-5 w-5" />
+            </Button>
           </div>
         </div>
       </header>
@@ -327,6 +352,35 @@ export default function Dashboard() {
                   <ResultItem icon={<Lightbulb />} title="Improvement Suggestions">
                     <p className="whitespace-pre-wrap">{analysisResult.improvementSuggestions}</p>
                   </ResultItem>
+
+                  {analysisResult.hireRateData && analysisResult.hireRateData.length > 0 && (
+                    <ResultItem icon={<TrendingUp />} title={`Hiring Outlook for a ${analysisResult.jobTitle}`}>
+                        <div className="h-[250px] w-full text-xs">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={analysisResult.hireRateData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                                    <XAxis
+                                        dataKey="level"
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tickMargin={8}
+                                    />
+                                    <YAxis
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tickMargin={8}
+                                        tickFormatter={(value) => `${value}%`}
+                                    />
+                                    <Tooltip
+                                        cursor={false}
+                                        content={<ChartTooltipContent indicator="dot" />}
+                                    />
+                                    <Bar dataKey="rate" fill="var(--color-interviews, hsl(var(--primary)))" radius={4} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </ResultItem>
+                  )}
                   
                   <ResultItem icon={<BrainCircuit />} title="Expert Reasoning">
                     <p className="whitespace-pre-wrap">{analysisResult.reasoning}</p>

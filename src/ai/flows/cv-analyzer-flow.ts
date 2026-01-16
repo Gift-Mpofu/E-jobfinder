@@ -23,6 +23,11 @@ const CvAnalysisOutputSchema = z.object({
   missingKeywords: z.array(z.string()).describe('A list of critical keywords and skills mentioned in the job description that are missing from the CV.'),
   improvementSuggestions: z.string().describe('Actionable suggestions for improving the CV to better match the job description.'),
   reasoning: z.string().describe('The detailed reasoning behind the analysis, especially for a deep scan.'),
+  jobTitle: z.string().describe('The identified job title from the job description, e.g., "Software Engineer".'),
+  hireRateData: z.array(z.object({
+    level: z.string().describe('The seniority level, e.g., "Junior", "Mid-Level", "Senior".'),
+    rate: z.number().min(0).max(100).describe('An estimated percentage hiring rate for this level.'),
+  })).describe('Estimated hiring rate data for different seniority levels of this job title. Provide data for at least 3 levels.')
 });
 export type CvAnalysisOutput = z.infer<typeof CvAnalysisOutputSchema>;
 
@@ -55,6 +60,7 @@ Analyze the provided CV against the job description.
 2.  **Strengths:** Identify the most relevant skills and experiences from the CV that align with the job.
 3.  **Missing Keywords:** Pinpoint crucial keywords from the job description that are absent in the CV. This is vital for passing ATS (Applicant Tracking Systems).
 4.  **Improvement Suggestions:** Provide concrete, actionable advice on how to improve the CV.
+5.  **Hiring Rate Analysis:** Identify the job title from the description. Then, provide estimated hiring rate data for different seniority levels (e.g., Junior, Mid-Level, Senior) for that job title. This data should be returned in the 'hireRateData' field.
 
 **Scan-Specific Instructions:**
 
