@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import type { FC } from "react";
-import { useRouter } from 'next/navigation';
-import { Upload, FileText, BarChart2, CheckCircle, XCircle, Lightbulb, BrainCircuit, ArrowRight } from "lucide-react";
+import { Upload, FileText, BarChart2, CheckCircle, XCircle, Lightbulb, BrainCircuit, ArrowRight, Zap, ChevronsRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,48 +11,93 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
+import { analyzeCv, type CvAnalysisOutput } from "@/ai/flows/cv-analyzer-flow";
 
-type AnalysisResult = {
-  matchScore: number;
-  strengths: string[];
-  missingKeywords: string[];
-  improvementSuggestions: string;
-  reasoning: string;
-};
-
-const placeholderResult: AnalysisResult = {
-  matchScore: 85,
-  strengths: ["React", "TypeScript", "Next.js", "Tailwind CSS", "Project Management"],
-  missingKeywords: ["GraphQL", "Docker", "Kubernetes"],
-  improvementSuggestions: "Consider highlighting your experience with state management libraries like Redux or Zustand. Adding projects that showcase end-to-end development could also strengthen your profile.",
-  reasoning: "Incorporating missing keywords like 'GraphQL' is crucial as the job description explicitly mentions experience with modern APIs. This will help your CV pass through initial automated screenings and demonstrate a broader skill set to human reviewers."
-};
 
 export default function Dashboard() {
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [cvText, setCvText] = useState<string>("");
   const [jobDescription, setJobDescription] = useState<string>("");
-  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<CvAnalysisOutput | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const router = useRouter();
+  const [scanType, setScanType] = useState<'quick' | 'deep'>('quick');
+  const { toast } = useToast();
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
-      setCvFile(event.target.files[0]);
+      const file = event.target.files[0];
+      if (!file.type.startsWith('text/')) {
+        toast({
+          variant: 'destructive',
+          title: 'Invalid File Type',
+          description: 'Please upload a plain text file (.txt, .md).',
+        });
+        setCvFile(null);
+        event.target.value = ''; // Reset file input
+        return;
+      }
+      setCvFile(file);
+      setCvText(''); // Clear text area if file is chosen
     }
   };
+  
+  const handleCvTextAreaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      setCvText(e.target.value);
+      if (e.target.value) {
+          setCvFile(null); // Clear file if text is pasted
+          // It's tricky to reset the file input visually without this, but it works functionally
+          const fileInput = document.getElementById('cv-upload') as HTMLInputElement;
+          if(fileInput) fileInput.value = '';
+      }
+  }
 
-  const handleAnalyzeClick = () => {
-    if ((!cvFile && !cvText) || !jobDescription) {
+  const handleAnalyzeClick = async () => {
+    let cvContent = cvText;
+
+    if (!cvContent && cvFile) {
+        try {
+            cvContent = await cvFile.text();
+        } catch (error) {
+            console.error("Error reading file:", error);
+            toast({
+                variant: 'destructive',
+                title: 'File Read Error',
+                description: 'Could not read the contents of the uploaded file.',
+            });
+            return;
+        }
+    }
+
+    if (!cvContent || !jobDescription) {
+      toast({
+        variant: 'destructive',
+        title: 'Missing Information',
+        description: 'Please provide both your CV and a job description.',
+      });
       return;
     }
     setIsAnalyzing(true);
     setAnalysisResult(null);
 
-    setTimeout(() => {
-      setAnalysisResult(placeholderResult);
-      setIsAnalyzing(false);
-    }, 1500);
+    try {
+        const result = await analyzeCv({
+            cvContent,
+            jobDescription,
+            scanType,
+        });
+        setAnalysisResult(result);
+    } catch (error: any) {
+        console.error("Analysis failed:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Analysis Failed',
+            description: error.message || 'An unknown error occurred during analysis.',
+        });
+    } finally {
+        setIsAnalyzing(false);
+    }
   };
 
   const ResultItem: FC<{ icon: React.ReactNode; title: string; children: React.ReactNode }> = ({ icon, title, children }) => (
@@ -66,11 +110,28 @@ export default function Dashboard() {
     </div>
   );
 
+  const scanModeConfig = {
+    quick: {
+      name: 'Quick Scan',
+      description: 'Get a fast, high-level overview of your match.',
+      icon: <Zap size={16} />,
+      buttonText: 'Run Quick Scan',
+      IconComponent: Zap,
+    },
+    deep: {
+      name: 'Deep Scan',
+      description: 'In-depth analysis of your CV, the job, and the company.',
+      icon: <ChevronsRight size={16}/>,
+      buttonText: 'Run Deep Scan',
+      IconComponent: BrainCircuit,
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="p-4 border-b border-border/40">
         <div className="container mx-auto flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-primary font-headline">E-Jobfinder Pro</h1>
+          <h1 className="text-2xl font-bold text-primary font-headline">Angine</h1>
           <div className="flex items-center gap-4">
             <ThemeToggle />
           </div>
@@ -85,14 +146,37 @@ export default function Dashboard() {
                 <FileText className="text-primary" />
                 <span>Analyze Your Match</span>
               </CardTitle>
-              <CardDescription>Upload your CV and paste a job description to see your compatibility score.</CardDescription>
+              <CardDescription>
+                Select a scan mode, provide your CV and a job description, and let Angine do the rest.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              
+              <Tabs value={scanType} onValueChange={(value) => setScanType(value as 'quick' | 'deep')} className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="quick">
+                    <Zap className="mr-2 h-4 w-4"/>
+                    Quick Scan
+                  </TabsTrigger>
+                  <TabsTrigger value="deep">
+                    <BrainCircuit className="mr-2 h-4 w-4" />
+                    Deep Scan
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="quick" className="text-sm text-muted-foreground p-2">
+                 {scanModeConfig.quick.description}
+                </TabsContent>
+                <TabsContent value="deep" className="text-sm text-muted-foreground p-2">
+                  {scanModeConfig.deep.description}
+                </TabsContent>
+              </Tabs>
+
+
               <div className="space-y-2">
                 <Label htmlFor="cv-upload">CV Upload</Label>
                 <div className="flex items-center gap-3">
                   <Label htmlFor="cv-upload" className="flex-1">
-                    <Input id="cv-upload" type="file" accept=".pdf,.docx" onChange={handleFileChange} className="hidden" />
+                    <Input id="cv-upload" type="file" accept=".txt,.md" onChange={handleFileChange} className="hidden" />
                     <Button asChild variant="outline">
                       <span className="cursor-pointer flex items-center gap-2">
                         <Upload size={16} />
@@ -102,7 +186,7 @@ export default function Dashboard() {
                   </Label>
                   {cvFile && <span className="text-sm text-muted-foreground truncate">{cvFile.name}</span>}
                 </div>
-                <p className="text-xs text-muted-foreground">Upload your CV to analyze job compatibility (PDF or DOCX).</p>
+                <p className="text-xs text-muted-foreground">Upload your CV as a text file (.txt, .md).</p>
               </div>
 
               <div className="flex items-center text-center">
@@ -118,7 +202,7 @@ export default function Dashboard() {
                   placeholder="Paste your CV content here..."
                   className="min-h-[200px] text-base"
                   value={cvText}
-                  onChange={(e) => setCvText(e.target.value)}
+                  onChange={handleCvTextAreaChange}
                 />
               </div>
 
@@ -145,7 +229,8 @@ export default function Dashboard() {
                   </span>
                 ) : (
                   <span className="flex items-center gap-2">
-                    Analyze Match
+                    {scanModeConfig[scanType].icon}
+                    {scanModeConfig[scanType].buttonText}
                     <ArrowRight size={16} />
                   </span>
                 )}
@@ -158,7 +243,7 @@ export default function Dashboard() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <BarChart2 className="text-primary" />
-                  <span>Match Results</span>
+                  <span>Angine Results</span>
                 </CardTitle>
                 <CardDescription>
                   {analysisResult ? 'Here is a breakdown of your compatibility.' : 'Your analysis will appear here.'}
@@ -168,7 +253,7 @@ export default function Dashboard() {
                 {isAnalyzing && (
                   <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
                     <BrainCircuit className="w-16 h-16 text-primary animate-pulse" />
-                    <p className="text-muted-foreground">Performing deep analysis...</p>
+                    <p className="text-muted-foreground">Performing {scanType} scan...</p>
                     <Progress value={50} className="w-full animate-pulse" />
                   </div>
                 )}
@@ -176,7 +261,7 @@ export default function Dashboard() {
                   <div className="flex flex-col items-center justify-center min-h-[400px] text-center text-muted-foreground p-8">
                     <BarChart2 className="w-16 h-16 mb-4" />
                     <h3 className="font-semibold text-lg text-foreground">Ready to find your perfect job?</h3>
-                    <p>Upload your CV and a job description, then click "Analyze Match" to get started.</p>
+                    <p>Provide your info, select a scan mode, and let Angine find your optimal path.</p>
                   </div>
                 )}
                 {analysisResult && (
@@ -206,11 +291,11 @@ export default function Dashboard() {
                     </ResultItem>
                     
                     <ResultItem icon={<Lightbulb />} title="Improvement Suggestions">
-                      <p>{analysisResult.improvementSuggestions}</p>
+                      <p className="whitespace-pre-wrap">{analysisResult.improvementSuggestions}</p>
                     </ResultItem>
                     
                     <ResultItem icon={<BrainCircuit />} title="Expert Reasoning">
-                      <p>{analysisResult.reasoning}</p>
+                      <p className="whitespace-pre-wrap">{analysisResult.reasoning}</p>
                     </ResultItem>
 
                   </div>

@@ -5,7 +5,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import AuthStateListener from '@/firebase/auth-listener';
 
 export const metadata: Metadata = {
-  title: 'E-Jobfinder Pro',
+  title: 'Angine',
   description: 'Analyze your CV against job descriptions to find the perfect match.',
 };
 
