@@ -29,6 +29,7 @@ const placeholderResult: AnalysisResult = {
 
 export default function Home() {
   const [cvFile, setCvFile] = useState<File | null>(null);
+  const [cvText, setCvText] = useState<string>("");
   const [jobDescription, setJobDescription] = useState<string>("");
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -40,7 +41,7 @@ export default function Home() {
   };
 
   const handleAnalyzeClick = () => {
-    if (!cvFile || !jobDescription) {
+    if ((!cvFile && !cvText) || !jobDescription) {
       return;
     }
     setIsAnalyzing(true);
@@ -98,6 +99,24 @@ export default function Home() {
                 </div>
                 <p className="text-xs text-muted-foreground">Upload your CV to analyze job compatibility (PDF or DOCX).</p>
               </div>
+
+              <div className="flex items-center text-center">
+                  <div className="flex-grow border-t border-border" />
+                  <span className="flex-shrink mx-4 text-muted-foreground text-sm">OR</span>
+                  <div className="flex-grow border-t border-border" />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="cv-text">Paste CV</Label>
+                <Textarea
+                  id="cv-text"
+                  placeholder="Paste your CV content here..."
+                  className="min-h-[200px] text-base"
+                  value={cvText}
+                  onChange={(e) => setCvText(e.target.value)}
+                />
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="job-description">Job Description</Label>
                 <Textarea
@@ -110,7 +129,7 @@ export default function Home() {
               </div>
             </CardContent>
             <CardFooter>
-              <Button onClick={handleAnalyzeClick} disabled={!cvFile || !jobDescription || isAnalyzing} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
+              <Button onClick={handleAnalyzeClick} disabled={(!cvFile && !cvText) || !jobDescription || isAnalyzing} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
                 {isAnalyzing ? (
                   <span className="flex items-center gap-2">
                     <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
