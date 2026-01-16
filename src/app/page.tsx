@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 type AnalysisResult = {
   matchScore: number;
@@ -70,6 +71,7 @@ export default function Home() {
         <div className="container mx-auto flex items-center justify-between">
           <h1 className="text-2xl font-bold text-primary font-headline">E-Jobfinder Pro</h1>
           <div className="flex items-center gap-4">
+            <ThemeToggle />
             <Button asChild variant="ghost">
               <Link href="/login">Login</Link>
             </Button>
