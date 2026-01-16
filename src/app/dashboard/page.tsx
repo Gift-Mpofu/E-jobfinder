@@ -16,8 +16,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { analyzeCv, type CvAnalysisOutput } from "@/ai/flows/cv-analyzer-flow";
 import { handleSignOut } from "@/firebase/auth";
-import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
-import { ChartTooltipContent } from "@/components/ui/chart";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
+import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
+
+const hireRateChartConfig = {
+  rate: {
+    label: "Hiring Rate",
+    color: "hsl(var(--primary))",
+  },
+};
 
 
 export default function Dashboard() {
@@ -355,30 +362,28 @@ export default function Dashboard() {
 
                   {analysisResult.hireRateData && analysisResult.hireRateData.length > 0 && (
                     <ResultItem icon={<TrendingUp />} title={`Hiring Outlook for a ${analysisResult.jobTitle}`}>
-                        <div className="h-[250px] w-full text-xs">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={analysisResult.hireRateData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                                    <XAxis
-                                        dataKey="level"
-                                        tickLine={false}
-                                        axisLine={false}
-                                        tickMargin={8}
-                                    />
-                                    <YAxis
-                                        tickLine={false}
-                                        axisLine={false}
-                                        tickMargin={8}
-                                        tickFormatter={(value) => `${value}%`}
-                                    />
-                                    <Tooltip
-                                        cursor={false}
-                                        content={<ChartTooltipContent indicator="dot" />}
-                                    />
-                                    <Bar dataKey="rate" fill="var(--color-interviews, hsl(var(--primary)))" radius={4} />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
+                        <ChartContainer config={hireRateChartConfig} className="h-[250px] w-full text-xs">
+                            <BarChart accessibilityLayer data={analysisResult.hireRateData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                                <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                                <XAxis
+                                    dataKey="level"
+                                    tickLine={false}
+                                    axisLine={false}
+                                    tickMargin={8}
+                                />
+                                <YAxis
+                                    tickLine={false}
+                                    axisLine={false}
+                                    tickMargin={8}
+                                    tickFormatter={(value) => `${value}%`}
+                                />
+                                <Tooltip
+                                    cursor={false}
+                                    content={<ChartTooltipContent indicator="dot" />}
+                                />
+                                <Bar dataKey="rate" fill="var(--color-rate)" radius={4} />
+                            </BarChart>
+                        </ChartContainer>
                     </ResultItem>
                   )}
                   
