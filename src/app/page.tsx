@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { FC } from "react";
+import Link from "next/link";
 import { Upload, FileText, BarChart2, CheckCircle, XCircle, Lightbulb, BrainCircuit, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -68,7 +69,14 @@ export default function Home() {
       <header className="p-4 border-b border-border/40">
         <div className="container mx-auto flex items-center justify-between">
           <h1 className="text-2xl font-bold text-primary font-headline">E-Jobfinder Pro</h1>
-          <p className="text-muted-foreground">CV Match Analyzer</p>
+          <div className="flex items-center gap-4">
+            <Button asChild variant="ghost">
+              <Link href="/login">Login</Link>
+            </Button>
+            <Button asChild>
+              <Link href="/signup">Sign Up</Link>
+            </Button>
+          </div>
         </div>
       </header>
 
