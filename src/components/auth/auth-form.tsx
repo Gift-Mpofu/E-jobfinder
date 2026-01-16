@@ -49,21 +49,8 @@ export default function AuthForm({ mode }: { mode: Mode }) {
     }
   };
 
-  const handleDeveloperLogin = async () => {
-    try {
-      await handleSignIn('developer@example.com', 'password');
-      router.push('/dashboard');
-    } catch (error: any) {
-      let description = error.message;
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        description = 'Could not log in. Please sign up with email "developer@example.com" and password "password" first.';
-      }
-      toast({
-        title: 'Developer Login Failed',
-        description,
-        variant: 'destructive',
-      });
-    }
+  const handleDeveloperLogin = () => {
+    router.push('/dashboard');
   };
 
   return (

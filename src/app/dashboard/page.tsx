@@ -3,7 +3,6 @@
 import { useState } from "react";
 import type { FC } from "react";
 import { useRouter } from 'next/navigation';
-import { handleSignOut } from '@/firebase/auth';
 import { Upload, FileText, BarChart2, CheckCircle, XCircle, Lightbulb, BrainCircuit, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,11 +36,6 @@ export default function Dashboard() {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const router = useRouter();
-
-  const signOut = async () => {
-    await handleSignOut();
-    router.push('/');
-  };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
@@ -79,9 +73,6 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold text-primary font-headline">E-Jobfinder Pro</h1>
           <div className="flex items-center gap-4">
             <ThemeToggle />
-            <Button variant="outline" onClick={signOut}>
-              Sign Out
-            </Button>
           </div>
         </div>
       </header>
