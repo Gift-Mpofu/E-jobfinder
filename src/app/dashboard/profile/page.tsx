@@ -1,16 +1,17 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser, useAuth, useFirestore, useDoc, useCollection, type WithId, useMemoFirebase } from '@/firebase';
-import { doc, collection, query, orderBy, limit } from 'firebase/firestore';
-import { signOut, type User as FirebaseUser } from 'firebase/auth';
+import { useUser, useAuth, useFirestore, useDoc, useCollection, type WithId, useMemoFirebase, useFirebaseApp } from '@/firebase';
+import { doc, collection, query, orderBy, limit, updateDoc } from 'firebase/firestore';
+import { signOut, type User as FirebaseUser, updateProfile } from 'firebase/auth';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft, User as UserIcon, Award, Briefcase, BarChart3, MapPin, Gauge, FileText, Clock, Star, Eye, FileUp, LogOut, Settings2, Computer, Building2, DollarSign, History, Lock, ChevronRight, Pencil } from 'lucide-react';
+import { ArrowLeft, User as UserIcon, Award, Briefcase, BarChart3, MapPin, Gauge, FileText, Clock, Star, Eye, FileUp, LogOut, Settings2, Computer, Building2, DollarSign, History, Lock, ChevronRight, Pencil, Loader2 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
@@ -27,6 +28,7 @@ type UserProfile = {
     location?: string;
     skills?: string[];
     careerGoals?: string;
+    photoURL?: string;
 }
 
 type CV = {
@@ -45,12 +47,15 @@ export default function ProfilePage() {
   const { user: authUser, isUserLoading: authLoading } = useUser();
   const auth = useAuth();
   const firestore = useFirestore();
+  const firebaseApp = useFirebaseApp();
   const [isClient, setIsClient] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
   const { scansUsed, usageLimit } = useDashboard();
   
   const [selectedCv, setSelectedCv] = useState<WithId<CV> | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -95,6 +100,7 @@ export default function ProfilePage() {
   const { data: scanHistory, isLoading: isHistoryLoading } = useCollection<MatchResult>(matchResultsRef);
 
   const displayName = user?.displayName || (user?.email ? user.email.split('@')[0] : 'Anonymous User');
+  const photoURL = userProfile?.photoURL || user?.photoURL;
 
   const onSignOut = async () => {
     try {
@@ -114,6 +120,58 @@ export default function ProfilePage() {
     }
   };
 
+  const handleAvatarClick = () => {
+    if (isUploading || isDeveloper) return;
+    if (isDeveloper) {
+        toast({ title: "Read-only", description: "Cannot change avatar for developer account."})
+        return;
+    }
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!user || !firebaseApp) return;
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    toast({ title: 'Uploading...', description: 'Your new profile picture is being uploaded.' });
+
+    try {
+        const storage = getStorage(firebaseApp);
+        // Create a storage reference
+        const filePath = `avatars/${user.uid}/${new Date().getTime()}-${file.name}`;
+        const fileRef = storageRef(storage, filePath);
+
+        // Upload the file
+        await uploadBytes(fileRef, file);
+
+        // Get the download URL
+        const newPhotoURL = await getDownloadURL(fileRef);
+
+        // Update Firebase Auth user profile
+        if (auth.currentUser) {
+            await updateProfile(auth.currentUser, { photoURL: newPhotoURL });
+        }
+
+        // Update the user document in Firestore
+        const userDocRef = doc(firestore, 'users', user.uid);
+        await updateDoc(userDocRef, { photoURL: newPhotoURL });
+
+        toast({ title: 'Success!', description: 'Your profile picture has been updated.' });
+
+    } catch (error: any) {
+        console.error("Profile picture upload failed:", error);
+        toast({
+            variant: "destructive",
+            title: "Upload Failed",
+            description: error.message || "Could not upload your profile picture. Please try again.",
+        });
+    } finally {
+        setIsUploading(false);
+        if(fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   const getInitials = (name: string | null | undefined) => {
     if (!name) return 'U';
@@ -143,6 +201,13 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-4xl mx-auto">
+       <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept="image/png, image/jpeg, image/gif"
+            className="hidden"
+        />
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -172,13 +237,13 @@ export default function ProfilePage() {
               <div className="flex items-center space-x-4">
                 <div className="relative group">
                     <Avatar className="h-24 w-24">
-                        <AvatarImage src={user.photoURL || ''} alt={displayName} />
+                        <AvatarImage src={photoURL || ''} alt={displayName} />
                         <AvatarFallback className="text-3xl">
                         {getInitials(displayName)}
                         </AvatarFallback>
                     </Avatar>
-                    <button className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Pencil className="h-8 w-8" />
+                    <button onClick={handleAvatarClick} disabled={isUploading || isDeveloper} className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
+                       {isUploading ? <Loader2 className="h-8 w-8 animate-spin" /> : <Pencil className="h-8 w-8" />}
                     </button>
                 </div>
                 <div>
