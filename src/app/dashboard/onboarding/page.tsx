@@ -97,6 +97,8 @@ export default function OnboardingPage() {
     // Prepare data for Firestore, converting skills to an array
     const profileData = {
       ...finalAnswers,
+      id: user.uid,
+      email: user.email,
       skills: finalAnswers.skills ? finalAnswers.skills.split(',').map(s => s.trim()) : [],
     };
     
@@ -182,5 +184,3 @@ export default function OnboardingPage() {
     </div>
   );
 }
-
-    
