@@ -39,6 +39,8 @@ export default function ProfilePage() {
   
   const loading = isDeveloper ? false : authLoading;
 
+  const displayName = user?.displayName || (user?.email ? user.email.split('@')[0] : 'Anonymous User');
+
   const onSignOut = async () => {
     try {
       if (isDeveloper) {
@@ -132,13 +134,13 @@ export default function ProfilePage() {
               <>
                 <div className="flex items-center space-x-4">
                   <Avatar className="h-24 w-24">
-                    <AvatarImage src={user.photoURL || ''} alt={user.displayName || 'User'} />
+                    <AvatarImage src={user.photoURL || ''} alt={displayName} />
                     <AvatarFallback className="text-3xl">
-                      {getInitials(user.displayName)}
+                      {getInitials(displayName)}
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <h2 className="text-2xl font-bold">{user.displayName || 'Anonymous User'}</h2>
+                    <h2 className="text-2xl font-bold">{displayName}</h2>
                     <p className="text-muted-foreground">{user.email}</p>
                   </div>
                 </div>

@@ -83,6 +83,8 @@ export default function Dashboard() {
       }
     : authUser;
 
+  const displayName = user?.displayName || (user?.email ? user.email.split('@')[0] : 'User');
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
@@ -311,15 +313,15 @@ export default function Dashboard() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={user?.photoURL || ''} alt={user?.displayName || ''} />
-                    <AvatarFallback>{user ? getInitials(user.displayName) : 'U'}</AvatarFallback>
+                    <AvatarImage src={user?.photoURL || ''} alt={displayName} />
+                    <AvatarFallback>{user ? getInitials(displayName) : 'U'}</AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56" align="end" forceMount>
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{user?.displayName || 'User'}</p>
+                    <p className="text-sm font-medium leading-none">{displayName}</p>
                     <p className="text-xs leading-none text-muted-foreground">
                       {user?.email || ''}
                     </p>
