@@ -133,9 +133,9 @@ export default function ProfilePage() {
     return 'destructive';
   }
 
-  const InfoRow = ({ icon, label, value, onEdit, isLoading }: { icon: React.ElementType, label: string, value?: string, onEdit?: () => void, isLoading: boolean }) => (
+  const InfoRow = ({ icon: Icon, label, value, onEdit, isLoading }: { icon: React.ElementType, label: string, value?: string, onEdit?: () => void, isLoading: boolean }) => (
     <div className="flex items-start gap-4 p-3 border rounded-md">
-        <icon className="h-5 w-5 text-muted-foreground mt-1 flex-shrink-0" />
+        <Icon className="h-5 w-5 text-muted-foreground mt-1 flex-shrink-0" />
         <div className="flex-grow">
             <p className="text-xs text-muted-foreground">{label}</p>
             {isLoading ? <Skeleton className="h-5 w-3/4 mt-1" /> : <p className="text-sm font-medium">{value || 'Not set'}</p>}
