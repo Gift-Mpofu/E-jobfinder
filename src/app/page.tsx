@@ -6,9 +6,12 @@ import { useState, useEffect, type FC } from "react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ArrowRight, BrainCircuit, Star, Target, Zap, Briefcase } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PlaceHolderImages, type ImagePlaceholder } from "@/lib/placeholder-images";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts";
+import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
+
 
 type Feature = {
   icon: FC<React.ComponentProps<'svg'>>;
@@ -89,6 +92,22 @@ export default function LandingPage() {
           image: images.feedback
       }
   ];
+
+  const chartData = [
+    { metric: 'Interview Callback Rate', without: 15, with: 65 },
+    { metric: 'CV Match Score', without: 30, with: 85 },
+  ];
+
+  const chartConfig = {
+    without: {
+      label: 'Without Angine',
+      color: 'hsl(var(--muted-foreground))',
+    },
+    with: {
+      label: 'With Angine',
+      color: 'hsl(var(--primary))',
+    },
+  } as const;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -176,6 +195,50 @@ export default function LandingPage() {
               </div>
             </div>
            </div>
+        </section>
+
+        <section className="py-24 md:py-40">
+          <div className="container mx-auto">
+            <div className="text-center mb-16 md:mb-24">
+              <h2 className="text-3xl md:text-5xl font-bold tracking-tighter">The Angine Difference</h2>
+              <p className="mt-4 max-w-2xl mx-auto text-lg text-muted-foreground">
+                Stop guessing. Start improving. See how Angine transforms your job hunt.
+              </p>
+            </div>
+            <Card className="shadow-lg border-border/50 max-w-4xl mx-auto bg-card/50 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle>Application Success: Before & After</CardTitle>
+                <CardDescription>Angine's AI analysis dramatically improves your key job search metrics.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ChartContainer config={chartConfig} className="h-[300px] w-full text-xs">
+                  <BarChart data={chartData} accessibilityLayer margin={{ left: 10, top: 10, right: 10 }}>
+                    <CartesianGrid vertical={false} />
+                    <YAxis
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
+                      tickFormatter={(value) => `${value}%`}
+                    />
+                    <XAxis
+                      dataKey="metric"
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={10}
+                      className="text-xs"
+                    />
+                    <Tooltip
+                      cursor={false}
+                      content={<ChartTooltipContent indicator="dot" />}
+                    />
+                    <Legend />
+                    <Bar dataKey="without" fill="var(--color-without)" radius={8} />
+                    <Bar dataKey="with" fill="var(--color-with)" radius={8} />
+                  </BarChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+          </div>
         </section>
         
         <section className="py-24 md:py-40">
