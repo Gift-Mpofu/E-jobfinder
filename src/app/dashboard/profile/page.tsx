@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser } from '@/hooks/use-user';
+import { useUser, useAuth } from '@/firebase';
+import { signOut } from 'firebase/auth';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -13,11 +14,11 @@ import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
-import { handleSignOut } from '@/firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 
 export default function ProfilePage() {
-  const { user: authUser, loading: authLoading } = useUser();
+  const { user: authUser, isUserLoading: authLoading } = useUser();
+  const auth = useAuth();
   const [isClient, setIsClient] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
@@ -43,7 +44,7 @@ export default function ProfilePage() {
       if (isDeveloper) {
         sessionStorage.removeItem('isDeveloper');
       } else {
-        await handleSignOut();
+        await signOut(auth);
       }
       router.push('/login');
     } catch (error) {

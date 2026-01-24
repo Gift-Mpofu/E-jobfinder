@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import type { FC } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { signOut } from "firebase/auth";
 import { Upload, FileText, BarChart2, CheckCircle, XCircle, Lightbulb, BrainCircuit, ArrowRight, Zap, ChevronsRight, Frown, Meh, Smile, LogOut, Bell, TrendingUp, MessageSquare, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +17,6 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { analyzeCv, type CvAnalysisOutput } from "@/ai/flows/cv-analyzer-flow";
-import { handleSignOut } from "@/firebase/auth";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
 import {
@@ -42,7 +42,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useUser } from "@/hooks/use-user";
+import { useUser, useAuth } from "@/firebase";
 
 
 const hireRateChartConfig = {
@@ -66,6 +66,7 @@ export default function Dashboard() {
   const { toast } = useToast();
   const router = useRouter();
   const { user: authUser } = useUser();
+  const auth = useAuth();
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
@@ -162,7 +163,7 @@ export default function Dashboard() {
       if (isDeveloper) {
         sessionStorage.removeItem('isDeveloper');
       } else {
-        await handleSignOut();
+        await signOut(auth);
       }
       router.push('/login');
     } catch (error) {

@@ -1,14 +1,16 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  handleSignIn,
-  handleSignUp,
-  handleGoogleSignIn,
-} from '@/firebase/auth';
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup,
+} from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import InputWithLabel from '@/components/ui/input-with-label';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth, useUser } from '@/firebase';
 
 type Mode = 'login' | 'signup';
 
@@ -17,14 +19,22 @@ export default function AuthForm({ mode }: { mode: Mode }) {
   const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const auth = useAuth();
+  const { user } = useUser();
+
+  useEffect(() => {
+    if (user) {
+      router.push('/dashboard');
+    }
+  }, [user, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       if (mode === 'login') {
-        await handleSignIn(email, password);
+        await signInWithEmailAndPassword(auth, email, password);
       } else {
-        await handleSignUp(email, password);
+        await createUserWithEmailAndPassword(auth, email, password);
       }
       router.push('/dashboard');
     } catch (error: any) {
@@ -38,7 +48,8 @@ export default function AuthForm({ mode }: { mode: Mode }) {
 
   const handleGoogle = async () => {
     try {
-      await handleGoogleSignIn();
+      const googleProvider = new GoogleAuthProvider();
+      await signInWithPopup(auth, googleProvider);
       router.push('/dashboard');
     } catch (error: any) {
       toast({
