@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useUser } from '@/hooks/use-user';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -13,7 +14,25 @@ import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
 
 export default function ProfilePage() {
-  const { user, loading } = useUser();
+  const { user: authUser, loading: authLoading } = useUser();
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  const isDeveloper = isClient && sessionStorage.getItem('isDeveloper') === 'true';
+
+  const user = isDeveloper
+    ? {
+        displayName: 'Developer',
+        email: 'dev@angine.com',
+        photoURL: 'https://i.pravatar.cc/150?u=developer',
+      }
+    : authUser;
+  
+  const loading = isDeveloper ? false : authLoading;
+
 
   const getInitials = (name: string | null | undefined) => {
     if (!name) return 'U';

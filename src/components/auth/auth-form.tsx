@@ -50,6 +50,7 @@ export default function AuthForm({ mode }: { mode: Mode }) {
   };
 
   const handleDeveloperLogin = () => {
+    sessionStorage.setItem('isDeveloper', 'true');
     router.push('/dashboard');
   };
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { FC } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -59,7 +59,22 @@ export default function Dashboard() {
   const [feedbackText, setFeedbackText] = useState("");
   const { toast } = useToast();
   const router = useRouter();
-  const { user } = useUser();
+  const { user: authUser } = useUser();
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  const isDeveloper = isClient && sessionStorage.getItem('isDeveloper') === 'true';
+
+  const user = isDeveloper
+    ? {
+        displayName: 'Developer',
+        email: 'dev@angine.com',
+        photoURL: 'https://i.pravatar.cc/150?u=developer',
+      }
+    : authUser;
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
@@ -138,7 +153,11 @@ export default function Dashboard() {
 
   const onSignOut = async () => {
     try {
-      await handleSignOut();
+      if (isDeveloper) {
+        sessionStorage.removeItem('isDeveloper');
+      } else {
+        await handleSignOut();
+      }
       router.push('/login');
     } catch (error) {
       console.error("Sign out failed", error);
