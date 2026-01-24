@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser, useAuth, useFirestore, useDoc, useCollection, doc, collection, query, orderBy, limit, type WithId } from '@/firebase';
+import { useUser, useAuth, useFirestore, useDoc, useCollection, type WithId } from '@/firebase';
+import { doc, collection, query, orderBy, limit } from 'firebase/firestore';
 import { signOut, type User as FirebaseUser } from 'firebase/auth';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -364,5 +365,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-    
