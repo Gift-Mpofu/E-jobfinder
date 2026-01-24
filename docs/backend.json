@@ -15,6 +15,11 @@
           "description": "Email address of the user.",
           "format": "email"
         },
+        "photoURL": {
+          "type": "string",
+          "description": "URL of the user's profile picture.",
+          "format": "uri"
+        },
         "firstName": {
           "type": "string",
           "description": "First name of the user."
@@ -295,5 +300,3 @@
     "reasoning": "The Firestore structure is designed to securely store user data, CVs, job descriptions, and match results, ensuring authorization independence and enabling secure list operations. It leverages path-based ownership for user-specific data and denormalization to avoid `get()` calls in security rules.\n\n*   `/users/{userId}`: Stores user profiles. This collection provides a central location for user information and serves as the root for user-owned data.\n*   `/users/{userId}/cvs/{cvId}`: Stores CVs associated with a user. This structure enforces ownership by path and allows for easy retrieval of a user's CVs.\n*   `/users/{userId}/jobDescriptions/{jobDescriptionId}`: Stores job descriptions created by a user. Similar to CVs, this structure ensures ownership and simplifies data retrieval.\n*   `/users/{userId}/cvs/{cvId}/matchResults/{matchResultId}`: Stores match results for a specific CV. Nesting match results under CVs provides a clear hierarchy and ensures that match results are always associated with their corresponding CV.\n\nThis design achieves Authorization Independence by using path-based ownership, which avoids the need for `get()` calls in security rules. It supports QAPs (Rules are not Filters) by segregating data based on ownership, allowing for secure list operations within each user's data. For example, a user can only list CVs and job descriptions that they own."
   }
 }
-
-    

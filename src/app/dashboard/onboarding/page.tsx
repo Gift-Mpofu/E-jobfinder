@@ -99,6 +99,7 @@ export default function OnboardingPage() {
       ...finalAnswers,
       id: user.uid,
       email: user.email,
+      photoURL: user.photoURL,
       skills: finalAnswers.skills ? finalAnswers.skills.split(',').map(s => s.trim()) : [],
     };
     
