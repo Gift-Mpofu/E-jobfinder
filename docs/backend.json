@@ -1,153 +1,248 @@
 {
   "entities": {
-    "UserProfile": {
-      "title": "User Profile",
-      "description": "Stores additional information about a user.",
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
       "type": "object",
+      "description": "Represents a user of the E-Jobfinder Pro application.",
       "properties": {
-        "displayName": {
+        "id": {
           "type": "string",
-          "description": "The user's display name."
+          "description": "Unique identifier for the User entity."
         },
         "email": {
           "type": "string",
-          "format": "email",
-          "description": "The user's email address."
+          "description": "Email address of the user.",
+          "format": "email"
         },
-        "photoURL": {
+        "firstName": {
           "type": "string",
-          "format": "uri",
-          "description": "URL of the user's profile picture."
+          "description": "First name of the user."
         },
-        "accountType": {
+        "lastName": {
           "type": "string",
-          "enum": [
-            "Free",
-            "Pro",
-            "Agent"
-          ],
-          "description": "The user's account subscription type."
-        },
-        "currentRole": {
-          "type": "string",
-          "description": "The user's current or target job role."
-        },
-        "experienceLevel": {
-          "type": "string",
-          "enum": [
-            "Student",
-            "Junior",
-            "Mid",
-            "Senior"
-          ],
-          "description": "The user's professional experience level."
-        },
-        "location": {
-          "type": "string",
-          "description": "The user's geographical location."
-        },
-        "cvs": {
-          "type": "array",
-          "description": "A list of the user's uploaded CVs.",
-          "items": {
-            "type": "object",
-            "properties": {
-              "fileName": {
-                "type": "string"
-              },
-              "storagePath": {
-                "type": "string"
-              },
-              "uploadedAt": {
-                "type": "string",
-                "format": "date-time"
-              },
-              "lastScanned": {
-                "type": "string",
-                "format": "date-time"
-              },
-              "bestMatchScore": {
-                "type": "number"
-              }
-            },
-            "required": [
-              "fileName",
-              "storagePath",
-              "uploadedAt"
-            ]
-          }
-        },
-        "jobPreferences": {
-          "type": "object",
-          "description": "User's job search preferences.",
-          "properties": {
-            "preferredRoles": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "workModel": {
-              "type": "string",
-              "enum": [
-                "Remote",
-                "Hybrid",
-                "On-site"
-              ]
-            },
-            "salaryRange": {
-              "type": "string"
-            }
-          }
-        },
-        "scanHistory": {
-          "type": "array",
-          "description": "A history of the user's past CV scans.",
-          "items": {
-            "type": "object",
-            "properties": {
-              "jobTitle": {
-                "type": "string"
-              },
-              "matchScore": {
-                "type": "number"
-              },
-              "scanDate": {
-                "type": "string",
-                "format": "date-time"
-              },
-              "reportId": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "jobTitle",
-              "matchScore",
-              "scanDate",
-              "reportId"
-            ]
-          }
+          "description": "Last name of the user."
         }
       },
       "required": [
-        "displayName",
+        "id",
         "email",
-        "accountType"
+        "firstName",
+        "lastName"
+      ]
+    },
+    "CV": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CV",
+      "type": "object",
+      "description": "Represents a user's CV (resume).",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the CV entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N CV)"
+        },
+        "fileName": {
+          "type": "string",
+          "description": "Name of the CV file."
+        },
+        "uploadDate": {
+          "type": "string",
+          "description": "Date and time when the CV was uploaded.",
+          "format": "date-time"
+        },
+        "fileContent": {
+          "type": "string",
+          "description": "Content of the CV file (e.g., base64 encoded).",
+          "format": "string"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "fileName",
+        "uploadDate",
+        "fileContent"
+      ]
+    },
+    "JobDescription": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "JobDescription",
+      "type": "object",
+      "description": "Represents a job description entered by a user.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the JobDescription entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N JobDescription)"
+        },
+        "descriptionText": {
+          "type": "string",
+          "description": "The text content of the job description."
+        },
+        "creationDate": {
+          "type": "string",
+          "description": "Date and time when the job description was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "descriptionText",
+        "creationDate"
+      ]
+    },
+    "MatchResult": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "MatchResult",
+      "type": "object",
+      "description": "Represents the results of matching a CV against a job description.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the MatchResult entity."
+        },
+        "cvId": {
+          "type": "string",
+          "description": "Reference to CV. (Relationship: CV 1:N MatchResult)"
+        },
+        "jobDescriptionId": {
+          "type": "string",
+          "description": "Reference to JobDescription. (Relationship: JobDescription 1:N MatchResult)"
+        },
+        "matchScore": {
+          "type": "number",
+          "description": "The overall match score (e.g., percentage) between the CV and the job description."
+        },
+        "strengths": {
+          "type": "array",
+          "description": "A list of strengths identified in the CV that match the job description.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "missingKeywords": {
+          "type": "array",
+          "description": "A list of keywords missing from the CV that are present in the job description.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "improvementSuggestions": {
+          "type": "string",
+          "description": "Suggestions for improving the CV to better match the job description."
+        },
+        "analysisDate": {
+          "type": "string",
+          "description": "Date and time when the match analysis was performed.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "cvId",
+        "jobDescriptionId",
+        "matchScore",
+        "analysisDate"
       ]
     }
   },
   "auth": {
     "providers": [
       "password",
-      "google.com"
+      "anonymous"
     ]
   },
   "firestore": {
-    "/users/{userId}": {
-      "schema": {
-        "$ref": "#/entities/UserProfile"
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            }
+          ]
+        }
       },
-      "description": "Stores user profile data, keyed by user ID."
-    }
+      {
+        "path": "/users/{userId}/cvs/{cvId}",
+        "definition": {
+          "entityName": "CV",
+          "schema": {
+            "$ref": "#/backend/entities/CV"
+          },
+          "description": "Stores CVs associated with a user.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "cvId",
+              "description": "The unique identifier of the CV."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/jobDescriptions/{jobDescriptionId}",
+        "definition": {
+          "entityName": "JobDescription",
+          "schema": {
+            "$ref": "#/backend/entities/JobDescription"
+          },
+          "description": "Stores job descriptions created by a user.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "jobDescriptionId",
+              "description": "The unique identifier of the job description."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/cvs/{cvId}/matchResults/{matchResultId}",
+        "definition": {
+          "entityName": "MatchResult",
+          "schema": {
+            "$ref": "#/backend/entities/MatchResult"
+          },
+          "description": "Stores match results for a specific CV.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "cvId",
+              "description": "The unique identifier of the CV."
+            },
+            {
+              "name": "matchResultId",
+              "description": "The unique identifier of the match result."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to securely store user data, CVs, job descriptions, and match results, ensuring authorization independence and enabling secure list operations. It leverages path-based ownership for user-specific data and denormalization to avoid `get()` calls in security rules.\n\n*   `/users/{userId}`: Stores user profiles. This collection provides a central location for user information and serves as the root for user-owned data.\n*   `/users/{userId}/cvs/{cvId}`: Stores CVs associated with a user. This structure enforces ownership by path and allows for easy retrieval of a user's CVs.\n*   `/users/{userId}/jobDescriptions/{jobDescriptionId}`: Stores job descriptions created by a user. Similar to CVs, this structure ensures ownership and simplifies data retrieval.\n*   `/users/{userId}/cvs/{cvId}/matchResults/{matchResultId}`: Stores match results for a specific CV. Nesting match results under CVs provides a clear hierarchy and ensures that match results are always associated with their corresponding CV.\n\nThis design achieves Authorization Independence by using path-based ownership, which avoids the need for `get()` calls in security rules. It supports QAPs (Rules are not Filters) by segregating data based on ownership, allowing for secure list operations within each user's data. For example, a user can only list CVs and job descriptions that they own."
   }
 }

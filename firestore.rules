@@ -1,0 +1,183 @@
+/**
+ * Core Philosophy: This ruleset implements a strict user-ownership security model.
+ * All data is considered private and is segregated under a user-specific path.
+ * A user can only access, modify, or delete their own data, and they cannot
+ * see or interact with the data of any other user.
+ *
+ * Data Structure: The data is organized hierarchically, with all user-related
+ * collections nested under `/users/{userId}`. This structure includes a user's
+ * profile, their CVs (`/cvs`), their job descriptions (`/jobDescriptions`),
+ * and the analysis results from matching a CV to a job (`/matchResults`). This
+ * path-based segregation is the foundation of the security model.
+ *
+ * Key Security Decisions:
+ * - User Isolation: All rules are based on the `{userId}` wildcard in the path,
+ *   ensuring a user's operations are confined to their own data tree.
+ * - No Public Data: There are no publicly readable collections. A user must be
+ *   authenticated to access any data.
+ * - No User Listing: It is forbidden to list the top-level `/users`
+ *   collection to prevent enumeration of all application users.
+ * - Authorization over Validation: In this prototyping stage, rules focus
+ *   strictly on *who* can access data, not the specific *shape* of the data.
+ *   Validation is limited to fields critical for maintaining ownership links.
+ *
+ * Denormalization for Authorization: The security model relies on path-based
+ * ownership. The `userId` in the document path (`/users/{userId}/...`) is the
+ * primary source of truth for authorization. This is highly performant as it
+ * avoids extra database reads (`get()`) within the rules. To ensure data
+ * integrity, documents within a user's tree also contain a `userId` field,
+ * which is validated on creation and made immutable on update.
+ *
+ * Structural Segregation: The data model naturally segregates each user's
+ * private data into their own document tree, which is a highly secure and
+ * performant pattern for managing user-owned content.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ----------------------------------------------------------------------
+    // Helper Functions
+    // ----------------------------------------------------------------------
+
+    /**
+     * Checks if the user is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * Checks if the requesting user's UID matches the document owner's UID
+     * from the URL path.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    /**
+     * Checks if the document being operated on already exists.
+     * Crucial for update and delete operations.
+     */
+    function isExistingDocument() {
+      return resource != null;
+    }
+
+    /**
+     * Verifies that the requesting user is the owner of an existing document.
+     * Used for secure update and delete operations.
+     */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && isExistingDocument();
+    }
+    
+    /**
+     * Validates the creation of a user's own profile document.
+     * Ensures the user ID in the path matches the ID in the document body.
+     */
+    function isValidUserCreate(userId) {
+      return isOwner(userId) && request.resource.data.id == userId;
+    }
+    
+    /**
+     * Enforces that the user ID in the profile document cannot be changed.
+     */
+    function isImmutableUserId() {
+      return request.resource.data.id == resource.data.id;
+    }
+    
+    /**
+     * Validates the creation of a user-owned document in a subcollection.
+     * Ensures the document's internal userId field correctly links to the owner.
+     */
+    function isValidOwnedDocumentCreate(userId) {
+      return isOwner(userId) && request.resource.data.userId == userId;
+    }
+    
+    /**
+     * Enforces that the ownership link (userId field) on a document is immutable.
+     */
+    function isImmutableOwnerLink() {
+      return request.resource.data.userId == resource.data.userId;
+    }
+
+    // ----------------------------------------------------------------------
+    // Collection Rules
+    // ----------------------------------------------------------------------
+
+    /**
+     * @description Manages user profile documents. A user can create their own
+     *   profile and can read, update, or delete it. No other user has access.
+     * @path /users/{userId}
+     * @allow (get) An authenticated user with UID 'user123' reads their own
+     *   profile at /users/user123.
+     * @deny (list) An authenticated user tries to list all documents in the
+     *   /users collection.
+     * @deny (create) User 'user123' tries to create a profile for 'user456' at
+     *   /users/user456.
+     * @principle Restricts access to a user's own profile document and prevents
+     *   user enumeration by disallowing list operations.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isValidUserCreate(userId);
+      allow update: if isExistingOwner(userId) && isImmutableUserId();
+      allow delete: if isExistingOwner(userId);
+
+      /**
+       * @description Manages a user's private collection of CVs (resumes).
+       * @path /users/{userId}/cvs/{cvId}
+       * @allow (create) An authenticated user 'user123' adds a new CV to their
+       *   own collection at /users/user123/cvs/cv_abc.
+       * @deny (get) User 'user456' tries to read a CV from
+       *   /users/user123/cvs/cv_abc.
+       * @principle Enforces strict ownership for all operations on a user's
+       *   private subcollection data.
+       */
+      match /cvs/{cvId} {
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isValidOwnedDocumentCreate(userId);
+        allow update: if isExistingOwner(userId) && isImmutableOwnerLink();
+        allow delete: if isExistingOwner(userId);
+
+        /**
+         * @description Manages the analysis results generated by matching a
+         *   specific CV against a job description.
+         * @path /users/{userId}/cvs/{cvId}/matchResults/{matchResultId}
+         * @allow (list) User 'user123' lists all match results for their own CV
+         *   at /users/user123/cvs/cv_abc/matchResults.
+         * @deny (update) User 'user456' tries to modify a match result at
+         *   /users/user123/cvs/cv_abc/matchResults/res_xyz.
+         * @principle Extends user ownership down to nested subcollections,
+         *   ensuring all related data remains private.
+         */
+        match /matchResults/{matchResultId} {
+          allow get: if isOwner(userId);
+          allow list: if isOwner(userId);
+          allow create: if isOwner(userId);
+          allow update: if isExistingOwner(userId);
+          allow delete: if isExistingOwner(userId);
+        }
+      }
+
+      /**
+       * @description Manages a user's private collection of job descriptions.
+       * @path /users/{userId}/jobDescriptions/{jobDescriptionId}
+       * @allow (delete) User 'user123' deletes one of their own job descriptions
+       *   from /users/user123/jobDescriptions/job_xyz.
+       * @deny (list) An unauthenticated user tries to list job descriptions.
+       * @principle Enforces strict ownership for all operations on a user's
+       *   private subcollection data.
+       */
+      match /jobDescriptions/{jobDescriptionId} {
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isValidOwnedDocumentCreate(userId);
+        allow update: if isExistingOwner(userId) && isImmutableOwnerLink();
+        allow delete: if isExistingOwner(userId);
+      }
+    }
+  }
+}
