@@ -6,7 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft, User as UserIcon, Mail, KeyRound } from 'lucide-react';
+import { ArrowLeft, User as UserIcon, Mail, KeyRound, Award, Briefcase, BarChart3, MapPin, Gauge } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Separator } from '@/components/ui/separator';
 
 export default function ProfilePage() {
   const { user, loading } = useUser();
@@ -18,6 +20,11 @@ export default function ProfilePage() {
       return names[0][0] + names[names.length - 1][0];
     }
     return name[0];
+  };
+
+  const usage = {
+    scansUsed: 2,
+    scansLimit: 3,
   };
 
   return (
@@ -35,9 +42,9 @@ export default function ProfilePage() {
               <UserIcon className="text-primary" />
               <span>User Profile</span>
             </CardTitle>
-            <CardDescription>View and manage your profile information.</CardDescription>
+            <CardDescription>View and manage your profile and career details.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-8">
             {loading ? (
               <div className="space-y-6">
                 <div className="flex items-center space-x-4">
@@ -50,6 +57,7 @@ export default function ProfilePage() {
                 <div className="space-y-4">
                     <Skeleton className="h-10 w-full" />
                     <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-20 w-full" />
                 </div>
               </div>
             ) : user ? (
@@ -66,21 +74,67 @@ export default function ProfilePage() {
                     <p className="text-muted-foreground">{user.email}</p>
                   </div>
                 </div>
-                <div className="space-y-4 pt-4">
-                    <div className="flex items-center gap-4 p-3 border rounded-md">
-                        <Mail className="h-5 w-5 text-muted-foreground" />
-                        <span className="text-sm">{user.email}</span>
-                        {user.emailVerified ? (
-                             <span className="text-xs text-green-500 font-semibold ml-auto">Verified</span>
-                        ): (
-                            <span className="text-xs text-yellow-500 font-semibold ml-auto">Not Verified</span>
-                        )}
-                    </div>
-                     <div className="flex items-center gap-4 p-3 border rounded-md">
-                        <KeyRound className="h-5 w-5 text-muted-foreground" />
-                        <span className="text-sm">UID: {user.uid}</span>
+                
+                <Separator />
+
+                <div>
+                    <h3 className="text-lg font-semibold mb-4">Account Details</h3>
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-4 p-3 border rounded-md">
+                            <Award className="h-5 w-5 text-muted-foreground" />
+                            <span className="text-sm font-medium">Account Type</span>
+                            <span className="text-sm text-primary font-semibold ml-auto bg-primary/10 px-2 py-1 rounded-full">Free</span>
+                        </div>
+
+                        <div className="p-3 border rounded-md">
+                            <div className="flex items-center gap-4">
+                                <Gauge className="h-5 w-5 text-muted-foreground" />
+                                <div className="w-full">
+                                    <div className="flex justify-between items-center mb-1">
+                                        <span className="text-sm font-medium">Usage Meter</span>
+                                        <span className="text-xs text-muted-foreground">{usage.scansUsed} / {usage.scansLimit} scans used</span>
+                                    </div>
+                                    <Progress value={(usage.scansUsed / usage.scansLimit) * 100} />
+                                    <p className="text-xs text-muted-foreground mt-2">Your free scans reset weekly. <Button variant="link" className="p-0 h-auto text-xs">Upgrade for unlimited scans.</Button></p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
+
+                <Separator />
+
+                <div>
+                    <h3 className="text-lg font-semibold mb-4">Career Snapshot</h3>
+                     <div className="space-y-4">
+                        <div className="flex items-start gap-4 p-3 border rounded-md">
+                            <Briefcase className="h-5 w-5 text-muted-foreground mt-1" />
+                            <div>
+                                <p className="text-xs text-muted-foreground">Current / Target Role</p>
+                                <p className="text-sm font-medium">Senior Product Manager</p>
+                            </div>
+                             <Button variant="outline" size="sm" className="ml-auto">Edit</Button>
+                        </div>
+                        <div className="flex items-start gap-4 p-3 border rounded-md">
+                            <BarChart3 className="h-5 w-5 text-muted-foreground mt-1" />
+                             <div>
+                                <p className="text-xs text-muted-foreground">Experience Level</p>
+                                <p className="text-sm font-medium">Senior</p>
+                            </div>
+                             <Button variant="outline" size="sm" className="ml-auto">Edit</Button>
+                        </div>
+                         <div className="flex items-start gap-4 p-3 border rounded-md">
+                            <MapPin className="h-5 w-5 text-muted-foreground mt-1" />
+                            <div>
+                                <p className="text-xs text-muted-foreground">Location</p>
+                                <p className="text-sm font-medium">London, UK</p>
+                            </div>
+                             <Button variant="outline" size="sm" className="ml-auto">Edit</Button>
+                        </div>
+                    </div>
+                </div>
+
+
               </>
             ) : (
               <p>No user is signed in.</p>
