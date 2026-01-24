@@ -68,6 +68,7 @@ export default function Dashboard() {
   const { user: authUser, isUserLoading } = useUser();
   const auth = useAuth();
   const [isClient, setIsClient] = useState(false);
+  const [usageLimit] = useState(3);
 
   useEffect(() => {
     setIsClient(true);
@@ -125,6 +126,18 @@ export default function Dashboard() {
   }
 
   const handleAnalyzeClick = async () => {
+    const storedScans = localStorage.getItem('angine_scansUsed');
+    const scansUsed = storedScans ? parseInt(storedScans, 10) : 0;
+
+    if (scansUsed >= usageLimit) {
+        toast({
+            variant: 'destructive',
+            title: 'Usage Limit Reached',
+            description: 'You have used all your free scans for this week. Please upgrade for unlimited scans.',
+        });
+        return;
+    }
+    
     let cvContent = cvText;
 
     if (!cvContent && cvFile) {
@@ -159,6 +172,8 @@ export default function Dashboard() {
             scanType,
         });
         setAnalysisResult(result);
+        const newScansUsed = scansUsed + 1;
+        localStorage.setItem('angine_scansUsed', newScansUsed.toString());
     } catch (error: any) {
         console.error("Analysis failed:", error);
         toast({

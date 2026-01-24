@@ -20,12 +20,22 @@ export default function ProfilePage() {
   const { user: authUser, isUserLoading: authLoading } = useUser();
   const auth = useAuth();
   const [isClient, setIsClient] = useState(false);
+  const [usage, setUsage] = useState({ scansUsed: 0, scansLimit: 3 });
   const router = useRouter();
   const { toast } = useToast();
 
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  useEffect(() => {
+    if (isClient) {
+        const storedScans = localStorage.getItem('angine_scansUsed');
+        if (storedScans) {
+            setUsage(prev => ({ ...prev, scansUsed: parseInt(storedScans, 10) }));
+        }
+    }
+  }, [isClient]);
 
   const isDeveloper = isClient && sessionStorage.getItem('isDeveloper') === 'true';
 
@@ -70,8 +80,6 @@ export default function ProfilePage() {
   };
 
   // --- Placeholder Data ---
-  const usage = { scansUsed: 0, scansLimit: 3 };
-
   const cvs = [
       { name: 'Software_Engineer_CV_2024.pdf', lastScanned: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), bestScore: 88, },
       { name: 'Product_Manager_Resume.pdf', lastScanned: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), bestScore: 72, },
