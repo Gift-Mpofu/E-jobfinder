@@ -65,13 +65,24 @@ export default function Dashboard() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
-  const { user: authUser } = useUser();
+  const { user: authUser, isUserLoading } = useUser();
   const auth = useAuth();
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  useEffect(() => {
+    if (isClient && !isUserLoading) {
+      const isDeveloper = sessionStorage.getItem('isDeveloper') === 'true';
+      const onboardingComplete = sessionStorage.getItem('onboardingComplete') === 'true';
+
+      if (!isDeveloper && !onboardingComplete && authUser) {
+        router.push('/dashboard/onboarding');
+      }
+    }
+  }, [isClient, isUserLoading, authUser, router]);
 
   const isDeveloper = isClient && sessionStorage.getItem('isDeveloper') === 'true';
 
