@@ -1,21 +1,26 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useUser } from '@/hooks/use-user';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft, User as UserIcon, Award, Briefcase, BarChart3, MapPin, Gauge, FileText, Clock, Star, RefreshCcw, Replace, Settings2, Computer, Home, Building2, DollarSign, History, Lock, Eye, FileUp } from 'lucide-react';
+import { ArrowLeft, User as UserIcon, Award, Briefcase, BarChart3, MapPin, Gauge, FileText, Clock, Star, RefreshCcw, Replace, Settings2, Computer, Home, Building2, DollarSign, History, Lock, Eye, FileUp, LogOut } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
+import { handleSignOut } from '@/firebase/auth';
+import { useToast } from '@/hooks/use-toast';
 
 export default function ProfilePage() {
   const { user: authUser, loading: authLoading } = useUser();
   const [isClient, setIsClient] = useState(false);
+  const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
     setIsClient(true);
@@ -32,6 +37,24 @@ export default function ProfilePage() {
     : authUser;
   
   const loading = isDeveloper ? false : authLoading;
+
+  const onSignOut = async () => {
+    try {
+      if (isDeveloper) {
+        sessionStorage.removeItem('isDeveloper');
+      } else {
+        await handleSignOut();
+      }
+      router.push('/login');
+    } catch (error) {
+      console.error("Sign out failed", error);
+      toast({
+        variant: "destructive",
+        title: "Sign Out Failed",
+        description: "An error occurred while signing out.",
+      });
+    }
+  };
 
 
   const getInitials = (name: string | null | undefined) => {
@@ -271,6 +294,14 @@ export default function ProfilePage() {
               <p>No user is signed in.</p>
             )}
           </CardContent>
+          {user && (
+            <CardFooter className="border-t pt-6">
+              <Button variant="outline" onClick={onSignOut}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Log out
+              </Button>
+            </CardFooter>
+          )}
         </Card>
       </div>
     </div>
