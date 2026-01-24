@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { FC } from "react";
 import { useRouter } from "next/navigation";
-import { Upload, FileText, BarChart2, CheckCircle, XCircle, Lightbulb, BrainCircuit, ArrowRight, Zap, ChevronsRight, Frown, Meh, Smile, LogOut, Bell, TrendingUp } from "lucide-react";
+import { Upload, FileText, BarChart2, CheckCircle, XCircle, Lightbulb, BrainCircuit, ArrowRight, Zap, ChevronsRight, Frown, Meh, Smile, LogOut, Bell, TrendingUp, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,15 @@ import { analyzeCv, type CvAnalysisOutput } from "@/ai/flows/cv-analyzer-flow";
 import { handleSignOut } from "@/firebase/auth";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 const hireRateChartConfig = {
   rate: {
@@ -34,6 +43,8 @@ export default function Dashboard() {
   const [analysisResult, setAnalysisResult] = useState<CvAnalysisOutput | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [scanType, setScanType] = useState<'quick' | 'deep'>('quick');
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedbackText, setFeedbackText] = useState("");
   const { toast } = useToast();
   const router = useRouter();
 
@@ -124,6 +135,17 @@ export default function Dashboard() {
         description: "An error occurred while signing out.",
       });
     }
+  };
+
+  const handleFeedbackSubmit = () => {
+    // In a real app, you'd send this to a backend.
+    console.log("Feedback submitted:", feedbackText);
+    toast({
+      title: "Feedback Submitted",
+      description: "Thank you for helping us improve Angine!",
+    });
+    setFeedbackText("");
+    setFeedbackOpen(false);
   };
 
   const ResultItem: FC<{ icon: React.ReactNode; title: string; children: React.ReactNode }> = ({ icon, title, children }) => (
@@ -362,28 +384,28 @@ export default function Dashboard() {
 
                   {analysisResult.hireRateData && analysisResult.hireRateData.length > 0 && (
                     <ResultItem icon={<TrendingUp />} title={`Hiring Outlook for a ${analysisResult.jobTitle}`}>
-                        <ChartContainer config={hireRateChartConfig} className="h-[250px] w-full text-xs">
-                            <BarChart accessibilityLayer data={analysisResult.hireRateData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                                <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                                <XAxis
-                                    dataKey="level"
-                                    tickLine={false}
-                                    axisLine={false}
-                                    tickMargin={8}
-                                />
-                                <YAxis
-                                    tickLine={false}
-                                    axisLine={false}
-                                    tickMargin={8}
-                                    tickFormatter={(value) => `${value}%`}
-                                />
-                                <Tooltip
-                                    cursor={false}
-                                    content={<ChartTooltipContent indicator="dot" />}
-                                />
-                                <Bar dataKey="rate" fill="var(--color-rate)" radius={4} />
-                            </BarChart>
-                        </ChartContainer>
+                      <ChartContainer config={hireRateChartConfig} className="h-[250px] w-full text-xs">
+                          <BarChart accessibilityLayer data={analysisResult.hireRateData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                              <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                              <XAxis
+                                  dataKey="level"
+                                  tickLine={false}
+                                  axisLine={false}
+                                  tickMargin={8}
+                              />
+                              <YAxis
+                                  tickLine={false}
+                                  axisLine={false}
+                                  tickMargin={8}
+                                  tickFormatter={(value) => `${value}%`}
+                              />
+                              <Tooltip
+                                  cursor={false}
+                                  content={<ChartTooltipContent indicator="dot" />}
+                              />
+                              <Bar dataKey="rate" fill="var(--color-rate)" radius={4} />
+                          </BarChart>
+                      </ChartContainer>
                     </ResultItem>
                   )}
                   
@@ -391,6 +413,36 @@ export default function Dashboard() {
                     <p className="whitespace-pre-wrap">{analysisResult.reasoning}</p>
                   </ResultItem>
 
+                  <div className="mt-8 pt-8 border-t text-center">
+                    <Dialog open={feedbackOpen} onOpenChange={setFeedbackOpen}>
+                      <DialogTrigger asChild>
+                        <Button variant="outline">
+                          <MessageSquare className="mr-2 h-4 w-4" />
+                          Provide Feedback on Your Results
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-[425px]">
+                        <DialogHeader>
+                          <DialogTitle>Provide Feedback</DialogTitle>
+                          <DialogDescription>
+                            Did Angine work perfectly? Let us know what you think about the analysis you received.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                          <Textarea
+                            id="feedback-text"
+                            placeholder="Your feedback is valuable to us..."
+                            className="min-h-[150px]"
+                            value={feedbackText}
+                            onChange={(e) => setFeedbackText(e.target.value)}
+                          />
+                        </div>
+                        <DialogFooter>
+                          <Button onClick={handleFeedbackSubmit} disabled={!feedbackText}>Submit Feedback</Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
                 </div>
               )}
             </CardContent>
