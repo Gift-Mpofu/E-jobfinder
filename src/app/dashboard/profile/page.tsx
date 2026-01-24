@@ -2,11 +2,11 @@
 
 import { useUser } from '@/hooks/use-user';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft, User as UserIcon, Award, Briefcase, BarChart3, MapPin, Gauge, FileText, Clock, Star, RefreshCcw, Replace, Settings2, Computer, Home, Building2, DollarSign, History, Lock, Eye } from 'lucide-react';
+import { ArrowLeft, User as UserIcon, Award, Briefcase, BarChart3, MapPin, Gauge, FileText, Clock, Star, RefreshCcw, Replace, Settings2, Computer, Home, Building2, DollarSign, History, Lock, Eye, FileUp } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
@@ -184,9 +184,9 @@ export default function ProfilePage() {
                                 </div>
                             ))}
                         </CardContent>
-                        <CardHeader className="pt-0">
+                        <CardFooter>
                              <Button variant="outline" className="w-full"><FileUp className="h-4 w-4 mr-2" /> Upload New CV</Button>
-                        </CardHeader>
+                        </CardFooter>
                     </Card>
                 </div>
 
