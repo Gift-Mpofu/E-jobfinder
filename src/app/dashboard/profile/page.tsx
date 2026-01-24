@@ -1,53 +1,100 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser, useAuth } from '@/firebase';
-import { signOut } from 'firebase/auth';
+import { useUser, useAuth, useFirestore, useDoc, useCollection, doc, collection, query, orderBy, limit, type WithId } from '@/firebase';
+import { signOut, type User as FirebaseUser } from 'firebase/auth';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft, User as UserIcon, Award, Briefcase, BarChart3, MapPin, Gauge, FileText, Clock, Star, RefreshCcw, Replace, Settings2, Computer, Home, Building2, DollarSign, History, Lock, Eye, FileUp, LogOut } from 'lucide-react';
+import { ArrowLeft, User as UserIcon, Award, Briefcase, BarChart3, MapPin, Gauge, FileText, Clock, Star, Eye, FileUp, LogOut, Settings2, Computer, Building2, DollarSign, History, Lock, ChevronRight } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+
+// Define types for our Firestore data to use with hooks
+type UserProfile = {
+    targetRole?: string;
+    experienceLevel?: string;
+    location?: string;
+    skills?: string[];
+    careerGoals?: string;
+}
+
+type CV = {
+    fileName: string;
+    uploadDate: string;
+    fileContent: string;
+}
+
+type MatchResult = {
+    jobTitle: string;
+    matchScore: number;
+    analysisDate: string;
+}
 
 export default function ProfilePage() {
   const { user: authUser, isUserLoading: authLoading } = useUser();
   const auth = useAuth();
+  const firestore = useFirestore();
   const [isClient, setIsClient] = useState(false);
   const [usage, setUsage] = useState({ scansUsed: 0, scansLimit: 3 });
   const router = useRouter();
   const { toast } = useToast();
+  
+  const [selectedCv, setSelectedCv] = useState<WithId<CV> | null>(null);
 
   useEffect(() => {
     setIsClient(true);
-  }, []);
-
-  useEffect(() => {
-    if (isClient) {
-        const storedScans = localStorage.getItem('angine_scansUsed');
-        if (storedScans) {
-            setUsage(prev => ({ ...prev, scansUsed: parseInt(storedScans, 10) }));
-        }
+    const storedScans = localStorage.getItem('angine_scansUsed');
+    if (storedScans) {
+        setUsage(prev => ({ ...prev, scansUsed: parseInt(storedScans, 10) }));
     }
-  }, [isClient]);
+  }, []);
 
   const isDeveloper = isClient && sessionStorage.getItem('isDeveloper') === 'true';
 
-  const user = isDeveloper
-    ? {
+  const user = useMemo(() => {
+    if (isDeveloper) {
+      return {
+        uid: 'dev-user',
         displayName: 'Developer',
         email: 'dev@angine.com',
         photoURL: 'https://i.pravatar.cc/150?u=developer',
-      }
-    : authUser;
+      };
+    }
+    return authUser;
+  }, [isDeveloper, authUser]);
   
   const loading = isDeveloper ? false : authLoading;
+
+  // Fetch User Profile
+  const userProfileRef = useMemo(() => {
+    if (!user) return null;
+    return doc(firestore, 'users', user.uid);
+  }, [user, firestore]);
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
+
+  // Fetch User CVs
+  const cvsRef = useMemo(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'users', user.uid, 'cvs'), orderBy('uploadDate', 'desc'));
+  }, [user, firestore]);
+  const { data: cvs, isLoading: isCvsLoading } = useCollection<CV>(cvsRef);
+
+  // Fetch Scan History for the most recent CV
+  const recentCvId = cvs && cvs.length > 0 ? cvs[0].id : null;
+  const matchResultsRef = useMemo(() => {
+    if (!user || !recentCvId) return null;
+    return query(collection(firestore, 'users', user.uid, 'cvs', recentCvId, 'matchResults'), orderBy('analysisDate', 'desc'), limit(5));
+  }, [user, firestore, recentCvId]);
+  const { data: scanHistory, isLoading: isHistoryLoading } = useCollection<MatchResult>(matchResultsRef);
 
   const displayName = user?.displayName || (user?.email ? user.email.split('@')[0] : 'Anonymous User');
 
@@ -55,7 +102,7 @@ export default function ProfilePage() {
     try {
       if (isDeveloper) {
         sessionStorage.removeItem('isDeveloper');
-      } else {
+      } else if (auth) {
         await signOut(auth);
       }
       router.push('/login');
@@ -79,31 +126,22 @@ export default function ProfilePage() {
     return name[0];
   };
 
-  // --- Placeholder Data ---
-  const cvs = [
-      { name: 'Software_Engineer_CV_2024.pdf', lastScanned: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), bestScore: 88, },
-      { name: 'Product_Manager_Resume.pdf', lastScanned: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), bestScore: 72, },
-  ];
-
-  const jobPreferences = {
-      roles: ['Senior Product Manager', 'Product Lead'],
-      workModel: 'Hybrid',
-      salaryRange: '£90,000 - £120,000',
-  };
-
-  const scanHistory = [
-      { jobTitle: 'Lead Frontend Developer @ Vercel', matchScore: 88, feedback: 'Strong alignment with React & Next.js skills.' },
-      { jobTitle: 'Software Engineer @ Google', matchScore: 75, feedback: 'Good, but missing some data structure keywords.' },
-      { jobTitle: 'Junior Developer @ Shopify', matchScore: 65, feedback: 'Lacks experience in specified e-commerce platforms.' },
-  ];
-
   const getScoreBadgeVariant = (score: number) => {
     if (score > 75) return 'default';
     if (score > 50) return 'secondary';
     return 'destructive';
   }
-  // --- End Placeholder Data ---
 
+  const InfoRow = ({ icon, label, value, onEdit, isLoading }: { icon: React.ElementType, label: string, value?: string, onEdit?: () => void, isLoading: boolean }) => (
+    <div className="flex items-start gap-4 p-3 border rounded-md">
+        <icon className="h-5 w-5 text-muted-foreground mt-1 flex-shrink-0" />
+        <div className="flex-grow">
+            <p className="text-xs text-muted-foreground">{label}</p>
+            {isLoading ? <Skeleton className="h-5 w-3/4 mt-1" /> : <p className="text-sm font-medium">{value || 'Not set'}</p>}
+        </div>
+        {onEdit && <Button asChild variant="outline" size="sm" className="ml-auto"><Link href="/dashboard/onboarding"><Settings2 className="h-4 w-4" /></Link></Button>}
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-background text-foreground p-4 lg:p-8">
@@ -183,32 +221,14 @@ export default function ProfilePage() {
                 <Separator />
 
                 <div>
-                    <h3 className="text-lg font-semibold mb-4">Career Snapshot</h3>
+                    <h3 className="text-lg font-semibold mb-4 flex justify-between items-center">
+                        <span>Career Snapshot</span>
+                        <Button asChild variant="outline" size="sm"><Link href="/dashboard/onboarding"><Settings2 className="h-4 w-4 mr-2" />Edit Snapshot</Link></Button>
+                    </h3>
                      <div className="space-y-4">
-                        <div className="flex items-start gap-4 p-3 border rounded-md">
-                            <Briefcase className="h-5 w-5 text-muted-foreground mt-1" />
-                            <div>
-                                <p className="text-xs text-muted-foreground">Current / Target Role</p>
-                                <p className="text-sm font-medium">Senior Product Manager</p>
-                            </div>
-                             <Button variant="outline" size="sm" className="ml-auto">Edit</Button>
-                        </div>
-                        <div className="flex items-start gap-4 p-3 border rounded-md">
-                            <BarChart3 className="h-5 w-5 text-muted-foreground mt-1" />
-                             <div>
-                                <p className="text-xs text-muted-foreground">Experience Level</p>
-                                <p className="text-sm font-medium">Senior</p>
-                            </div>
-                             <Button variant="outline" size="sm" className="ml-auto">Edit</Button>
-                        </div>
-                         <div className="flex items-start gap-4 p-3 border rounded-md">
-                            <MapPin className="h-5 w-5 text-muted-foreground mt-1" />
-                            <div>
-                                <p className="text-xs text-muted-foreground">Location</p>
-                                <p className="text-sm font-medium">London, UK</p>
-                            </div>
-                             <Button variant="outline" size="sm" className="ml-auto">Edit</Button>
-                        </div>
+                        <InfoRow isLoading={isProfileLoading} icon={Briefcase} label="Current / Target Role" value={userProfile?.targetRole} />
+                        <InfoRow isLoading={isProfileLoading} icon={BarChart3} label="Experience Level" value={userProfile?.experienceLevel} />
+                        <InfoRow isLoading={isProfileLoading} icon={MapPin} label="Location" value={userProfile?.location} />
                     </div>
                 </div>
 
@@ -217,28 +237,31 @@ export default function ProfilePage() {
                 <div>
                     <h3 className="text-lg font-semibold mb-4">CV Manager</h3>
                     <Card>
-                        <CardContent className="p-4 space-y-3">
-                            {cvs.map((cv, index) => (
-                                <div key={index} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50">
-                                    <div className="flex items-center gap-4">
-                                        <FileText className="h-6 w-6 text-muted-foreground" />
-                                        <div>
-                                            <p className="font-semibold">{cv.name}</p>
-                                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                                                <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {formatDistanceToNow(cv.lastScanned, { addSuffix: true })}</span>
-                                                <span className="flex items-center gap-1"><Star className="h-3 w-3" /> Best score: <span className="font-bold text-foreground">{cv.bestScore}%</span></span>
+                        <CardContent className="p-4 space-y-1">
+                            {isCvsLoading && <Skeleton className="h-20 w-full" />}
+                            {cvs && cvs.length > 0 ? (
+                                cvs.map((cv) => (
+                                    <Dialog key={cv.id}>
+                                        <DialogTrigger asChild>
+                                            <div onClick={() => setSelectedCv(cv)} className="flex items-center justify-between p-3 rounded-md hover:bg-muted/50 cursor-pointer">
+                                                <div className="flex items-center gap-4 overflow-hidden">
+                                                    <FileText className="h-6 w-6 text-muted-foreground flex-shrink-0" />
+                                                    <div className="overflow-hidden">
+                                                        <p className="font-semibold truncate">{cv.fileName}</p>
+                                                        <span className="text-xs text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" /> {formatDistanceToNow(new Date(cv.uploadDate), { addSuffix: true })}</span>
+                                                    </div>
+                                                </div>
+                                                <Button variant="ghost" size="sm" className="flex-shrink-0"><Eye className="h-4 w-4 mr-2" />View</Button>
                                             </div>
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <Button variant="ghost" size="sm"><RefreshCcw className="h-4 w-4 mr-2" />Re-scan</Button>
-                                        <Button variant="ghost" size="sm"><Replace className="h-4 w-4 mr-2" />Replace</Button>
-                                    </div>
-                                </div>
-                            ))}
+                                        </DialogTrigger>
+                                    </Dialog>
+                                ))
+                            ) : !isCvsLoading && (
+                                <p className="text-sm text-muted-foreground text-center p-4">You haven't uploaded any CVs yet.</p>
+                            )}
                         </CardContent>
                         <CardFooter>
-                             <Button variant="outline" className="w-full"><FileUp className="h-4 w-4 mr-2" /> Upload New CV</Button>
+                            <Button asChild variant="outline" className="w-full"><Link href="/dashboard"><FileUp className="h-4 w-4 mr-2" /> Upload & Analyze New CV</Link></Button>
                         </CardFooter>
                     </Card>
                 </div>
@@ -248,26 +271,22 @@ export default function ProfilePage() {
                 <div>
                     <h3 className="text-lg font-semibold mb-4 flex justify-between items-center">
                         <span>Job Preferences</span>
-                        <Button variant="outline" size="sm"><Settings2 className="h-4 w-4 mr-2" />Edit Preferences</Button>
+                        <Button asChild variant="outline" size="sm"><Link href="/dashboard/onboarding"><Settings2 className="h-4 w-4 mr-2" />Edit Preferences</Link></Button>
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <Card className="p-4">
                             <CardTitle className="text-sm font-semibold flex items-center gap-2 mb-2"><Briefcase className="h-4 w-4 text-primary" /> Preferred Roles</CardTitle>
-                            <div className="flex flex-wrap gap-2">
-                                {jobPreferences.roles.map(role => <Badge key={role} variant="secondary">{role}</Badge>)}
-                            </div>
+                            {isProfileLoading ? <Skeleton className="h-5 w-full" /> : (
+                                <p className="text-sm font-medium">{userProfile?.targetRole || 'Not set'}</p>
+                            )}
                         </Card>
                         <Card className="p-4">
-                           <CardTitle className="text-sm font-semibold flex items-center gap-2 mb-2"><Computer className="h-4 w-4 text-primary" /> Work Model</CardTitle>
-                            <p className="text-sm font-medium flex items-center gap-2">
-                                {jobPreferences.workModel === 'Hybrid' && <Building2 className="h-4 w-4 text-muted-foreground" />}
-                                {jobPreferences.workModel === 'Remote' && <Home className="h-4 w-4 text-muted-foreground" />}
-                                {jobPreferences.workModel}
-                            </p>
-                        </Card>
-                        <Card className="p-4">
-                           <CardTitle className="text-sm font-semibold flex items-center gap-2 mb-2"><DollarSign className="h-4 w-4 text-primary" /> Salary Range</CardTitle>
-                            <p className="text-sm font-medium">{jobPreferences.salaryRange}</p>
+                           <CardTitle className="text-sm font-semibold flex items-center gap-2 mb-2"><Star className="h-4 w-4 text-primary" /> Key Skills</CardTitle>
+                           {isProfileLoading ? <Skeleton className="h-5 w-full" /> : (
+                                <div className="flex flex-wrap gap-2">
+                                    {userProfile?.skills && userProfile.skills.length > 0 ? userProfile.skills.map(skill => <Badge key={skill} variant="secondary">{skill}</Badge>) : <p className="text-sm text-muted-foreground">Not set</p>}
+                                </div>
+                            )}
                         </Card>
                     </div>
                 </div>
@@ -275,34 +294,43 @@ export default function ProfilePage() {
                 <Separator />
                 
                 <div>
-                    <h3 className="text-lg font-semibold mb-4">Scan History & Results</h3>
+                    <h3 className="text-lg font-semibold mb-4">Recent Scan History</h3>
                     <Card>
                         <CardContent className="p-2">
-                           <ul className="space-y-1">
-                                {scanHistory.map((scan, index) => (
-                                    <li key={index} className="flex items-center justify-between p-3 rounded-md hover:bg-muted/50">
-                                        <div className="flex-1">
-                                            <p className="font-semibold">{scan.jobTitle}</p>
-                                            <p className="text-xs text-muted-foreground">{scan.feedback}</p>
-                                        </div>
-                                        <div className="flex items-center gap-4 ml-4">
-                                          <Badge variant={getScoreBadgeVariant(scan.matchScore)} className="w-[50px] justify-center">{scan.matchScore}%</Badge>
-                                          <Button variant="ghost" size="sm"><Eye className="h-4 w-4" /></Button>
-                                        </div>
-                                    </li>
-                                ))}
-                           </ul>
-                           <div className="text-center text-sm text-muted-foreground p-4 mt-2 border-t">
+                           {isHistoryLoading && <div className="space-y-1 p-2"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>}
+                           {scanHistory && scanHistory.length > 0 ? (
+                                <ul className="space-y-1">
+                                    {scanHistory.map((scan) => (
+                                        <li key={scan.id} className="flex items-center justify-between p-3 rounded-md hover:bg-muted/50">
+                                            <div className="flex-1 overflow-hidden">
+                                                <p className="font-semibold truncate">{scan.jobTitle}</p>
+                                                <p className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(scan.analysisDate), { addSuffix: true })}</p>
+                                            </div>
+                                            <div className="flex items-center gap-4 ml-4">
+                                              <Badge variant={getScoreBadgeVariant(scan.matchScore)} className="w-[50px] justify-center">{scan.matchScore}%</Badge>
+                                              <Button variant="ghost" size="icon" className="h-8 w-8"><ChevronRight className="h-4 w-4" /></Button>
+                                            </div>
+                                        </li>
+                                    ))}
+                               </ul>
+                           ) : !isHistoryLoading && (
+                                <div className="text-center text-sm text-muted-foreground p-4">
+                                   No scan history found. Analyze a CV on the dashboard to get started.
+                                </div>
+                           )}
+                           {scanHistory && scanHistory.length > 0 && (
+                             <div className="text-center text-sm text-muted-foreground p-4 mt-2 border-t">
                                 <Lock className="inline-block h-4 w-4 mr-1" />
-                                Detailed insights are locked for free users. 
+                                Showing results for most recent CV only. 
                                 <Button variant="link" className="p-0 h-auto text-sm ml-1">Upgrade to Pro to view all results.</Button>
                             </div>
+                           )}
                         </CardContent>
                     </Card>
                 </div>
               </>
             ) : (
-              <p>No user is signed in.</p>
+              !loading && <p>No user is signed in.</p>
             )}
           </CardContent>
           {user && (
@@ -315,6 +343,26 @@ export default function ProfilePage() {
           )}
         </Card>
       </div>
+
+       {selectedCv && (
+        <Dialog open={!!selectedCv} onOpenChange={(isOpen) => !isOpen && setSelectedCv(null)}>
+            <DialogContent className="sm:max-w-3xl">
+                <DialogHeader>
+                <DialogTitle>{selectedCv.fileName}</DialogTitle>
+                <DialogDescription>
+                    Uploaded on {new Date(selectedCv.uploadDate).toLocaleDateString()}
+                </DialogDescription>
+                </DialogHeader>
+                <ScrollArea className="h-[60vh] mt-4">
+                    <pre className="text-sm whitespace-pre-wrap p-4 bg-muted rounded-md font-mono">
+                        {selectedCv.fileContent}
+                    </pre>
+                </ScrollArea>
+            </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
+
+    

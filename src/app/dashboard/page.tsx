@@ -5,6 +5,7 @@ import type { FC } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signOut } from "firebase/auth";
+import { doc, collection } from "firebase/firestore";
 import { Upload, FileText, BarChart2, CheckCircle, XCircle, Lightbulb, BrainCircuit, ArrowRight, Zap, ChevronsRight, Frown, Meh, Smile, LogOut, Bell, TrendingUp, MessageSquare, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,7 +43,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useUser, useAuth } from "@/firebase";
+import { useUser, useAuth, useFirestore, setDocumentNonBlocking } from "@/firebase";
 
 
 const hireRateChartConfig = {
@@ -67,6 +68,7 @@ export default function Dashboard() {
   const router = useRouter();
   const { user: authUser, isUserLoading } = useUser();
   const auth = useAuth();
+  const firestore = useFirestore();
   const [isClient, setIsClient] = useState(false);
   const [usageLimit] = useState(3);
 
@@ -75,11 +77,11 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    if (isClient && !isUserLoading) {
+    if (isClient && !isUserLoading && authUser) {
       const isDeveloper = sessionStorage.getItem('isDeveloper') === 'true';
       const onboardingComplete = sessionStorage.getItem('onboardingComplete') === 'true';
 
-      if (!isDeveloper && !onboardingComplete && authUser) {
+      if (!isDeveloper && !onboardingComplete) {
         router.push('/dashboard/onboarding');
       }
     }
@@ -89,6 +91,7 @@ export default function Dashboard() {
 
   const user = isDeveloper
     ? {
+        uid: 'dev-user',
         displayName: 'Developer',
         email: 'dev@angine.com',
         photoURL: 'https://i.pravatar.cc/150?u=developer',
@@ -119,13 +122,70 @@ export default function Dashboard() {
       setCvText(e.target.value);
       if (e.target.value) {
           setCvFile(null); // Clear file if text is pasted
-          // It's tricky to reset the file input visually without this, but it works functionally
           const fileInput = document.getElementById('cv-upload') as HTMLInputElement;
           if(fileInput) fileInput.value = '';
       }
   }
 
+  const saveAnalysisData = (
+    userId: string,
+    cvContent: string,
+    fileName: string,
+    jobDesc: string,
+    analysis: CvAnalysisOutput
+  ) => {
+      try {
+        const cvRef = doc(collection(firestore, 'users', userId, 'cvs'));
+        const jobDescRef = doc(collection(firestore, 'users', userId, 'jobDescriptions'));
+        const matchResultRef = doc(collection(firestore, 'users', userId, 'cvs', cvRef.id, 'matchResults'));
+
+        const now = new Date().toISOString();
+
+        const cvData = {
+            id: cvRef.id,
+            userId: userId,
+            fileName: fileName,
+            fileContent: cvContent,
+            uploadDate: now,
+        };
+
+        const jobDescData = {
+            id: jobDescRef.id,
+            userId: userId,
+            descriptionText: jobDesc,
+            creationDate: now,
+        };
+        
+        const matchResultData = {
+            ...analysis,
+            id: matchResultRef.id,
+            cvId: cvRef.id,
+            jobDescriptionId: jobDescRef.id,
+            analysisDate: now,
+            userId: userId,
+        };
+
+        setDocumentNonBlocking(cvRef, cvData, { merge: true });
+        setDocumentNonBlocking(jobDescRef, jobDescData, { merge: true });
+        setDocumentNonBlocking(matchResultRef, matchResultData, { merge: true });
+        
+      } catch (error) {
+          console.error("Failed to save analysis data:", error);
+          // Don't toast here as it might be a permissions error handled globally
+      }
+  }
+
   const handleAnalyzeClick = async () => {
+    if (!user) {
+        toast({
+            variant: "destructive",
+            title: "Not Logged In",
+            description: "You must be logged in to analyze a CV.",
+        });
+        router.push('/login');
+        return;
+    }
+    
     const storedScans = localStorage.getItem('angine_scansUsed');
     const scansUsed = storedScans ? parseInt(storedScans, 10) : 0;
 
@@ -139,6 +199,7 @@ export default function Dashboard() {
     }
     
     let cvContent = cvText;
+    let cvFileName = cvFile?.name || 'pasted-cv.txt';
 
     if (!cvContent && cvFile) {
         try {
@@ -172,6 +233,7 @@ export default function Dashboard() {
             scanType,
         });
         setAnalysisResult(result);
+        saveAnalysisData(user.uid, cvContent, cvFileName, jobDescription, result);
         const newScansUsed = scansUsed + 1;
         localStorage.setItem('angine_scansUsed', newScansUsed.toString());
     } catch (error: any) {
@@ -190,7 +252,7 @@ export default function Dashboard() {
     try {
       if (isDeveloper) {
         sessionStorage.removeItem('isDeveloper');
-      } else {
+      } else if (auth) {
         await signOut(auth);
       }
       router.push('/login');
@@ -409,7 +471,7 @@ export default function Dashboard() {
                 <Label htmlFor="cv-upload">CV Upload</Label>
                 <div className="flex items-center gap-3">
                   <Label htmlFor="cv-upload" className="flex-1">
-                    <Input id="cv-upload" type="file" accept=".txt,.md" onChange={handleFileChange} className="hidden" />
+                    <Input id="cv-upload" type="file" accept=".txt,.md,.pdf" onChange={handleFileChange} className="hidden" />
                     <Button asChild variant="outline">
                       <span className="cursor-pointer flex items-center gap-2">
                         <Upload size={16} />
@@ -419,7 +481,7 @@ export default function Dashboard() {
                   </Label>
                   {cvFile && <span className="text-sm text-muted-foreground truncate">{cvFile.name}</span>}
                 </div>
-                <p className="text-xs text-muted-foreground">Upload your CV as a text file (.txt, .md).</p>
+                <p className="text-xs text-muted-foreground">Upload your CV as a text or PDF file.</p>
               </div>
 
               <div className="flex items-center text-center">
@@ -601,3 +663,5 @@ export default function Dashboard() {
     </div>
   );
 }
+
+    

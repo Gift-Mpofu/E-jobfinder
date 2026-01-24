@@ -2,27 +2,37 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useUser, useFirestore, setDocumentNonBlocking } from '@/firebase';
+import { doc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
-import { ArrowRight, Briefcase, Star, Award, Target, Rocket } from 'lucide-react';
+import { ArrowRight, Briefcase, Star, Award, Target, Rocket, MapPin } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useToast } from '@/hooks/use-toast';
 
 const questions = [
   {
-    id: 'role',
+    id: 'targetRole',
     icon: Briefcase,
     title: 'What is your target job role?',
     placeholder: 'e.g., Senior Software Engineer',
     type: 'text',
   },
   {
-    id: 'experience',
+    id: 'experienceLevel',
     icon: Award,
     title: 'What is your experience level?',
     placeholder: 'e.g., Junior, Mid-level, Senior, Lead',
+    type: 'text',
+  },
+    {
+    id: 'location',
+    icon: MapPin,
+    title: 'Where are you based?',
+    placeholder: 'e.g., London, UK or Remote',
     type: 'text',
   },
   {
@@ -35,12 +45,12 @@ const questions = [
   {
     id: 'achievements',
     icon: Rocket,
-    title: 'What is a recent achievement or responsibility you\'re proud of?',
+    title: 'What is a recent achievement you\'re proud of?',
     placeholder: 'e.g., Led a project that increased user engagement by 15%',
     type: 'textarea',
   },
   {
-    id: 'goals',
+    id: 'careerGoals',
     icon: Target,
     title: 'What is your main career goal right now?',
     placeholder: 'e.g., Land a job in a fast-growing startup',
@@ -50,6 +60,10 @@ const questions = [
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const { toast } = useToast();
+  
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [currentAnswer, setCurrentAnswer] = useState('');
@@ -58,19 +72,52 @@ export default function OnboardingPage() {
   const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
 
   const handleNext = () => {
-    // Save the current answer
     const newAnswers = { ...answers, [currentQuestion.id]: currentAnswer };
     setAnswers(newAnswers);
 
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
-      setCurrentAnswer(answers[questions[currentQuestionIndex + 1].id] || ''); // Pre-fill if already answered
+      setCurrentAnswer(answers[questions[currentQuestionIndex + 1].id] || '');
     } else {
-      // Onboarding complete
-      console.log('Onboarding complete. Answers:', newAnswers);
-      // In a real app, you would save this data to the user's profile in Firestore.
+      handleFinish(newAnswers);
+    }
+  };
+
+  const handleFinish = (finalAnswers: Record<string, string>) => {
+    if (!user) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "You must be logged in to save your profile.",
+      });
+      router.push('/login');
+      return;
+    }
+
+    // Prepare data for Firestore, converting skills to an array
+    const profileData = {
+      ...finalAnswers,
+      skills: finalAnswers.skills ? finalAnswers.skills.split(',').map(s => s.trim()) : [],
+    };
+    
+    try {
+      const userRef = doc(firestore, 'users', user.uid);
+      setDocumentNonBlocking(userRef, profileData, { merge: true });
+      
+      toast({
+        title: "Profile Saved!",
+        description: "Your career profile has been updated.",
+      });
+      
       sessionStorage.setItem('onboardingComplete', 'true');
-      router.push('/dashboard');
+      router.push('/dashboard/profile');
+    } catch(error: any) {
+        console.error("Failed to save onboarding data:", error);
+        toast({
+            variant: "destructive",
+            title: "Save Failed",
+            description: "Could not save your profile. Please try again.",
+        });
     }
   };
 
@@ -127,7 +174,7 @@ export default function OnboardingPage() {
             disabled={!currentAnswer}
             className="w-full"
           >
-            {currentQuestionIndex < questions.length - 1 ? 'Next' : 'Finish'}
+            {currentQuestionIndex < questions.length - 1 ? 'Next' : 'Finish & Go to Profile'}
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </CardFooter>
@@ -135,3 +182,5 @@ export default function OnboardingPage() {
     </div>
   );
 }
+
+    
