@@ -27,6 +27,10 @@ import {
 } from "@/components/ui/dialog";
 import { useUser, useFirestore, setDocumentNonBlocking } from "@/firebase";
 import { useDashboard } from "./layout";
+import * as pdfjsLib from "pdfjs-dist";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+
 
 const hireRateChartConfig = {
   rate: {
@@ -92,11 +96,12 @@ export default function Dashboard() {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
-      if (!file.type.startsWith('text/')) {
+      const allowedTypes = ['text/plain', 'text/markdown', 'application/pdf'];
+      if (!allowedTypes.includes(file.type)) {
         toast({
           variant: 'destructive',
           title: 'Invalid File Type',
-          description: 'Please upload a plain text file (.txt, .md).',
+          description: 'Please upload a .txt, .md, or .pdf file.',
         });
         setCvFile(null);
         event.target.value = ''; // Reset file input
@@ -188,16 +193,40 @@ export default function Dashboard() {
     let cvFileName = cvFile?.name || 'pasted-cv.txt';
 
     if (!cvContent && cvFile) {
-        try {
-            cvContent = await cvFile.text();
-        } catch (error) {
-            console.error("Error reading file:", error);
-            toast({
-                variant: 'destructive',
-                title: 'File Read Error',
-                description: 'Could not read the contents of the uploaded file.',
-            });
-            return;
+        if (cvFile.type === 'application/pdf') {
+            try {
+                const arrayBuffer = await cvFile.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+                let pdfText = '';
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    pdfText += textContent.items.map(item => ('str' in item ? item.str : '')).join(' ') + '\n';
+                }
+                cvContent = pdfText;
+            } catch (error) {
+                console.error("Error parsing PDF:", error);
+                toast({
+                    variant: 'destructive',
+                    title: 'PDF Read Error',
+                    description: 'Could not read the text from the PDF file.',
+                });
+                setIsAnalyzing(false);
+                return;
+            }
+        } else {
+            try {
+                cvContent = await cvFile.text();
+            } catch (error) {
+                console.error("Error reading file:", error);
+                toast({
+                    variant: 'destructive',
+                    title: 'File Read Error',
+                    description: 'Could not read the contents of the uploaded file.',
+                });
+                setIsAnalyzing(false);
+                return;
+            }
         }
     }
 
@@ -344,7 +373,7 @@ export default function Dashboard() {
             <Label htmlFor="cv-upload">CV Upload</Label>
             <div className="flex items-center gap-3">
               <Label htmlFor="cv-upload" className="flex-1">
-                <Input id="cv-upload" type="file" accept=".txt,.md,.pdf" onChange={handleFileChange} className="hidden" />
+                <Input id="cv-upload" type="file" accept="text/plain,text/markdown,application/pdf" onChange={handleFileChange} className="hidden" />
                 <Button asChild variant="outline">
                   <span className="cursor-pointer flex items-center gap-2">
                     <Upload size={16} />
@@ -354,7 +383,7 @@ export default function Dashboard() {
               </Label>
               {cvFile && <span className="text-sm text-muted-foreground truncate">{cvFile.name}</span>}
             </div>
-            <p className="text-xs text-muted-foreground">Upload your CV as a text or PDF file.</p>
+            <p className="text-xs text-muted-foreground">Upload your CV as a .txt, .md, or .pdf file.</p>
           </div>
 
           <div className="flex items-center text-center">
@@ -367,7 +396,7 @@ export default function Dashboard() {
             <Label htmlFor="cv-text">Paste CV</Label>
             <Textarea
               id="cv-text"
-              placeholder="Paste your CV content here..."
+              placeholder="Paste your CV content here (you can also paste text from a PDF)..."
               className="min-h-[200px] text-base"
               value={cvText}
               onChange={handleCvTextAreaChange}
