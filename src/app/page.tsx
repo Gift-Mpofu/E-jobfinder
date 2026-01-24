@@ -2,86 +2,108 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import { useState, useEffect, type FC } from "react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { ArrowRight, Briefcase, TrendingUp, Star, Zap, Target, BrainCircuit, Quote } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ArrowRight, BrainCircuit, Star, Target, Zap, Briefcase } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
-import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
-import { PlaceHolderImages } from "@/lib/placeholder-images";
+import { PlaceHolderImages, type ImagePlaceholder } from "@/lib/placeholder-images";
 
-const chartData = [
-  { month: "January", interviews: 45 },
-  { month: "February", interviews: 60 },
-  { month: "March", interviews: 85 },
-  { month: "April", interviews: 110 },
-  { month: "May", interviews: 150 },
-  { month: "June", interviews: 190 },
-];
+type Feature = {
+  icon: FC<React.ComponentProps<'svg'>>;
+  title: string;
+  description: string;
+  image: ImagePlaceholder | undefined;
+};
 
-const chartConfig = {
-  interviews: {
-    label: "Interviews",
-    color: "hsl(var(--primary))",
-  },
+type Testimonial = {
+  name: string;
+  title: string;
+  quote: string;
+  avatar: ImagePlaceholder | undefined;
+  avatarFallback: string;
 };
 
 export default function LandingPage() {
   const [year, setYear] = useState(new Date().getFullYear());
-  const [heroImage, setHeroImage] = useState<any>(null);
-  const [testimonials, setTestimonials] = useState<any[]>([]);
+  const [images, setImages] = useState<Record<string, ImagePlaceholder | undefined>>({});
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
 
   useEffect(() => {
     setYear(new Date().getFullYear());
-    setHeroImage(PlaceHolderImages.find(p => p.id === 'hero-landing'));
 
-    const testimonialAvatars = {
-        'Sarah L.': PlaceHolderImages.find(p => p.id === 'testimonial-1'),
-        'Michael B.': PlaceHolderImages.find(p => p.id === 'testimonial-2'),
-        'Jessica P.': PlaceHolderImages.find(p => p.id === 'testimonial-3')
+    const imageMap: Record<string, ImagePlaceholder | undefined> = {
+        hero: PlaceHolderImages.find(p => p.id === 'hero-landing'),
+        analysis: PlaceHolderImages.find(p => p.id === 'feature-analysis'),
+        keywords: PlaceHolderImages.find(p => p.id === 'feature-keywords'),
+        feedback: PlaceHolderImages.find(p => p.id === 'feature-feedback'),
+        testimonial1: PlaceHolderImages.find(p => p.id === 'testimonial-1'),
+        testimonial2: PlaceHolderImages.find(p => p.id === 'testimonial-2'),
+        testimonial3: PlaceHolderImages.find(p => p.id === 'testimonial-3'),
     };
+    setImages(imageMap);
 
     setTestimonials([
       {
         name: "Sarah L.",
         title: "Software Engineer",
-        quote: "E-Jobfinder Pro was a game-changer. The AI analysis helped me tailor my CV for the exact roles I wanted, and I landed my dream job at a FAANG company within a month!",
-        avatar: testimonialAvatars['Sarah L.'],
+        quote: "Angine was a game-changer. The AI analysis helped me tailor my CV for the exact roles I wanted, and I landed my dream job at a FAANG company within a month!",
+        avatar: imageMap.testimonial1,
         avatarFallback: "SL"
       },
       {
         name: "Michael B.",
         title: "Product Manager",
         quote: "I was struggling to get past the initial screening. This tool showed me exactly which keywords were missing. My interview requests shot up by 300%!",
-        avatar: testimonialAvatars['Michael B.'],
+        avatar: imageMap.testimonial2,
         avatarFallback: "MB"
       },
       {
         name: "Jessica P.",
         title: "UX Designer",
         quote: "The interface is so intuitive, and the feedback is incredibly detailed. It's like having a personal career coach. I recommend it to all my friends.",
-        avatar: testimonialAvatars['Jessica P.'],
+        avatar: imageMap.testimonial3,
         avatarFallback: "JP"
       }
     ]);
   }, []);
 
+  const features: Feature[] = [
+      {
+          icon: BrainCircuit,
+          title: "AI-Powered Analysis",
+          description: "Go beyond simple keyword matching with deep semantic analysis of your CV and job descriptions.",
+          image: images.analysis
+      },
+      {
+          icon: Target,
+          title: "Targeted Keyword Optimization",
+          description: "Identify critical keywords you're missing to beat applicant tracking systems (ATS).",
+          image: images.keywords
+      },
+      {
+          icon: Zap,
+          title: "Instant Feedback Loop",
+          description: "Get your score and improvement tips in seconds. Iterate and improve on the fly.",
+          image: images.feedback
+      }
+  ];
+
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="p-4 border-b border-border/40 sticky top-0 bg-background/80 backdrop-blur-sm z-10">
+      <header className="py-4 px-4 md:px-6 sticky top-0 bg-background/80 backdrop-blur-sm z-50 border-b">
         <div className="container mx-auto flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <Briefcase className="h-6 w-6 text-primary" />
-            <h1 className="text-2xl font-bold text-primary font-headline">E-Jobfinder Pro</h1>
+            <h1 className="text-xl font-bold text-primary font-headline tracking-tighter">Angine</h1>
           </Link>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
             <ThemeToggle />
-            <Button asChild variant="ghost">
-              <Link href="/login">Login</Link>
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/login">Log In</Link>
             </Button>
-            <Button asChild>
+            <Button asChild size="sm">
               <Link href="/signup">Sign Up</Link>
             </Button>
           </div>
@@ -89,206 +111,156 @@ export default function LandingPage() {
       </header>
 
       <main>
-        <section className="py-24 sm:py-32">
-          <div className="container mx-auto grid md:grid-cols-2 gap-12 items-center">
-            <div className="text-center md:text-left">
-              <h2 className="text-4xl md:text-6xl font-extrabold tracking-tighter text-foreground">
-                Stop Guessing. <span className="text-primary">Start Landing Interviews.</span>
-              </h2>
-              <p className="mt-6 max-w-xl mx-auto md:mx-0 text-lg text-muted-foreground">
-                Our AI-powered platform analyzes your CV against any job description, providing a detailed compatibility score and actionable feedback to help you secure your dream job.
-              </p>
-              <div className="mt-10 flex flex-col sm:flex-row justify-center md:justify-start gap-4">
-                <Button asChild size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground">
-                  <Link href="/signup">
-                    Analyze Your CV Now
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Link>
-                </Button>
-                <Button asChild size="lg" variant="outline">
-                  <Link href="/login">
-                    I have an account
-                  </Link>
-                </Button>
-              </div>
-            </div>
-            <div className="hidden md:block px-8">
-              {heroImage && 
-                <Image
-                    src={heroImage.imageUrl}
-                    alt={heroImage.description}
-                    width={600}
-                    height={400}
-                    className="rounded-lg shadow-2xl"
-                    data-ai-hint={heroImage.imageHint}
-                />
-              }
+        <section className="py-20 md:py-32">
+          <div className="container mx-auto text-center">
+            <h1 className="text-4xl md:text-7xl font-bold tracking-tighter max-w-4xl mx-auto">
+              The AI engine for your job search.
+            </h1>
+            <p className="mt-6 max-w-2xl mx-auto text-lg md:text-xl text-muted-foreground">
+              Stop guessing. Angine analyzes your CV against any job description to give you an unfair advantage.
+            </p>
+            <div className="mt-8 flex justify-center gap-4">
+              <Button asChild size="lg">
+                <Link href="/signup">
+                  Get Started <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+              </Button>
             </div>
           </div>
         </section>
 
-        <section className="py-24 sm:py-32 bg-muted/20">
+        {images.hero && (
+            <section className="container mx-auto px-4">
+                <div className="relative aspect-[16/9] rounded-lg overflow-hidden border">
+                    <Image
+                        src={images.hero.imageUrl}
+                        alt={images.hero.description}
+                        fill
+                        className="object-cover"
+                        data-ai-hint={images.hero.imageHint}
+                        priority
+                    />
+                </div>
+            </section>
+        )}
+
+        <section className="py-24 md:py-40 bg-secondary/30 dark:bg-secondary/10 mt-24 md:mt-32">
            <div className="container mx-auto">
-            <div className="text-center mb-16">
-              <h3 className="text-3xl md:text-4xl font-bold">A Smarter Way to Job Hunt</h3>
+            <div className="text-center mb-16 md:mb-24">
+              <h2 className="text-3xl md:text-5xl font-bold tracking-tighter">How it works</h2>
               <p className="mt-4 max-w-2xl mx-auto text-lg text-muted-foreground">
-                  In three simple steps, gain an unfair advantage in your job search.
+                  In three simple steps, gain clarity and confidence in your job applications.
               </p>
             </div>
             <div className="grid md:grid-cols-3 gap-12 max-w-5xl mx-auto">
               <div className="flex flex-col items-center text-center">
-                  <div className="flex items-center justify-center w-16 h-16 bg-primary/10 text-primary rounded-full mb-6 border border-primary/20">
-                      <span className="text-2xl font-bold">1</span>
+                  <div className="flex items-center justify-center w-16 h-16 bg-primary/10 text-primary rounded-full mb-6 border-2 border-primary/20">
+                      <span className="text-3xl font-bold">1</span>
                   </div>
-                  <h4 className="text-xl font-semibold">Provide Your CV</h4>
-                  <p className="mt-2 text-muted-foreground">Upload your CV as a PDF/DOCX or simply paste the text content.</p>
+                  <h3 className="text-xl font-semibold">Provide Your CV</h3>
+                  <p className="mt-2 text-muted-foreground">Upload or paste the content of your CV.</p>
               </div>
               <div className="flex flex-col items-center text-center">
-                  <div className="flex items-center justify-center w-16 h-16 bg-primary/10 text-primary rounded-full mb-6 border border-primary/20">
-                      <span className="text-2xl font-bold">2</span>
+                  <div className="flex items-center justify-center w-16 h-16 bg-primary/10 text-primary rounded-full mb-6 border-2 border-primary/20">
+                      <span className="text-3xl font-bold">2</span>
                   </div>
-                  <h4 className="text-xl font-semibold">Add Job Description</h4>
-                  <p className="mt-2 text-muted-foreground">Paste the entire job description you're targeting.</p>
+                  <h3 className="text-xl font-semibold">Add Job Description</h3>
+                  <p className="mt-2 text-muted-foreground">Paste the job description you're targeting.</p>
               </div>
               <div className="flex flex-col items-center text-center">
-                  <div className="flex items-center justify-center w-16 h-16 bg-primary/10 text-primary rounded-full mb-6 border border-primary/20">
-                      <span className="text-2xl font-bold">3</span>
+                  <div className="flex items-center justify-center w-16 h-16 bg-primary/10 text-primary rounded-full mb-6 border-2 border-primary/20">
+                      <span className="text-3xl font-bold">3</span>
                   </div>
-                  <h4 className="text-xl font-semibold">Get Instant Analysis</h4>
-                  <p className="mt-2 text-muted-foreground">Receive a match score, keyword analysis, and AI-powered suggestions.</p>
+                  <h3 className="text-xl font-semibold">Get Instant Analysis</h3>
+                  <p className="mt-2 text-muted-foreground">Receive a match score and actionable feedback.</p>
               </div>
             </div>
            </div>
         </section>
-
-        <section className="py-24 sm:py-32">
-            <div className="container mx-auto">
-                <div className="text-center mb-16">
-                    <h3 className="text-3xl md:text-4xl font-bold">An Unfair Advantage in Your Job Search</h3>
-                    <p className="mt-4 max-w-2xl mx-auto text-lg text-muted-foreground">
-                        Our platform is packed with features designed to get you hired faster.
-                    </p>
-                </div>
-                <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-                    <div className="flex flex-col items-center text-center p-6 bg-card rounded-lg shadow-md border">
-                        <BrainCircuit className="h-12 w-12 text-primary mb-4" />
-                        <h4 className="text-xl font-semibold">AI-Powered Analysis</h4>
-                        <p className="mt-2 text-muted-foreground">Go beyond simple keyword matching with deep semantic analysis of your CV and job descriptions.</p>
-                    </div>
-                    <div className="flex flex-col items-center text-center p-6 bg-card rounded-lg shadow-md border">
-                        <Target className="h-12 w-12 text-primary mb-4" />
-                        <h4 className="text-xl font-semibold">Targeted Keyword Optimization</h4>
-                        <p className="mt-2 text-muted-foreground">Identify critical keywords you're missing to beat applicant tracking systems (ATS).</p>
-                    </div>
-                    <div className="flex flex-col items-center text-center p-6 bg-card rounded-lg shadow-md border">
-                        <Zap className="h-12 w-12 text-primary mb-4" />
-                        <h4 className="text-xl font-semibold">Instant Feedback Loop</h4>
-                        <p className="mt-2 text-muted-foreground">Get your score and improvement tips in seconds. Iterate and improve on the fly.</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section className="py-24 sm:py-32 bg-muted/20">
-            <div className="container mx-auto">
-                <div className="text-center mb-16">
-                    <h3 className="text-3xl md:text-4xl font-bold">Proven Results</h3>
-                    <p className="mt-4 max-w-2xl mx-auto text-lg text-muted-foreground">
-                        Our users see a significant increase in interview requests after using E-Jobfinder Pro.
-                    </p>
-                </div>
-                <Card className="max-w-4xl mx-auto shadow-lg">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <TrendingUp className="text-primary"/>
-                            Interview Requests Growth
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="h-[300px]">
-                        <ChartContainer config={chartConfig} className="w-full h-full">
-                            <BarChart accessibilityLayer data={chartData}>
-                                <CartesianGrid vertical={false} />
-                                <XAxis
-                                dataKey="month"
-                                tickLine={false}
-                                tickMargin={10}
-                                axisLine={false}
-                                tickFormatter={(value) => value.slice(0, 3)}
-                                />
-                                <YAxis />
-                                <Tooltip
-                                    cursor={false}
-                                    content={<ChartTooltipContent indicator="dot" />}
-                                />
-                                <Bar dataKey="interviews" fill="var(--color-interviews)" radius={4} />
-                            </BarChart>
-                        </ChartContainer>
+        
+        <section className="py-24 md:py-40">
+            <div className="container mx-auto space-y-24 md:space-y-40">
+                {features.map((feature, index) => (
+                    <div key={feature.title} className={`grid md:grid-cols-2 gap-12 md:gap-24 items-center ${index % 2 !== 0 ? 'md:grid-flow-col-dense' : ''}`}>
+                        <div className={`text-center md:text-left ${index % 2 !== 0 ? 'md:col-start-2' : ''}`}>
+                            <feature.icon className="h-10 w-10 text-primary mb-4 inline-block"/>
+                            <h3 className="text-3xl md:text-4xl font-bold tracking-tight">{feature.title}</h3>
+                            <p className="mt-4 text-lg text-muted-foreground">{feature.description}</p>
                         </div>
-                    </CardContent>
-                </Card>
+                        {feature.image &&
+                            <div className={`relative aspect-square rounded-lg overflow-hidden border ${index % 2 !== 0 ? 'md:col-start-1' : ''}`}>
+                                <Image
+                                    src={feature.image.imageUrl}
+                                    alt={feature.image.description}
+                                    fill
+                                    className="object-cover"
+                                    sizes="(max-width: 768px) 100vw, 50vw"
+                                    data-ai-hint={feature.image.imageHint}
+                                />
+                            </div>
+                        }
+                    </div>
+                ))}
             </div>
         </section>
 
-        <section className="py-24 sm:py-32">
+        <section className="py-24 md:py-40 bg-secondary/30 dark:bg-secondary/10">
             <div className="container mx-auto">
-                <div className="text-center mb-16">
-                    <h3 className="text-3xl md:text-4xl font-bold">Loved by Job Seekers Worldwide</h3>
+                <div className="text-center mb-16 md:mb-24">
+                    <h2 className="text-3xl md:text-5xl font-bold tracking-tighter">Loved by Job Seekers</h2>
                     <p className="mt-4 max-w-2xl mx-auto text-lg text-muted-foreground">
                         Don't just take our word for it. Here's what our users are saying.
                     </p>
                 </div>
                 <div className="grid md:grid-cols-3 gap-8">
-                    {testimonials.map((testimonial, index) => (
-                        <Card key={index} className="flex flex-col justify-between shadow-lg">
-                            <CardHeader>
-                                <div className="flex items-center gap-4">
-                                    <Avatar>
-                                        <AvatarImage src={testimonial.avatar?.imageUrl} alt={testimonial.name} data-ai-hint="person avatar" />
-                                        <AvatarFallback>{testimonial.avatarFallback}</AvatarFallback>
-                                    </Avatar>
-                                    <div>
-                                        <p className="font-semibold">{testimonial.name}</p>
-                                        <p className="text-sm text-muted-foreground">{testimonial.title}</p>
-                                    </div>
-                                </div>
-                            </CardHeader>
-                            <CardContent className="flex-grow">
-                                <div className="flex mb-2">
+                    {testimonials.map((testimonial) => (
+                        <Card key={testimonial.name} className="flex flex-col justify-between border-none bg-transparent shadow-none">
+                            <CardContent className="p-0">
+                                <div className="flex mb-4">
                                     {Array.from({ length: 5 }).map((_, i) => (
                                         <Star key={i} className="h-5 w-5 text-primary fill-primary" />
                                     ))}
                                 </div>
-                                <Quote className="text-primary/20 mt-4 -mb-2" />
-                                <p className="mt-2 text-muted-foreground italic relative pl-2">"{testimonial.quote}"</p>
+                                <blockquote className="mt-2 text-lg text-foreground italic">"{testimonial.quote}"</blockquote>
                             </CardContent>
+                            <div className="flex items-center gap-4 mt-6">
+                                <Avatar>
+                                    <AvatarImage src={testimonial.avatar?.imageUrl} alt={testimonial.name} data-ai-hint="person avatar" />
+                                    <AvatarFallback>{testimonial.avatarFallback}</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                    <p className="font-semibold">{testimonial.name}</p>
+                                    <p className="text-sm text-muted-foreground">{testimonial.title}</p>
+                                </div>
+                            </div>
                         </Card>
                     ))}
                 </div>
             </div>
         </section>
 
-        <section className="py-24 sm:py-32 text-center bg-muted/20">
-            <h2 className="text-3xl md:text-5xl font-extrabold tracking-tighter text-foreground">
-                Ready to Land Your Dream Job?
-            </h2>
-            <p className="mt-6 max-w-2xl mx-auto text-lg text-muted-foreground">
-                Join thousands of successful job seekers. Get started for free and see the difference.
-            </p>
-            <div className="mt-10 flex justify-center">
-                <Button asChild size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground">
-                    <Link href="/signup">
-                        Get Started for Free
-                        <ArrowRight className="ml-2 h-5 w-5" />
-                    </Link>
-                </Button>
+        <section className="py-24 md:py-32 text-center">
+            <div className="container mx-auto">
+                <h2 className="text-4xl md:text-6xl font-bold tracking-tighter text-foreground">
+                    Ready to land your dream job?
+                </h2>
+                <p className="mt-6 max-w-2xl mx-auto text-lg md:text-xl text-muted-foreground">
+                    Join thousands of successful job seekers. Get started for free and see the difference.
+                </p>
+                <div className="mt-10 flex justify-center">
+                    <Button asChild size="lg" className="text-lg py-7 px-10">
+                        <Link href="/signup">
+                            Analyze Your CV <ArrowRight className="ml-2 h-5 w-5" />
+                        </Link>
+                    </Button>
+                </div>
             </div>
         </section>
       </main>
       
       <footer className="py-8 border-t">
-        <div className="container mx-auto text-center text-muted-foreground">
-            <p>&copy; {year} E-Jobfinder Pro. All rights reserved.</p>
+        <div className="container mx-auto text-center text-sm text-muted-foreground">
+            <p>&copy; {year} Angine. All rights reserved.</p>
         </div>
       </footer>
     </div>

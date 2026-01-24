@@ -2,9 +2,27 @@
   "placeholderImages": [
     {
       "id": "hero-landing",
-      "description": "A person working on a laptop, looking happy and successful.",
-      "imageUrl": "https://images.unsplash.com/photo-1596253171634-e46cc0a84369?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxwcm9mZXNzaW9uYWwlMjBzdWNjZXNzfGVufDB8fHx8MTc2ODU4MjE2M3ww&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "professional success"
+      "description": "Abstract geometric shapes, clean and modern.",
+      "imageUrl": "https://images.unsplash.com/photo-1634017837443-05f135b9b7e4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxhYnN0cmFjdCUyMGdlb21ldHJpYyUyMHNoYXBlc3xlbnwwfHx8fDE3Njg5NDY0MDd8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "abstract modern"
+    },
+    {
+      "id": "feature-analysis",
+      "description": "A vibrant data visualization graph on a dark background.",
+      "imageUrl": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxkYXRhJTIwdmlzdWFsaXphdGlvbiUyMGdyYXBufGVufDB8fHx8MTc2ODk0NjQ0OXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "data visualization"
+    },
+    {
+      "id": "feature-keywords",
+      "description": "A document with highlighted text, representing keyword optimization.",
+      "imageUrl": "https://images.unsplash.com/photo-1583521214690-8953a9a5d168?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxoaWdobGlnaHRlZCUyMHRleHQlMjBkb2N1bWVudHxlbnwwfHx8fDE3Njg5NDY0ODR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "text analysis"
+    },
+    {
+      "id": "feature-feedback",
+      "description": "A dashboard with a speedometer indicating rapid performance.",
+      "imageUrl": "https://images.unsplash.com/photo-1596008184422-4427c35e3845?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxzcGVlZG9tZXRlciUyMGRhc2hib2FyZHxlbnwwfHx8fDE3Njg5NDY1MTN8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "fast performance"
     },
     {
       "id": "testimonial-1",
