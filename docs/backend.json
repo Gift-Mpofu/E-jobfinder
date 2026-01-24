@@ -45,6 +45,88 @@
         "location": {
           "type": "string",
           "description": "The user's geographical location."
+        },
+        "cvs": {
+          "type": "array",
+          "description": "A list of the user's uploaded CVs.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "fileName": {
+                "type": "string"
+              },
+              "storagePath": {
+                "type": "string"
+              },
+              "uploadedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "lastScanned": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "bestMatchScore": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "fileName",
+              "storagePath",
+              "uploadedAt"
+            ]
+          }
+        },
+        "jobPreferences": {
+          "type": "object",
+          "description": "User's job search preferences.",
+          "properties": {
+            "preferredRoles": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "workModel": {
+              "type": "string",
+              "enum": [
+                "Remote",
+                "Hybrid",
+                "On-site"
+              ]
+            },
+            "salaryRange": {
+              "type": "string"
+            }
+          }
+        },
+        "scanHistory": {
+          "type": "array",
+          "description": "A history of the user's past CV scans.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "jobTitle": {
+                "type": "string"
+              },
+              "matchScore": {
+                "type": "number"
+              },
+              "scanDate": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "reportId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "jobTitle",
+              "matchScore",
+              "scanDate",
+              "reportId"
+            ]
+          }
         }
       },
       "required": [

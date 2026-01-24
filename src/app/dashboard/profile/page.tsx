@@ -6,9 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft, User as UserIcon, Mail, KeyRound, Award, Briefcase, BarChart3, MapPin, Gauge } from 'lucide-react';
+import { ArrowLeft, User as UserIcon, Award, Briefcase, BarChart3, MapPin, Gauge, FileText, Clock, Star, RefreshCcw, Replace, Settings2, Computer, Home, Building2, DollarSign, History, Lock, Eye } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import { formatDistanceToNow } from 'date-fns';
 
 export default function ProfilePage() {
   const { user, loading } = useUser();
@@ -22,10 +24,33 @@ export default function ProfilePage() {
     return name[0];
   };
 
-  const usage = {
-    scansUsed: 2,
-    scansLimit: 3,
+  // --- Placeholder Data ---
+  const usage = { scansUsed: 2, scansLimit: 3 };
+
+  const cvs = [
+      { name: 'Software_Engineer_CV_2024.pdf', lastScanned: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), bestScore: 88, },
+      { name: 'Product_Manager_Resume.pdf', lastScanned: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), bestScore: 72, },
+  ];
+
+  const jobPreferences = {
+      roles: ['Senior Product Manager', 'Product Lead'],
+      workModel: 'Hybrid',
+      salaryRange: '£90,000 - £120,000',
   };
+
+  const scanHistory = [
+      { jobTitle: 'Lead Frontend Developer @ Vercel', matchScore: 88, feedback: 'Strong alignment with React & Next.js skills.' },
+      { jobTitle: 'Software Engineer @ Google', matchScore: 75, feedback: 'Good, but missing some data structure keywords.' },
+      { jobTitle: 'Junior Developer @ Shopify', matchScore: 65, feedback: 'Lacks experience in specified e-commerce platforms.' },
+  ];
+
+  const getScoreBadgeVariant = (score: number) => {
+    if (score > 75) return 'default';
+    if (score > 50) return 'secondary';
+    return 'destructive';
+  }
+  // --- End Placeholder Data ---
+
 
   return (
     <div className="min-h-screen bg-background text-foreground p-4 lg:p-8">
@@ -36,7 +61,7 @@ export default function ProfilePage() {
             Back to Dashboard
           </Link>
         </Button>
-        <Card className="max-w-2xl mx-auto shadow-lg">
+        <Card className="max-w-4xl mx-auto shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <UserIcon className="text-primary" />
@@ -134,7 +159,94 @@ export default function ProfilePage() {
                     </div>
                 </div>
 
+                <Separator />
+                
+                <div>
+                    <h3 className="text-lg font-semibold mb-4">CV Manager</h3>
+                    <Card>
+                        <CardContent className="p-4 space-y-3">
+                            {cvs.map((cv, index) => (
+                                <div key={index} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50">
+                                    <div className="flex items-center gap-4">
+                                        <FileText className="h-6 w-6 text-muted-foreground" />
+                                        <div>
+                                            <p className="font-semibold">{cv.name}</p>
+                                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                                <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {formatDistanceToNow(cv.lastScanned, { addSuffix: true })}</span>
+                                                <span className="flex items-center gap-1"><Star className="h-3 w-3" /> Best score: <span className="font-bold text-foreground">{cv.bestScore}%</span></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button variant="ghost" size="sm"><RefreshCcw className="h-4 w-4 mr-2" />Re-scan</Button>
+                                        <Button variant="ghost" size="sm"><Replace className="h-4 w-4 mr-2" />Replace</Button>
+                                    </div>
+                                </div>
+                            ))}
+                        </CardContent>
+                        <CardHeader className="pt-0">
+                             <Button variant="outline" className="w-full"><FileUp className="h-4 w-4 mr-2" /> Upload New CV</Button>
+                        </CardHeader>
+                    </Card>
+                </div>
 
+                 <Separator />
+
+                <div>
+                    <h3 className="text-lg font-semibold mb-4 flex justify-between items-center">
+                        <span>Job Preferences</span>
+                        <Button variant="outline" size="sm"><Settings2 className="h-4 w-4 mr-2" />Edit Preferences</Button>
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <Card className="p-4">
+                            <CardTitle className="text-sm font-semibold flex items-center gap-2 mb-2"><Briefcase className="h-4 w-4 text-primary" /> Preferred Roles</CardTitle>
+                            <div className="flex flex-wrap gap-2">
+                                {jobPreferences.roles.map(role => <Badge key={role} variant="secondary">{role}</Badge>)}
+                            </div>
+                        </Card>
+                        <Card className="p-4">
+                           <CardTitle className="text-sm font-semibold flex items-center gap-2 mb-2"><Computer className="h-4 w-4 text-primary" /> Work Model</CardTitle>
+                            <p className="text-sm font-medium flex items-center gap-2">
+                                {jobPreferences.workModel === 'Hybrid' && <Building2 className="h-4 w-4 text-muted-foreground" />}
+                                {jobPreferences.workModel === 'Remote' && <Home className="h-4 w-4 text-muted-foreground" />}
+                                {jobPreferences.workModel}
+                            </p>
+                        </Card>
+                        <Card className="p-4">
+                           <CardTitle className="text-sm font-semibold flex items-center gap-2 mb-2"><DollarSign className="h-4 w-4 text-primary" /> Salary Range</CardTitle>
+                            <p className="text-sm font-medium">{jobPreferences.salaryRange}</p>
+                        </Card>
+                    </div>
+                </div>
+
+                <Separator />
+                
+                <div>
+                    <h3 className="text-lg font-semibold mb-4">Scan History & Results</h3>
+                    <Card>
+                        <CardContent className="p-2">
+                           <ul className="space-y-1">
+                                {scanHistory.map((scan, index) => (
+                                    <li key={index} className="flex items-center justify-between p-3 rounded-md hover:bg-muted/50">
+                                        <div className="flex-1">
+                                            <p className="font-semibold">{scan.jobTitle}</p>
+                                            <p className="text-xs text-muted-foreground">{scan.feedback}</p>
+                                        </div>
+                                        <div className="flex items-center gap-4 ml-4">
+                                          <Badge variant={getScoreBadgeVariant(scan.matchScore)} className="w-[50px] justify-center">{scan.matchScore}%</Badge>
+                                          <Button variant="ghost" size="sm"><Eye className="h-4 w-4" /></Button>
+                                        </div>
+                                    </li>
+                                ))}
+                           </ul>
+                           <div className="text-center text-sm text-muted-foreground p-4 mt-2 border-t">
+                                <Lock className="inline-block h-4 w-4 mr-1" />
+                                Detailed insights are locked for free users. 
+                                <Button variant="link" className="p-0 h-auto text-sm ml-1">Upgrade to Pro to view all results.</Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
               </>
             ) : (
               <p>No user is signed in.</p>
