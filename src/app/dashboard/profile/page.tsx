@@ -70,7 +70,7 @@ export default function ProfilePage() {
   };
 
   // --- Placeholder Data ---
-  const usage = { scansUsed: 2, scansLimit: 3 };
+  const usage = { scansUsed: 0, scansLimit: 3 };
 
   const cvs = [
       { name: 'Software_Engineer_CV_2024.pdf', lastScanned: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), bestScore: 88, },
