@@ -36,6 +36,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useUser } from "@/hooks/use-user";
 
@@ -57,6 +62,7 @@ export default function Dashboard() {
   const [scanType, setScanType] = useState<'quick' | 'deep'>('quick');
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
   const { user: authUser } = useUser();
@@ -253,9 +259,53 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold text-primary font-headline">Angine</h1>
           <div className="flex items-center gap-4">
             <ThemeToggle />
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-            </Button>
+            <Popover open={notificationsOpen} onOpenChange={setNotificationsOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onMouseEnter={() => setNotificationsOpen(true)}
+                  onMouseLeave={() => setNotificationsOpen(false)}
+                >
+                  <Bell className="h-5 w-5" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                className="w-96"
+                align="end"
+                onMouseEnter={() => setNotificationsOpen(true)}
+                onMouseLeave={() => setNotificationsOpen(false)}
+              >
+                <div className="grid gap-4">
+                  <div className="space-y-2">
+                    <h4 className="font-medium leading-none">Notifications</h4>
+                    <p className="text-sm text-muted-foreground">
+                      You have 2 new messages.
+                    </p>
+                  </div>
+                  <div className="grid gap-2">
+                    <div className="flex items-center gap-4 p-2 rounded-md">
+                      <CheckCircle className="h-6 w-6 text-green-500 flex-shrink-0" />
+                      <div className="grid gap-1">
+                        <p className="text-sm font-medium">CV Scan Complete</p>
+                        <p className="text-sm text-muted-foreground">
+                          Your deep scan for 'Software Engineer' is finished.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 p-2 rounded-md">
+                      <BrainCircuit className="h-6 w-6 text-primary animate-pulse flex-shrink-0" />
+                      <div className="grid gap-1">
+                        <p className="text-sm font-medium">Analysis in Progress</p>
+                        <p className="text-sm text-muted-foreground">
+                          Your quick scan for 'Product Manager' has started.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
