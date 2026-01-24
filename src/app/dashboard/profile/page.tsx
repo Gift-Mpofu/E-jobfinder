@@ -19,7 +19,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useDashboard } from '../dashboard/layout';
+import { useDashboard } from '../layout';
 
 // Define types for our Firestore data to use with hooks
 type UserProfile = {
