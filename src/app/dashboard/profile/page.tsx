@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser, useAuth, useFirestore, useDoc, useCollection, type WithId } from '@/firebase';
+import { useUser, useAuth, useFirestore, useDoc, useCollection, type WithId, useMemoFirebase } from '@/firebase';
 import { doc, collection, query, orderBy, limit } from 'firebase/firestore';
 import { signOut, type User as FirebaseUser } from 'firebase/auth';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -76,14 +76,14 @@ export default function ProfilePage() {
   const loading = isDeveloper ? false : authLoading;
 
   // Fetch User Profile
-  const userProfileRef = useMemo(() => {
+  const userProfileRef = useMemoFirebase(() => {
     if (!user) return null;
     return doc(firestore, 'users', user.uid);
   }, [user, firestore]);
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
   // Fetch User CVs
-  const cvsRef = useMemo(() => {
+  const cvsRef = useMemoFirebase(() => {
     if (!user) return null;
     return query(collection(firestore, 'users', user.uid, 'cvs'), orderBy('uploadDate', 'desc'));
   }, [user, firestore]);
@@ -91,7 +91,7 @@ export default function ProfilePage() {
 
   // Fetch Scan History for the most recent CV
   const recentCvId = cvs && cvs.length > 0 ? cvs[0].id : null;
-  const matchResultsRef = useMemo(() => {
+  const matchResultsRef = useMemoFirebase(() => {
     if (!user || !recentCvId) return null;
     return query(collection(firestore, 'users', user.uid, 'cvs', recentCvId, 'matchResults'), orderBy('analysisDate', 'desc'), limit(5));
   }, [user, firestore, recentCvId]);
