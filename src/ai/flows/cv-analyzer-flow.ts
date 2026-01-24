@@ -59,7 +59,7 @@ Analyze the provided CV against the job description.
 1.  **Match Score:** Calculate a percentage score representing the CV's compatibility with the job description.
 2.  **Strengths:** Identify the most relevant skills and experiences from the CV that align with the job.
 3.  **Missing Keywords:** Pinpoint crucial keywords from the job description that are absent in the CV. This is vital for passing ATS (Applicant Tracking Systems).
-4.  **Improvement Suggestions:** Provide concrete, actionable advice on how to improve the CV.
+4.  **Improvement Suggestions:** Provide a direct, actionable list of how to improve the CV. Do not include conversational filler like "Here are some suggestions...". Start directly with the suggestions.
 5.  **Hiring Rate Analysis:** Identify the job title from the description. Then, provide estimated hiring rate data for different seniority levels (e.g., Junior, Mid-Level, Senior) for that job title. This data should be returned in the 'hireRateData' field.
 
 **Scan-Specific Instructions:**
@@ -70,7 +70,7 @@ Analyze the provided CV against the job description.
 *   If **scanType** is **'deep'**:
     *   **This is a Deep Scan.** Perform a forensic analysis.
     *   Go beyond keywords. Infer the target company's values and culture from the job description's tone and language (e.g., 'fast-paced environment', 'collaborative team').
-    *   **Improvement Suggestions** should be highly detailed. Suggest specific phrasing, projects to highlight, and how to frame experience to match the company's inferred values.
+    *   **Improvement Suggestions** should be highly detailed. Suggest specific phrasing, projects to highlight, and how to frame experience to match the company's inferred values. The output should be a direct list of suggestions without any conversational filler.
     *   **Reasoning:** The 'Expert Reasoning' output must be thorough. Explain *why* you're making these suggestions, referencing specific parts of the CV and job description. Explain the strategic value of the missing keywords and how the suggested improvements will significantly boost the candidate's chances of landing an interview.
 `,
 });
