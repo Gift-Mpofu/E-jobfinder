@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft, User as UserIcon, Award, Briefcase, BarChart3, MapPin, Gauge, FileText, Clock, Star, Eye, FileUp, LogOut, Settings2, Computer, Building2, DollarSign, History, Lock, ChevronRight, Pencil, Loader2 } from 'lucide-react';
+import { User as UserIcon, Award, Briefcase, BarChart3, MapPin, Gauge, FileText, Clock, Star, Eye, FileUp, LogOut, Settings2, Lock, ChevronRight, Pencil, Loader2 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
@@ -19,7 +19,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useDashboard } from '../layout';
+import { useDashboard } from '../dashboard/layout';
 
 // Define types for our Firestore data to use with hooks
 type UserProfile = {
@@ -53,7 +53,6 @@ export default function ProfilePage() {
   const { toast } = useToast();
   const { scansUsed, usageLimit } = useDashboard();
   
-  const [selectedCv, setSelectedCv] = useState<WithId<CV> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -272,7 +271,7 @@ export default function ProfilePage() {
                                       <span className="text-xs text-muted-foreground">{scansUsed} / {usageLimit} scans used</span>
                                   </div>
                                   <Progress value={(scansUsed / usageLimit) * 100} />
-                                  <p className="text-xs text-muted-foreground mt-2">Your free scans reset weekly. <Button variant="link" className="p-0 h-auto text-xs">Upgrade for unlimited scans.</Button></p>
+                                  <p className="text-xs text-muted-foreground mt-2">Your free scans reset weekly. <Button asChild variant="link" className="p-0 h-auto text-xs"><Link href="/dashboard/upgrade">Upgrade for unlimited scans.</Link></Button></p>
                               </div>
                           </div>
                       </div>
@@ -304,7 +303,7 @@ export default function ProfilePage() {
                               cvs.map((cv) => (
                                   <Dialog key={cv.id}>
                                       <DialogTrigger asChild>
-                                          <div onClick={() => setSelectedCv(cv)} className="flex items-center justify-between p-3 rounded-md hover:bg-muted/50 cursor-pointer">
+                                          <div className="flex items-center justify-between p-3 rounded-md hover:bg-muted/50 cursor-pointer">
                                               <div className="flex items-center gap-4 overflow-hidden">
                                                   <FileText className="h-6 w-6 text-muted-foreground flex-shrink-0" />
                                                   <div className="overflow-hidden">
@@ -315,6 +314,17 @@ export default function ProfilePage() {
                                               <Button variant="ghost" size="sm" className="flex-shrink-0"><Eye className="h-4 w-4 mr-2" />View</Button>
                                           </div>
                                       </DialogTrigger>
+                                      <DialogContent className="max-w-3xl">
+                                          <DialogHeader>
+                                              <DialogTitle>{cv.fileName}</DialogTitle>
+                                              <DialogDescription>
+                                                  Uploaded {formatDistanceToNow(new Date(cv.uploadDate), { addSuffix: true })}
+                                              </DialogDescription>
+                                          </DialogHeader>
+                                          <ScrollArea className="h-96">
+                                              <pre className="text-sm whitespace-pre-wrap p-4 bg-muted rounded-md font-sans">{cv.fileContent}</pre>
+                                          </ScrollArea>
+                                      </DialogContent>
                                   </Dialog>
                               ))
                           ) : !isCvsLoading && (
@@ -383,7 +393,7 @@ export default function ProfilePage() {
                            <div className="text-center text-sm text-muted-foreground p-4 mt-2 border-t">
                               <Lock className="inline-block h-4 w-4 mr-1" />
                               Showing results for most recent CV only. 
-                              <Button variant="link" className="p-0 h-auto text-sm ml-1">Upgrade to Pro to view all results.</Button>
+                              <Button asChild variant="link" className="p-0 h-auto text-sm ml-1"><Link href="/dashboard/upgrade">Upgrade to Pro to view all results.</Link></Button>
                           </div>
                          )}
                       </CardContent>
