@@ -10,10 +10,10 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bell, User, LogOut, CheckCircle, BrainCircuit, Timer, LayoutDashboard, CreditCard } from "lucide-react";
+import { Bell, User, LogOut, CheckCircle, BrainCircuit, Timer, LayoutDashboard, CreditCard, Menu } from "lucide-react";
 import { type CvAnalysisOutput } from "@/ai/flows/cv-analyzer-flow";
 import { useToast } from "@/hooks/use-toast";
-import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
 
 type Notification = {
@@ -46,33 +46,20 @@ export const useDashboard = () => {
 
 const NavItems = () => {
     const pathname = usePathname();
+    const navLinks = [
+        { href: '/dashboard', label: 'Dashboard' },
+        { href: '/dashboard/profile', label: 'Profile' },
+        { href: '/dashboard/upgrade', label: 'Upgrade to Pro' }
+    ];
+
     return (
-        <SidebarMenu>
-            <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={pathname === '/dashboard'} tooltip="Dashboard">
-                    <Link href="/dashboard">
-                        <LayoutDashboard />
-                        <span>Dashboard</span>
-                    </Link>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={pathname.startsWith('/dashboard/profile')} tooltip="Profile">
-                    <Link href="/dashboard/profile">
-                        <User />
-                        <span>Profile</span>
-                    </Link>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={pathname.startsWith('/dashboard/upgrade')} tooltip="Upgrade to Pro">
-                    <Link href="/dashboard/upgrade">
-                        <CreditCard />
-                        <span>Upgrade to Pro</span>
-                    </Link>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-        </SidebarMenu>
+        <nav className="hidden md:flex items-center space-x-4 lg:space-x-6 text-sm font-medium">
+            {navLinks.map(link => (
+                 <Link key={link.href} href={link.href} className={`transition-colors hover:text-primary ${(pathname === link.href || (link.href !== '/dashboard' && pathname.startsWith(link.href))) ? '' : 'text-muted-foreground'}`}>
+                    {link.label}
+                </Link>
+            ))}
+        </nav>
     );
 };
 
@@ -85,6 +72,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   
   const [isClient, setIsClient] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   const [scansUsed, setScansUsed] = useState(0);
   const [usageLimit] = useState(3);
@@ -215,35 +203,36 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <DashboardContext.Provider value={contextValue}>
-       <SidebarProvider defaultOpen={false}>
         <div className="min-h-screen bg-background text-foreground">
-          <Sidebar>
-            <SidebarHeader>
-              <Link href="/dashboard" className="text-2xl font-bold text-primary font-headline p-2 flex items-center gap-2">
-                <BrainCircuit />
-                <span>Angine</span>
-              </Link>
-            </SidebarHeader>
-            <SidebarContent>
-              <NavItems />
-            </SidebarContent>
-            <SidebarFooter>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton onClick={onSignOut}>
-                    <LogOut />
-                    <span>Log out</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarFooter>
-          </Sidebar>
-          <SidebarInset>
             <header className="p-2 border-b border-border/40 sticky top-0 bg-background/80 backdrop-blur-sm z-50">
               <div className="container mx-auto flex items-center justify-between">
-                 <div className="flex items-center gap-2">
-                    <SidebarTrigger className="md:hidden" />
-                    <p className="font-semibold hidden md:block">Dashboard</p>
+                 <div className="flex items-center gap-4">
+                    <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+                        <SheetTrigger asChild>
+                            <Button variant="ghost" size="icon" className="md:hidden">
+                                <Menu />
+                                <span className="sr-only">Open Menu</span>
+                            </Button>
+                        </SheetTrigger>
+                        <SheetContent side="left" className="w-64">
+                            <div className="p-4">
+                                <Link href="/dashboard" className="text-2xl font-bold text-primary font-headline flex items-center gap-2 mb-8">
+                                    <BrainCircuit />
+                                    <span>Angine</span>
+                                </Link>
+                                <nav className="flex flex-col gap-2">
+                                    <Button asChild variant="ghost" className="justify-start" onClick={() => setMobileMenuOpen(false)}><Link href="/dashboard"><LayoutDashboard className="mr-2"/>Dashboard</Link></Button>
+                                    <Button asChild variant="ghost" className="justify-start" onClick={() => setMobileMenuOpen(false)}><Link href="/dashboard/profile"><User className="mr-2"/>Profile</Link></Button>
+                                    <Button asChild variant="ghost" className="justify-start" onClick={() => setMobileMenuOpen(false)}><Link href="/dashboard/upgrade"><CreditCard className="mr-2"/>Upgrade</Link></Button>
+                                </nav>
+                            </div>
+                        </SheetContent>
+                    </Sheet>
+                    <Link href="/dashboard" className="hidden md:flex items-center gap-2 text-2xl font-bold text-primary font-headline">
+                        <BrainCircuit />
+                        <span>Angine</span>
+                    </Link>
+                    <NavItems />
                  </div>
                 <div className="flex items-center gap-2">
                   <ThemeToggle />
@@ -295,9 +284,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-56" align="end">
-                         <div className="flex flex-col space-y-1">
-                          <p className="text-sm font-medium leading-none">{displayName}</p>
-                          <p className="text-xs leading-none text-muted-foreground">{user?.email || ''}</p>
+                         <div className="flex flex-col space-y-2">
+                          <div className="flex flex-col space-y-1">
+                            <p className="text-sm font-medium leading-none">{displayName}</p>
+                            <p className="text-xs leading-none text-muted-foreground">{user?.email || ''}</p>
+                          </div>
+                          <Button variant="outline" size="sm" onClick={onSignOut}>
+                            <LogOut className="mr-2 h-4 w-4" />
+                            Log Out
+                          </Button>
                         </div>
                       </PopoverContent>
                   </Popover>
@@ -307,9 +302,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <main className="container mx-auto p-4 lg:p-8">
               {children}
             </main>
-          </SidebarInset>
         </div>
-      </SidebarProvider>
     </DashboardContext.Provider>
   );
 }
