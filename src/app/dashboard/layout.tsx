@@ -2,17 +2,18 @@
 
 import { useState, useEffect, createContext, useContext, useMemo, useCallback } from "react";
 import Link from "next/link";
+import { usePathname } from 'next/navigation';
 import { useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { useUser, useAuth } from "@/firebase";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bell, User, LogOut, CheckCircle, BrainCircuit, Timer } from "lucide-react";
+import { Bell, User, LogOut, CheckCircle, BrainCircuit, Timer, LayoutDashboard, CreditCard } from "lucide-react";
 import { type CvAnalysisOutput } from "@/ai/flows/cv-analyzer-flow";
 import { useToast } from "@/hooks/use-toast";
+import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 
 
 type Notification = {
@@ -43,6 +44,38 @@ export const useDashboard = () => {
   return context;
 };
 
+const NavItems = () => {
+    const pathname = usePathname();
+    return (
+        <SidebarMenu>
+            <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={pathname === '/dashboard'} tooltip="Dashboard">
+                    <Link href="/dashboard">
+                        <LayoutDashboard />
+                        <span>Dashboard</span>
+                    </Link>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={pathname.startsWith('/dashboard/profile')} tooltip="Profile">
+                    <Link href="/dashboard/profile">
+                        <User />
+                        <span>Profile</span>
+                    </Link>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={pathname.startsWith('/dashboard/upgrade')} tooltip="Upgrade to Pro">
+                    <Link href="/dashboard/upgrade">
+                        <CreditCard />
+                        <span>Upgrade to Pro</span>
+                    </Link>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
+        </SidebarMenu>
+    );
+};
+
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -53,7 +86,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [isClient, setIsClient] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   
-  // State for usage and notifications
   const [scansUsed, setScansUsed] = useState(0);
   const [usageLimit] = useState(3);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -67,7 +99,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const addNotification = useCallback((notification: Omit<Notification, 'id'>) => {
     const newNotification = { ...notification, id: new Date().toISOString() };
-    setNotifications(prev => [newNotification, ...prev].slice(0, 5)); // Keep last 5
+    setNotifications(prev => [newNotification, ...prev].slice(0, 5));
   }, []);
 
   const clearNotifications = useCallback(() => {
@@ -183,87 +215,101 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <DashboardContext.Provider value={contextValue}>
-      <div className="min-h-screen bg-background text-foreground">
-        <header className="p-4 border-b border-border/40 sticky top-0 bg-background/80 backdrop-blur-sm z-50">
-          <div className="container mx-auto flex items-center justify-between">
-            <Link href="/dashboard" className="text-2xl font-bold text-primary font-headline">Angine</Link>
-            <div className="flex items-center gap-4">
-              <ThemeToggle />
-              <Popover open={notificationsOpen} onOpenChange={setNotificationsOpen}>
-                <PopoverTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <Bell className="h-5 w-5" />
-                    {notifications.length > 0 && <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-primary" />}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-96" align="end">
-                  <div className="grid gap-4">
-                    <div className="space-y-2">
-                      <h4 className="font-medium leading-none">Notifications</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {notifications.length > 0 ? `You have ${notifications.length} new notification(s).` : 'No new notifications.'}
-                      </p>
-                    </div>
-                    <div className="grid gap-2">
-                      {resetTimeLeft && (
-                        <div className="flex items-center gap-4 p-2 rounded-md bg-muted/50">
-                          {getNotificationIcon('limit_reached')}
-                          <div className="grid gap-1">
-                            <p className="text-sm font-medium">Next scans available in:</p>
-                            <p className="text-sm text-muted-foreground font-mono">{resetTimeLeft}</p>
-                          </div>
-                        </div>
-                      )}
-                      {notifications.map(notif => (
-                        <div key={notif.id} className="flex items-center gap-4 p-2 rounded-md">
-                          {getNotificationIcon(notif.type)}
-                          <div className="grid gap-1">
-                            <p className="text-sm font-medium">{notif.title}</p>
-                            <p className="text-sm text-muted-foreground">{notif.description}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={user?.photoURL || ''} alt={displayName} />
-                      <AvatarFallback>{user ? getInitials(displayName) : 'U'}</AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end" forceMount>
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">{displayName}</p>
-                      <p className="text-xs leading-none text-muted-foreground">{user?.email || ''}</p>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/dashboard/profile">
-                      <User className="mr-2 h-4 w-4" />
-                      <span>Profile</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={onSignOut}>
-                    <LogOut className="mr-2 h-4 w-4" />
+       <SidebarProvider>
+        <div className="min-h-screen bg-background text-foreground">
+          <Sidebar>
+            <SidebarHeader>
+              <Link href="/dashboard" className="text-2xl font-bold text-primary font-headline p-2 flex items-center gap-2">
+                <BrainCircuit />
+                <span>Angine</span>
+              </Link>
+            </SidebarHeader>
+            <SidebarContent>
+              <NavItems />
+            </SidebarContent>
+            <SidebarFooter>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton onClick={onSignOut}>
+                    <LogOut />
                     <span>Log out</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </header>
-        <main className="container mx-auto p-4 lg:p-8">
-          {children}
-        </main>
-      </div>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarFooter>
+          </Sidebar>
+          <SidebarInset>
+            <header className="p-2 border-b border-border/40 sticky top-0 bg-background/80 backdrop-blur-sm z-50">
+              <div className="container mx-auto flex items-center justify-between">
+                 <div className="flex items-center gap-2">
+                    <SidebarTrigger className="md:hidden" />
+                    <p className="font-semibold hidden md:block">Dashboard</p>
+                 </div>
+                <div className="flex items-center gap-2">
+                  <ThemeToggle />
+                  <Popover open={notificationsOpen} onOpenChange={setNotificationsOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <Bell className="h-5 w-5" />
+                        {notifications.length > 0 && <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary" />}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-96" align="end">
+                      <div className="grid gap-4">
+                        <div className="space-y-2">
+                          <h4 className="font-medium leading-none">Notifications</h4>
+                          <p className="text-sm text-muted-foreground">
+                            {notifications.length > 0 ? `You have ${notifications.length} new notification(s).` : 'No new notifications.'}
+                          </p>
+                        </div>
+                        <div className="grid gap-2">
+                          {resetTimeLeft && (
+                            <div className="flex items-center gap-4 p-2 rounded-md bg-muted/50">
+                              {getNotificationIcon('limit_reached')}
+                              <div className="grid gap-1">
+                                <p className="text-sm font-medium">Next scans available in:</p>
+                                <p className="text-sm text-muted-foreground font-mono">{resetTimeLeft}</p>
+                              </div>
+                            </div>
+                          )}
+                          {notifications.map(notif => (
+                            <div key={notif.id} className="flex items-center gap-4 p-2 rounded-md">
+                              {getNotificationIcon(notif.type)}
+                              <div className="grid gap-1">
+                                <p className="text-sm font-medium">{notif.title}</p>
+                                <p className="text-sm text-muted-foreground">{notif.description}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                  <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={user?.photoURL || ''} alt={displayName} />
+                            <AvatarFallback>{user ? getInitials(displayName) : 'U'}</AvatarFallback>
+                          </Avatar>
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-56" align="end">
+                         <div className="flex flex-col space-y-1">
+                          <p className="text-sm font-medium leading-none">{displayName}</p>
+                          <p className="text-xs leading-none text-muted-foreground">{user?.email || ''}</p>
+                        </div>
+                      </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+            </header>
+            <main className="container mx-auto p-4 lg:p-8">
+              {children}
+            </main>
+          </SidebarInset>
+        </div>
+      </SidebarProvider>
     </DashboardContext.Provider>
   );
 }
