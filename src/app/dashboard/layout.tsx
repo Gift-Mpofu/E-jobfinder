@@ -215,7 +215,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <DashboardContext.Provider value={contextValue}>
-       <SidebarProvider>
+       <SidebarProvider defaultOpen={false}>
         <div className="min-h-screen bg-background text-foreground">
           <Sidebar>
             <SidebarHeader>

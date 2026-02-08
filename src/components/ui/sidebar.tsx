@@ -175,7 +175,8 @@ const Sidebar = React.forwardRef<
     },
     ref
   ) => {
-    const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
+    const { isMobile, state, setOpen, openMobile, setOpenMobile } =
+      useSidebar()
 
     if (collapsible === "none") {
       return (
@@ -220,17 +221,27 @@ const Sidebar = React.forwardRef<
         data-collapsible={state === "collapsed" ? collapsible : ""}
         data-variant={variant}
         data-side={side}
+        onMouseLeave={
+          !isMobile && collapsible === "offcanvas"
+            ? () => setOpen(false)
+            : undefined
+        }
       >
         {/* This is what handles the sidebar gap on desktop */}
         <div
           className={cn(
             "duration-200 relative h-svh w-[--sidebar-width] bg-transparent transition-[width] ease-linear",
-            "group-data-[collapsible=offcanvas]:w-0",
+            "group-data-[collapsible=offcanvas]:w-2",
             "group-data-[side=right]:rotate-180",
             variant === "floating" || variant === "inset"
               ? "group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4))]"
               : "group-data-[collapsible=icon]:w-[--sidebar-width-icon]"
           )}
+          onMouseEnter={
+            !isMobile && collapsible === "offcanvas"
+              ? () => setOpen(true)
+              : undefined
+          }
         />
         <div
           className={cn(
