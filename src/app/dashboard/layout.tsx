@@ -5,7 +5,8 @@ import Link from "next/link";
 import { usePathname } from 'next/navigation';
 import { useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
-import { useUser, useAuth } from "@/firebase";
+import { doc, updateDoc, serverTimestamp, type Timestamp } from "firebase/firestore";
+import { useUser, useAuth, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -13,7 +14,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Bell, User, LogOut, CheckCircle, BrainCircuit, Timer, LayoutDashboard, CreditCard, Menu } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import type { WithId } from "@/firebase";
 
+type UserProfile = {
+    scansUsed?: number;
+    scanLimitReachedAt?: Timestamp | null;
+    photoURL?: string;
+};
 
 type Notification = {
   id: string;
@@ -26,11 +33,14 @@ type Notification = {
 type DashboardContextType = {
   scansUsed: number;
   usageLimit: number;
-  addScan: () => void;
+  addScan: () => Promise<void>;
   notifications: Notification[];
   addNotification: (notification: Omit<Notification, 'id'>) => void;
   clearNotifications: () => void;
   resetTimeLeft: string;
+  isLimitActive: boolean;
+  userProfile: WithId<UserProfile> | null;
+  isProfileLoading: boolean;
 };
 
 const DashboardContext = createContext<DashboardContextType | null>(null);
@@ -68,21 +78,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { toast } = useToast();
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
+  const firestore = useFirestore();
   
-  const [isClient, setIsClient] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
-  const [scansUsed, setScansUsed] = useState(0);
   const [usageLimit] = useState(3);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [resetTimeLeft, setResetTimeLeft] = useState('');
+  const [isLimitActive, setIsLimitActive] = useState(false);
 
-  useEffect(() => {
-    setIsClient(true);
-    const storedScans = localStorage.getItem('angine_scansUsed');
-    setScansUsed(storedScans ? parseInt(storedScans, 10) : 0);
-  }, []);
+  const userProfileRef = useMemoFirebase(() => {
+    if (!user) return null;
+    return doc(firestore, 'users', user.uid);
+  }, [user, firestore]);
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
+
+  const scansUsed = userProfile?.scansUsed ?? 0;
+  const scanLimitReachedAt = userProfile?.scanLimitReachedAt;
 
   const addNotification = useCallback((notification: Omit<Notification, 'id'>) => {
     const newNotification = { ...notification, id: new Date().toISOString() };
@@ -93,58 +106,87 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     setNotifications([]);
   }, []);
 
-  const addScan = useCallback(() => {
-    const newScansUsed = scansUsed + 1;
-    setScansUsed(newScansUsed);
-    localStorage.setItem('angine_scansUsed', newScansUsed.toString());
+  const addScan = useCallback(async () => {
+    if (!user || !userProfileRef) return;
+
+    const newScansUsed = (userProfile?.scansUsed ?? 0) + 1;
+    let updateData: Partial<UserProfile> = { scansUsed: newScansUsed };
+
     if (newScansUsed >= usageLimit) {
-      const now = new Date().toISOString();
-      localStorage.setItem('scanLimitReachedAt', now);
+      updateData.scanLimitReachedAt = serverTimestamp() as Timestamp;
       addNotification({
         type: 'limit_reached',
         title: 'Usage Limit Reached',
         description: 'Your free scans will reset in 7 days.',
       });
     }
-  }, [scansUsed, usageLimit, addNotification]);
 
-  useEffect(() => {
-    const limitReachedAt = localStorage.getItem('scanLimitReachedAt');
-    if (limitReachedAt) {
-      const interval = setInterval(() => {
-        const now = new Date().getTime();
-        const resetTime = new Date(limitReachedAt).getTime() + 7 * 24 * 60 * 60 * 1000;
-        const distance = resetTime - now;
-
-        if (distance < 0) {
-          clearInterval(interval);
-          setResetTimeLeft('');
-          localStorage.removeItem('scanLimitReachedAt');
-          localStorage.removeItem('angine_scansUsed');
-          setScansUsed(0);
-        } else {
-          const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-          const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-          const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-          setResetTimeLeft(`${days}d ${hours}h ${minutes}m`);
-        }
-      }, 1000);
-      return () => clearInterval(interval);
+    try {
+      await updateDoc(userProfileRef, updateData);
+    } catch (error) {
+      console.error("Failed to update scan count:", error);
+      toast({
+        variant: "destructive",
+        title: "Update Failed",
+        description: "Could not update your scan usage.",
+      });
     }
-  }, [scansUsed]);
+  }, [user, userProfileRef, userProfile?.scansUsed, usageLimit, addNotification, toast]);
 
   useEffect(() => {
-    if (isClient && !isUserLoading && user) {
-      const onboardingComplete = sessionStorage.getItem('onboardingComplete') === 'true';
+    if (!scanLimitReachedAt) {
+        setIsLimitActive(false);
+        setResetTimeLeft('');
+        return;
+    }
 
-      if (!onboardingComplete) {
+    const limitDate = scanLimitReachedAt.toDate();
+    const resetTime = limitDate.getTime() + 7 * 24 * 60 * 60 * 1000;
+
+    // If reset time has passed, reset the user's scan count
+    if (new Date().getTime() > resetTime) {
+      if (userProfileRef && (userProfile?.scansUsed ?? 0) > 0) {
+        updateDoc(userProfileRef, {
+          scansUsed: 0,
+          scanLimitReachedAt: null
+        }).catch(err => console.error("Failed to reset scan count:", err));
+      }
+      setIsLimitActive(false);
+      return;
+    }
+
+    // Otherwise, calculate time left and show it
+    setIsLimitActive(true);
+    const interval = setInterval(() => {
+      const now = new Date().getTime();
+      const distance = resetTime - now;
+
+      if (distance < 0) {
+        clearInterval(interval);
+        setResetTimeLeft('');
+      } else {
+        const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        setResetTimeLeft(`${days}d ${hours}h ${minutes}m`);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [scanLimitReachedAt, userProfileRef, userProfile?.scansUsed]);
+
+  useEffect(() => {
+    if (!isUserLoading && user) {
+      if (!isProfileLoading && !userProfile) {
+        // If user is loaded, but there's no profile, they need onboarding.
         router.push('/dashboard/onboarding');
       }
     }
-  }, [isClient, isUserLoading, user, router]);
+  }, [isUserLoading, user, isProfileLoading, userProfile, router]);
 
 
   const displayName = user?.displayName || (user?.email ? user.email.split('@')[0] : 'User');
+  const photoURL = userProfile?.photoURL || user?.photoURL;
 
   const onSignOut = async () => {
     try {
@@ -185,6 +227,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     addNotification,
     clearNotifications,
     resetTimeLeft,
+    isLimitActive,
+    userProfile: userProfile as WithId<UserProfile> | null,
+    isProfileLoading,
   };
 
   return (
@@ -264,7 +309,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       <PopoverTrigger asChild>
                         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                           <Avatar className="h-8 w-8">
-                            <AvatarImage src={user?.photoURL || ''} alt={displayName} />
+                            <AvatarImage src={photoURL || ''} alt={displayName} />
                             <AvatarFallback>{user ? getInitials(displayName) : 'U'}</AvatarFallback>
                           </Avatar>
                         </Button>

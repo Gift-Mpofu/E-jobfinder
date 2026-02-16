@@ -90,7 +90,7 @@ export default function Dashboard() {
   const router = useRouter();
   const { user } = useUser();
   const firestore = useFirestore();
-  const { scansUsed, usageLimit, addScan, addNotification } = useDashboard();
+  const { scansUsed, usageLimit, addScan, addNotification, isLimitActive } = useDashboard();
 
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -128,6 +128,7 @@ export default function Dashboard() {
     jobDesc: string,
     analysis: CvAnalysisOutput
   ) => {
+      if (!firestore) return;
       try {
         const cvRef = doc(collection(firestore, 'users', userId, 'cvs'));
         const jobDescRef = doc(collection(firestore, 'users', userId, 'jobDescriptions'));
@@ -180,7 +181,7 @@ export default function Dashboard() {
         return;
     }
     
-    if (scansUsed >= usageLimit) {
+    if (scansUsed >= usageLimit && isLimitActive) {
         toast({
             variant: 'destructive',
             title: 'Usage Limit Reached',
@@ -250,7 +251,7 @@ export default function Dashboard() {
             scanType,
         });
         setAnalysisResult(result);
-        addScan();
+        await addScan();
         addNotification({ type: 'scan_complete', title: 'Analysis Complete', description: `Your CV scan for "${result.jobTitle}" is finished.`, data: result });
         if (user.uid) {
             saveAnalysisData(user.uid, cvContent, cvFileName, jobDescription, result);

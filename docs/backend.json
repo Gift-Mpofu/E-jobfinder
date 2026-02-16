@@ -54,6 +54,15 @@
         "location": {
             "type": "string",
             "description": "User's location."
+        },
+        "scansUsed": {
+          "type": "number",
+          "description": "Number of CV scans used in the current period."
+        },
+        "scanLimitReachedAt": {
+            "type": "string",
+            "description": "Timestamp when the user hit their scan limit.",
+            "format": "date-time"
         }
       },
       "required": [

@@ -84,7 +84,7 @@ export default function OnboardingPage() {
   };
 
   const handleFinish = (finalAnswers: Record<string, string>) => {
-    if (!user) {
+    if (!user || !firestore) {
       toast({
         variant: "destructive",
         title: "Error",
@@ -101,6 +101,8 @@ export default function OnboardingPage() {
       email: user.email,
       photoURL: user.photoURL,
       skills: finalAnswers.skills ? finalAnswers.skills.split(',').map(s => s.trim()) : [],
+      scansUsed: 0,
+      scanLimitReachedAt: null,
     };
     
     try {
@@ -112,8 +114,7 @@ export default function OnboardingPage() {
         description: "Your career profile has been updated.",
       });
       
-      sessionStorage.setItem('onboardingComplete', 'true');
-      router.push('/dashboard/profile');
+      router.push('/dashboard');
     } catch(error: any) {
         console.error("Failed to save onboarding data:", error);
         toast({
@@ -177,7 +178,7 @@ export default function OnboardingPage() {
             disabled={!currentAnswer}
             className="w-full"
           >
-            {currentQuestionIndex < questions.length - 1 ? 'Next' : 'Finish & Go to Profile'}
+            {currentQuestionIndex < questions.length - 1 ? 'Next' : 'Finish & Go to Dashboard'}
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </CardFooter>

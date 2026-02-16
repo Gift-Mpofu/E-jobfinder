@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser, useAuth, useFirestore, useDoc, useCollection, useMemoFirebase, useFirebaseApp } from '@/firebase';
+import { useUser, useAuth, useFirestore, useCollection, useMemoFirebase, useFirebaseApp } from '@/firebase';
 import { doc, collection, query, orderBy, limit, updateDoc } from 'firebase/firestore';
 import { signOut, updateProfile } from 'firebase/auth';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -29,15 +29,18 @@ type UserProfile = {
     skills?: string[];
     careerGoals?: string;
     photoURL?: string;
+    scansUsed?: number;
 }
 
 type CV = {
+    id: string;
     fileName: string;
     uploadDate: string;
     fileContent: string;
 }
 
 type MatchResult = {
+    id: string;
     jobTitle: string;
     matchScore: number;
     analysisDate: string;
@@ -50,19 +53,12 @@ export default function ProfilePage() {
   const firebaseApp = useFirebaseApp();
   const router = useRouter();
   const { toast } = useToast();
-  const { scansUsed, usageLimit } = useDashboard();
+  const { scansUsed, usageLimit, userProfile, isProfileLoading } = useDashboard();
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   
-  const loading = authLoading;
-
-  // Fetch User Profile
-  const userProfileRef = useMemoFirebase(() => {
-    if (!user) return null;
-    return doc(firestore, 'users', user.uid);
-  }, [user, firestore]);
-  const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
+  const loading = authLoading || isProfileLoading;
 
   // Fetch User CVs
   const cvsRef = useMemoFirebase(() => {
@@ -104,7 +100,7 @@ export default function ProfilePage() {
   };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!user || !firebaseApp) return;
+    if (!user || !firebaseApp || !firestore) return;
     const file = event.target.files?.[0];
     if (!file) return;
 
