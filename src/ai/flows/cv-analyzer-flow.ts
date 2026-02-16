@@ -39,7 +39,7 @@ const cvAnalysisPrompt = ai.definePrompt({
   name: 'cvAnalysisPrompt',
   input: {schema: CvAnalysisInputSchema},
   output: {schema: CvAnalysisOutputSchema},
-  prompt: `You are the 'Angine', an expert AI career strategist and hiring manager for top companies. Your analysis is sharp, insightful, and incredibly helpful.
+  prompt: `You are an expert AI career strategist for 'E-Job Finder'. Your analysis is sharp, insightful, and incredibly helpful.
 
 Analyze the provided CV against the job description.
 

@@ -14,12 +14,12 @@ export default function UpgradePage() {
             <Zap className="h-12 w-12 text-primary" />
           </div>
           <CardTitle>Upgrade to Pro</CardTitle>
-          <CardDescription>Unlock unlimited potential with Angine Pro.</CardDescription>
+          <CardDescription>Unlock unlimited potential with E-Job Finder Pro.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <h2 className="text-xl font-semibold">Coming Soon!</h2>
           <p className="text-muted-foreground">
-            Angine is currently in a public beta. We're working hard to bring you powerful new features, including unlimited CV scans, advanced analytics, and more.
+            E-Job Finder is currently in a public beta. We're working hard to bring you powerful new features, including unlimited CV scans, advanced analytics, and more.
           </p>
           <p className="text-muted-foreground">
             For now, all users can enjoy 3 free scans per week. We appreciate your feedback as we continue to build and improve the platform.

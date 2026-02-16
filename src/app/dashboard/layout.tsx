@@ -11,7 +11,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bell, User, LogOut, CheckCircle, BrainCircuit, Timer, LayoutDashboard, CreditCard, Menu } from "lucide-react";
+import { Bell, User, LogOut, CheckCircle, BrainCircuit, Timer, LayoutDashboard, CreditCard, Menu, Briefcase } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import type { WithId } from "@/firebase";
@@ -248,8 +248,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         <SheetContent side="left" className="w-64">
                             <div className="p-4">
                                 <Link href="/dashboard" className="text-2xl font-bold text-primary font-headline flex items-center gap-2 mb-8">
-                                    <BrainCircuit />
-                                    <span>Angine</span>
+                                    <Briefcase />
+                                    <span>E-Job Finder</span>
                                 </Link>
                                 <nav className="flex flex-col gap-2">
                                     <Button asChild variant="ghost" className="justify-start" onClick={() => setMobileMenuOpen(false)}><Link href="/dashboard"><LayoutDashboard className="mr-2"/>Dashboard</Link></Button>
@@ -260,8 +260,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         </SheetContent>
                     </Sheet>
                     <Link href="/dashboard" className="hidden md:flex items-center gap-2 text-2xl font-bold text-primary font-headline">
-                        <BrainCircuit />
-                        <span>Angine</span>
+                        <Briefcase />
+                        <span>E-Job Finder</span>
                     </Link>
                     <NavItems />
                  </div>

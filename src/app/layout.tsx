@@ -5,8 +5,8 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { FirebaseClientProvider } from '@/firebase';
 
 export const metadata: Metadata = {
-  title: 'Angine',
-  description: 'Analyze your CV against job descriptions to find the perfect match.',
+  title: 'E-Job Finder',
+  description: 'E-Job Finder helps you analyze your CV against job descriptions to find the perfect match.',
 };
 
 export default function RootLayout({

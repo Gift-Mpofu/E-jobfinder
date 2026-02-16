@@ -51,7 +51,7 @@ export default function LandingPage() {
       {
         name: "Sarah L.",
         title: "Software Engineer",
-        quote: "Angine was a game-changer. The AI analysis helped me tailor my CV for the exact roles I wanted, and I landed my dream job at a FAANG company within a month!",
+        quote: "E-Job Finder was a game-changer. The AI analysis helped me tailor my CV for the exact roles I wanted, and I landed my dream job at a FAANG company within a month!",
         avatar: imageMap.testimonial1,
         avatarFallback: "SL"
       },
@@ -100,11 +100,11 @@ export default function LandingPage() {
 
   const chartConfig = {
     without: {
-      label: 'Without Angine',
+      label: 'Without E-Job Finder',
       color: 'hsl(var(--muted-foreground))',
     },
     with: {
-      label: 'With Angine',
+      label: 'With E-Job Finder',
       color: 'hsl(var(--primary))',
     },
   } as const;
@@ -115,7 +115,7 @@ export default function LandingPage() {
         <div className="container mx-auto flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <Briefcase className="h-6 w-6 text-primary" />
-            <h1 className="text-xl font-bold text-primary font-headline tracking-tighter">Angine</h1>
+            <h1 className="text-xl font-bold text-primary font-headline tracking-tighter">E-Job Finder</h1>
           </Link>
           <div className="flex items-center gap-2 md:gap-4">
             <ThemeToggle />
@@ -136,7 +136,7 @@ export default function LandingPage() {
               The AI engine for your job search.
             </h1>
             <p className="mt-6 max-w-2xl mx-auto text-lg md:text-xl text-muted-foreground">
-              Stop guessing. Angine analyzes your CV against any job description to give you an unfair advantage.
+              Stop guessing. E-Job Finder analyzes your CV against any job description to give you an unfair advantage.
             </p>
             <div className="mt-8 flex justify-center gap-4">
               <Button asChild size="lg">
@@ -200,15 +200,15 @@ export default function LandingPage() {
         <section className="py-24 md:py-40">
           <div className="container mx-auto">
             <div className="text-center mb-16 md:mb-24">
-              <h2 className="text-3xl md:text-5xl font-bold tracking-tighter">The Angine Difference</h2>
+              <h2 className="text-3xl md:text-5xl font-bold tracking-tighter">The E-Job Finder Difference</h2>
               <p className="mt-4 max-w-2xl mx-auto text-lg text-muted-foreground">
-                Stop guessing. Start improving. See how Angine transforms your job hunt.
+                Stop guessing. Start improving. See how E-Job Finder transforms your job hunt.
               </p>
             </div>
             <Card className="shadow-lg border-border/50 max-w-4xl mx-auto bg-card/50 backdrop-blur-sm">
               <CardHeader>
                 <CardTitle>Application Success: Before & After</CardTitle>
-                <CardDescription>Angine's AI analysis dramatically improves your key job search metrics.</CardDescription>
+                <CardDescription>E-Job Finder's AI analysis dramatically improves your key job search metrics.</CardDescription>
               </CardHeader>
               <CardContent>
                 <ChartContainer config={chartConfig} className="h-[300px] w-full text-xs">
@@ -323,7 +323,7 @@ export default function LandingPage() {
       
       <footer className="py-8 border-t">
         <div className="container mx-auto text-center text-sm text-muted-foreground">
-            <p>&copy; {year} Angine. All rights reserved.</p>
+            <p>&copy; {year} E-Job Finder. All rights reserved.</p>
         </div>
       </footer>
     </div>

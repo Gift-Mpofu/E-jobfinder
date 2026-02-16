@@ -129,7 +129,7 @@ export default function OnboardingPage() {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-2xl shadow-2xl">
         <CardHeader>
-          <CardTitle className="text-center">Welcome to Angine!</CardTitle>
+          <CardTitle className="text-center">Welcome to E-Job Finder!</CardTitle>
           <CardDescription className="text-center">Let's set up your career profile to get the best results.</CardDescription>
           <div className="pt-4">
             <Progress value={progress} className="w-full" />

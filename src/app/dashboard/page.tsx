@@ -273,7 +273,7 @@ export default function Dashboard() {
     console.log("Feedback submitted:", feedbackText);
     toast({
       title: "Feedback Submitted",
-      description: "Thank you for helping us improve Angine!",
+      description: "Thank you for helping us improve E-Job Finder!",
     });
     setFeedbackText("");
     setFeedbackOpen(false);
@@ -345,7 +345,7 @@ export default function Dashboard() {
             <span>Analyze Your Match</span>
           </CardTitle>
           <CardDescription>
-            Select a scan mode, provide your CV and a job description, and let Angine do the rest.
+            Select a scan mode, provide your CV and a job description, and let E-Job Finder do the rest.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -440,7 +440,7 @@ export default function Dashboard() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <BarChart2 className="text-primary" />
-            <span>Angine Results</span>
+            <span>E-Job Finder Results</span>
           </CardTitle>
           <CardDescription>
             {analysisResult ? 'Here is a breakdown of your compatibility.' : 'Your analysis will appear here.'}
@@ -454,7 +454,7 @@ export default function Dashboard() {
             <div className="flex flex-col items-center justify-center min-h-[400px] text-center text-muted-foreground p-8">
               <BarChart2 className="w-16 h-16 mb-4" />
               <h3 className="font-semibold text-lg text-foreground">Ready to find your perfect job?</h3>
-              <p>Provide your info, select a scan mode, and let Angine find your optimal path.</p>
+              <p>Provide your info, select a scan mode, and let E-Job Finder find your optimal path.</p>
             </div>
           )}
           {analysisResult && scoreFeedback && (
@@ -535,7 +535,7 @@ export default function Dashboard() {
                     <DialogHeader>
                       <DialogTitle>Provide Feedback</DialogTitle>
                       <DialogDescription>
-                        Did Angine work perfectly? Let us know what you think about the analysis you received.
+                        Did E-Job Finder work perfectly? Let us know what you think about the analysis you received.
                       </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
