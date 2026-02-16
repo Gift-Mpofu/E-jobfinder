@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, createContext, useContext, useMemo, useCallback } from "react";
+import { useState, useEffect, createContext, useContext, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from 'next/navigation';
 import { useRouter } from "next/navigation";
@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Bell, User, LogOut, CheckCircle, BrainCircuit, Timer, LayoutDashboard, CreditCard, Menu } from "lucide-react";
-import { type CvAnalysisOutput } from "@/ai/flows/cv-analyzer-flow";
 import { useToast } from "@/hooks/use-toast";
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
@@ -67,7 +66,7 @@ const NavItems = () => {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { toast } = useToast();
-  const { user: authUser, isUserLoading } = useUser();
+  const { user, isUserLoading } = useUser();
   const auth = useAuth();
   
   const [isClient, setIsClient] = useState(false);
@@ -135,34 +134,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [scansUsed]);
 
   useEffect(() => {
-    if (isClient && !isUserLoading && authUser) {
-      const isDeveloper = sessionStorage.getItem('isDeveloper') === 'true';
+    if (isClient && !isUserLoading && user) {
       const onboardingComplete = sessionStorage.getItem('onboardingComplete') === 'true';
 
-      if (!isDeveloper && !onboardingComplete) {
+      if (!onboardingComplete) {
         router.push('/dashboard/onboarding');
       }
     }
-  }, [isClient, isUserLoading, authUser, router]);
+  }, [isClient, isUserLoading, user, router]);
 
-  const isDeveloper = isClient && sessionStorage.getItem('isDeveloper') === 'true';
-
-  const user = useMemo(() => isDeveloper
-    ? {
-        uid: 'dev-user',
-        displayName: 'Developer',
-        email: 'dev@angine.com',
-        photoURL: 'https://i.pravatar.cc/150?u=developer',
-      }
-    : authUser, [isDeveloper, authUser]);
 
   const displayName = user?.displayName || (user?.email ? user.email.split('@')[0] : 'User');
 
   const onSignOut = async () => {
     try {
-      if (isDeveloper) {
-        sessionStorage.removeItem('isDeveloper');
-      } else if (auth) {
+      if (auth) {
         await signOut(auth);
       }
       router.push('/login');

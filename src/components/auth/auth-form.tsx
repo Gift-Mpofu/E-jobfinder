@@ -60,11 +60,6 @@ export default function AuthForm({ mode }: { mode: Mode }) {
     }
   };
 
-  const handleDeveloperLogin = () => {
-    sessionStorage.setItem('isDeveloper', 'true');
-    router.push('/dashboard');
-  };
-
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900">
       <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md dark:bg-gray-800">
@@ -111,15 +106,6 @@ export default function AuthForm({ mode }: { mode: Mode }) {
         >
           Google
         </Button>
-        {mode === 'login' && (
-          <Button
-            variant="secondary"
-            className="w-full"
-            onClick={handleDeveloperLogin}
-          >
-            Log in as a developer
-          </Button>
-        )}
       </div>
     </div>
   );

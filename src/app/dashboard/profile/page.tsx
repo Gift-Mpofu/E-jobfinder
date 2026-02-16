@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser, useAuth, useFirestore, useDoc, useCollection, type WithId, useMemoFirebase, useFirebaseApp } from '@/firebase';
+import { useUser, useAuth, useFirestore, useDoc, useCollection, useMemoFirebase, useFirebaseApp } from '@/firebase';
 import { doc, collection, query, orderBy, limit, updateDoc } from 'firebase/firestore';
-import { signOut, type User as FirebaseUser, updateProfile } from 'firebase/auth';
+import { signOut, updateProfile } from 'firebase/auth';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -44,37 +44,18 @@ type MatchResult = {
 }
 
 export default function ProfilePage() {
-  const { user: authUser, isUserLoading: authLoading } = useUser();
+  const { user, isUserLoading: authLoading } = useUser();
   const auth = useAuth();
   const firestore = useFirestore();
   const firebaseApp = useFirebaseApp();
-  const [isClient, setIsClient] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
   const { scansUsed, usageLimit } = useDashboard();
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  const isDeveloper = isClient && sessionStorage.getItem('isDeveloper') === 'true';
-
-  const user = useMemo(() => {
-    if (isDeveloper) {
-      return {
-        uid: 'dev-user',
-        displayName: 'Developer',
-        email: 'dev@angine.com',
-        photoURL: 'https://i.pravatar.cc/150?u=developer',
-      };
-    }
-    return authUser;
-  }, [isDeveloper, authUser]);
   
-  const loading = isDeveloper ? false : authLoading;
+  const loading = authLoading;
 
   // Fetch User Profile
   const userProfileRef = useMemoFirebase(() => {
@@ -103,9 +84,7 @@ export default function ProfilePage() {
 
   const onSignOut = async () => {
     try {
-      if (isDeveloper) {
-        sessionStorage.removeItem('isDeveloper');
-      } else if (auth) {
+      if (auth) {
         await signOut(auth);
       }
       router.push('/login');
@@ -120,11 +99,7 @@ export default function ProfilePage() {
   };
 
   const handleAvatarClick = () => {
-    if (isUploading || isDeveloper) return;
-    if (isDeveloper) {
-        toast({ title: "Read-only", description: "Cannot change avatar for developer account."})
-        return;
-    }
+    if (isUploading) return;
     fileInputRef.current?.click();
   };
 
@@ -241,7 +216,7 @@ export default function ProfilePage() {
                         {getInitials(displayName)}
                         </AvatarFallback>
                     </Avatar>
-                    <button onClick={handleAvatarClick} disabled={isUploading || isDeveloper} className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
+                    <button onClick={handleAvatarClick} disabled={isUploading} className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
                        {isUploading ? <Loader2 className="h-8 w-8 animate-spin" /> : <Pencil className="h-8 w-8" />}
                     </button>
                 </div>
