@@ -29,9 +29,6 @@ import { useUser, useFirestore, setDocumentNonBlocking } from "@/firebase";
 import { useDashboard } from "./layout";
 import * as pdfjsLib from "pdfjs-dist";
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
-
-
 const hireRateChartConfig = {
   rate: {
     label: "Hiring Rate",
@@ -92,6 +89,12 @@ export default function Dashboard() {
   const firestore = useFirestore();
   const { scansUsed, usageLimit, addScan, addNotification, isLimitActive } = useDashboard();
 
+  useEffect(() => {
+    // PDF.js worker initialization should happen on the client
+    if (typeof window !== 'undefined') {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+    }
+  }, []);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
@@ -166,7 +169,6 @@ export default function Dashboard() {
         
       } catch (error) {
           console.error("Failed to save analysis data:", error);
-          // Don't toast here as it might be a permissions error handled globally
       }
   }
 
@@ -269,7 +271,6 @@ export default function Dashboard() {
   };
 
   const handleFeedbackSubmit = () => {
-    // In a real app, you'd send this to a backend.
     console.log("Feedback submitted:", feedbackText);
     toast({
       title: "Feedback Submitted",

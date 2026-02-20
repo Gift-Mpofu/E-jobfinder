@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  transpilePackages: ['recharts', 'pdfjs-dist'],
   images: {
     remotePatterns: [
       {

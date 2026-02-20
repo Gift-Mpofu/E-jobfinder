@@ -1,6 +1,6 @@
 'use server';
 /**
- * @fileOverview A CV analysis AI agent from Angine.
+ * @fileOverview A CV analysis AI agent from E-Job Finder.
  *
  * - analyzeCv - A function that handles the CV analysis process.
  * - CvAnalysisInput - The input type for the analyzeCv function.
