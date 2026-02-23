@@ -85,9 +85,16 @@ export default function Dashboard() {
   
   const { toast } = useToast();
   const router = useRouter();
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
-  const { scansUsed, usageLimit, addScan, addNotification, isLimitActive } = useDashboard();
+  const { scansUsed, usageLimit, addScan, addNotification, isLimitActive, isAdmin } = useDashboard();
+
+  useEffect(() => {
+    // If admin lands on the main dashboard, redirect them to the admin panel
+    if (!isUserLoading && isAdmin) {
+      router.replace('/dashboard/admin');
+    }
+  }, [isUserLoading, isAdmin, router]);
 
   useEffect(() => {
     // PDF.js worker initialization should happen on the client

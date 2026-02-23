@@ -14,7 +14,7 @@ import { ShieldCheck, User, Plus, Minus, Search, Loader2, Settings, AlertTriangl
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-const ADMIN_EMAIL = 'Giftmpofud@gmail.com';
+const ADMIN_EMAIL = 'giftmpofud@gmail.com';
 
 type UserProfile = {
     id: string;

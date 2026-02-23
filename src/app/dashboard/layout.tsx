@@ -16,7 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import type { WithId } from "@/firebase";
 
-const ADMIN_EMAIL = 'Giftmpofud@gmail.com';
+const ADMIN_EMAIL = 'giftmpofud@gmail.com';
 
 type UserProfile = {
     scansUsed?: number;
@@ -98,7 +98,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [resetTimeLeft, setResetTimeLeft] = useState('');
   const [isLimitActive, setIsLimitActive] = useState(false);
 
-  const isAdminUser = user?.email === ADMIN_EMAIL;
+  const isAdminUser = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
   const userProfileRef = useMemoFirebase(() => {
     if (!user) return null;
@@ -181,12 +181,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [scanLimitReachedAt, userProfileRef, userProfile?.scansUsed]);
 
   useEffect(() => {
-    if (!isUserLoading && user) {
+    // Redirect non-admins without profiles to onboarding
+    if (!isUserLoading && user && !isAdminUser) {
       if (!isProfileLoading && !userProfile) {
         router.push('/dashboard/onboarding');
       }
     }
-  }, [isUserLoading, user, isProfileLoading, userProfile, router]);
+  }, [isUserLoading, user, isAdminUser, isProfileLoading, userProfile, router]);
 
 
   const displayName = user?.displayName || (user?.email ? user.email.split('@')[0] : 'User');
