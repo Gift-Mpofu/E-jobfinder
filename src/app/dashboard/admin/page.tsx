@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -11,10 +10,11 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ShieldCheck, User, Plus, Minus, Search, Loader2, Settings, AlertTriangle, Users, FileText, ClipboardList, Activity, AlertCircle, Server, TrendingUp } from 'lucide-react';
+import { ShieldCheck, User, Plus, Minus, Search, Loader2, Settings, AlertTriangle, Users, FileText, ClipboardList, Activity, AlertCircle, Server, TrendingUp, Filter } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { formatDistanceToNow } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 const ADMIN_EMAIL = 'giftmpofud@gmail.com';
 
@@ -27,6 +27,8 @@ type UserProfile = {
     lastActive?: Timestamp;
 };
 
+type FilterType = 'all' | 'active' | 'scans' | 'cvs' | 'jds' | 'errors';
+
 export default function AdminPage() {
     const { user, isUserLoading } = useUser();
     const firestore = useFirestore();
@@ -34,6 +36,7 @@ export default function AdminPage() {
     const { toast } = useToast();
     const [searchTerm, setSearchTerm] = useState('');
     const [isUpdating, setIsUpdating] = useState<string | null>(null);
+    const [activeFilter, setActiveFilter] = useState<FilterType>('all');
 
     // Security check: Only allow the specific admin email
     if (!isUserLoading && user?.email?.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
@@ -84,23 +87,68 @@ export default function AdminPage() {
         }
     };
 
-    const filteredUsers = users?.filter(u => 
-        u.email.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        u.targetRole?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredUsers = useMemo(() => {
+        if (!users) return [];
+        let result = users;
 
-    const StatCard = ({ title, value, icon: Icon, description, colorClass = "text-primary" }: any) => (
-        <Card className="hover:shadow-md transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-                <Icon className={`h-4 w-4 ${colorClass}`} />
-            </CardHeader>
-            <CardContent>
-                <div className="text-2xl font-bold">{value}</div>
-                {description && <p className="text-xs text-muted-foreground mt-1">{description}</p>}
-            </CardContent>
-        </Card>
-    );
+        // Apply Search
+        if (searchTerm) {
+            result = result.filter(u => 
+                u.email.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                u.targetRole?.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+        }
+
+        // Apply Category Filter
+        const now = new Date();
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+        switch (activeFilter) {
+            case 'active':
+                result = result.filter(u => u.lastActive && u.lastActive.toDate() > sevenDaysAgo);
+                break;
+            case 'scans':
+                result = result.filter(u => u.scansUsed > 0);
+                break;
+            case 'cvs':
+            case 'jds':
+                // Since we don't have counts in root user doc, we show all users for now
+                // but highlight the context. Real implementation would use aggregation.
+                break;
+            case 'errors':
+                result = []; // No users currently have error logs associated
+                break;
+        }
+
+        return result;
+    }, [users, searchTerm, activeFilter]);
+
+    const StatCard = ({ title, value, icon: Icon, description, colorClass = "text-primary", type }: any) => {
+        const isActive = activeFilter === type;
+        return (
+            <Card 
+                className={cn(
+                    "cursor-pointer transition-all hover:ring-2 hover:ring-primary/50",
+                    isActive ? "ring-2 ring-primary bg-primary/5" : "hover:shadow-md"
+                )}
+                onClick={() => setActiveFilter(type)}
+            >
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+                    <Icon className={`h-4 w-4 ${colorClass}`} />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">{value}</div>
+                    {description && <p className="text-xs text-muted-foreground mt-1">{description}</p>}
+                    {isActive && (
+                        <div className="mt-2 flex items-center text-[10px] font-bold text-primary uppercase tracking-tighter">
+                            <Filter className="h-2 w-2 mr-1" /> Active Filter
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+        );
+    };
 
     return (
         <div className="space-y-8 max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -125,9 +173,9 @@ export default function AdminPage() {
 
             <Alert variant="default" className="bg-primary/5 border-primary/20">
                 <AlertTriangle className="h-4 w-4 text-primary" />
-                <AlertTitle>Admin Notice</AlertTitle>
+                <AlertTitle>Interactive Analytics</AlertTitle>
                 <AlertDescription>
-                    Real-time cross-user document aggregation for CVs and Job Descriptions is being indexed. Global sub-collection counts are estimated based on active scan sessions.
+                    Click on any metric card below to filter the user directory and see associated details.
                 </AlertDescription>
             </Alert>
 
@@ -137,6 +185,7 @@ export default function AdminPage() {
                     value={isLoading ? "..." : metrics.total} 
                     icon={Users} 
                     description="Total registered accounts"
+                    type="all"
                 />
                 <StatCard 
                     title="Active Users" 
@@ -144,6 +193,7 @@ export default function AdminPage() {
                     icon={Activity} 
                     description="Users active in last 7 days"
                     colorClass="text-green-500"
+                    type="active"
                 />
                 <StatCard 
                     title="Total AI Match Analyses" 
@@ -151,6 +201,7 @@ export default function AdminPage() {
                     icon={TrendingUp} 
                     description="Aggregate scan throughput"
                     colorClass="text-blue-500"
+                    type="scans"
                 />
                 <StatCard 
                     title="Server Status" 
@@ -158,6 +209,7 @@ export default function AdminPage() {
                     icon={Server} 
                     description="Global instance health"
                     colorClass="text-emerald-500"
+                    type="all"
                 />
             </div>
 
@@ -167,19 +219,22 @@ export default function AdminPage() {
                     value={isLoading ? "..." : (metrics.total * 1.2).toFixed(0)} 
                     icon={FileText} 
                     description="Estimated total document count"
+                    type="cvs"
                 />
                 <StatCard 
                     title="Total Job Descriptions" 
                     value={isLoading ? "..." : (metrics.total * 2.1).toFixed(0)} 
                     icon={ClipboardList} 
                     description="Estimated descriptions submitted"
+                    type="jds"
                 />
                 <StatCard 
                     title="Error Logs Today" 
                     value="0" 
                     icon={AlertCircle} 
                     description="Critical exceptions caught"
-                    colorClass="text-green-500"
+                    colorClass="text-red-500"
+                    type="errors"
                 />
             </div>
 
@@ -187,9 +242,24 @@ export default function AdminPage() {
                 <CardHeader className="border-b bg-muted/30">
                     <div className="flex items-center justify-between">
                         <div>
-                            <CardTitle>User Directory & Quota Control</CardTitle>
-                            <CardDescription>Monitor activity and manually override scan limits.</CardDescription>
+                            <CardTitle>
+                                {activeFilter === 'all' && 'User Directory'}
+                                {activeFilter === 'active' && 'Active User Directory'}
+                                {activeFilter === 'scans' && 'Analysis Usage Directory'}
+                                {activeFilter === 'cvs' && 'Document Management Directory'}
+                                {activeFilter === 'jds' && 'Job Description Directory'}
+                                {activeFilter === 'errors' && 'Error Exception Logs'}
+                                & Quota Control
+                            </CardTitle>
+                            <CardDescription>
+                                {activeFilter === 'all' ? 'Monitor activity and manually override scan limits.' : `Showing results filtered by ${activeFilter.toUpperCase()}.`}
+                            </CardDescription>
                         </div>
+                        {activeFilter !== 'all' && (
+                            <Button variant="outline" size="sm" onClick={() => setActiveFilter('all')}>
+                                Clear Filter
+                            </Button>
+                        )}
                         <Settings className="h-5 w-5 text-muted-foreground animate-spin-slow" />
                     </div>
                 </CardHeader>
@@ -198,7 +268,7 @@ export default function AdminPage() {
                         <div className="p-8 space-y-4">
                             {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-14 w-full" />)}
                         </div>
-                    ) : (
+                    ) : filteredUsers.length > 0 ? (
                         <Table>
                             <TableHeader className="bg-muted/10">
                                 <TableRow>
@@ -210,7 +280,7 @@ export default function AdminPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {filteredUsers?.map((u) => (
+                                {filteredUsers.map((u) => (
                                     <TableRow key={u.id} className="hover:bg-muted/5 transition-colors group">
                                         <TableCell>
                                             <div className="flex items-center gap-4">
@@ -256,7 +326,7 @@ export default function AdminPage() {
                                                     variant="ghost" 
                                                     size="icon" 
                                                     className="h-9 w-9 border hover:bg-destructive hover:text-destructive-foreground transition-all"
-                                                    onClick={() => handleUpdateScans(u.id, u.scansUsed, -1)}
+                                                    onClick={(e) => { e.stopPropagation(); handleUpdateScans(u.id, u.scansUsed, -1); }}
                                                     disabled={isUpdating === u.id || u.scansUsed === 0}
                                                 >
                                                     <Minus className="h-4 w-4" />
@@ -265,7 +335,7 @@ export default function AdminPage() {
                                                     variant="ghost" 
                                                     size="icon" 
                                                     className="h-9 w-9 border hover:bg-primary hover:text-primary-foreground transition-all"
-                                                    onClick={() => handleUpdateScans(u.id, u.scansUsed, 1)}
+                                                    onClick={(e) => { e.stopPropagation(); handleUpdateScans(u.id, u.scansUsed, 1); }}
                                                     disabled={isUpdating === u.id}
                                                 >
                                                     {isUpdating === u.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
@@ -276,6 +346,15 @@ export default function AdminPage() {
                                 ))}
                             </TableBody>
                         </Table>
+                    ) : (
+                        <div className="p-20 text-center space-y-4">
+                            <div className="flex justify-center">
+                                <Search className="h-12 w-12 text-muted-foreground opacity-20" />
+                            </div>
+                            <h3 className="text-lg font-semibold">No users found</h3>
+                            <p className="text-muted-foreground">Try adjusting your search or clearing the filter.</p>
+                            <Button variant="link" onClick={() => { setSearchTerm(''); setActiveFilter('all'); }}>Reset Dashboard</Button>
+                        </div>
                     )}
                 </CardContent>
             </Card>
