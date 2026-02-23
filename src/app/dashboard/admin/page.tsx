@@ -10,8 +10,9 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ShieldCheck, User, Plus, Minus, Search, Loader2, Settings } from 'lucide-react';
+import { ShieldCheck, User, Plus, Minus, Search, Loader2, Settings, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const ADMIN_EMAIL = 'Giftmpofud@gmail.com';
 
@@ -32,7 +33,7 @@ export default function AdminPage() {
     const [isUpdating, setIsUpdating] = useState<string | null>(null);
 
     // Security check: Only allow the specific admin email
-    if (!isUserLoading && user?.email !== ADMIN_EMAIL) {
+    if (!isUserLoading && user?.email?.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
         router.push('/dashboard');
         return null;
     }
@@ -73,19 +74,19 @@ export default function AdminPage() {
     );
 
     return (
-        <div className="space-y-8 max-w-7xl mx-auto">
+        <div className="space-y-8 max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="space-y-1">
                     <h1 className="text-4xl font-extrabold tracking-tight flex items-center gap-3">
                         <ShieldCheck className="text-primary h-10 w-10" />
                         Developer Admin Panel
                     </h1>
-                    <p className="text-muted-foreground text-lg">Master Key Management: Monitor users and control scan quotas.</p>
+                    <p className="text-muted-foreground text-lg italic">System Level: Master Key Authentication Active.</p>
                 </div>
                 <div className="relative w-full md:w-80">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input 
-                        placeholder="Search users..." 
+                        placeholder="Search system users..." 
                         className="pl-9 h-11"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
@@ -93,10 +94,18 @@ export default function AdminPage() {
                 </div>
             </div>
 
+            <Alert variant="default" className="bg-primary/5 border-primary/20">
+                <AlertTriangle className="h-4 w-4 text-primary" />
+                <AlertTitle>Admin Notice</AlertTitle>
+                <AlertDescription>
+                    This panel is currently under active development. Some advanced tracking features are being finalized. Quota management is fully operational.
+                </AlertDescription>
+            </Alert>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <Card className="bg-primary/5 border-primary/20">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">Total Users</CardTitle>
+                        <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-widest">Total Registered Accounts</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="text-3xl font-bold">{users?.length || 0}</div>
@@ -104,18 +113,18 @@ export default function AdminPage() {
                 </Card>
                 <Card className="bg-secondary/20 border-secondary/20">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">System Status</CardTitle>
+                        <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-widest">Database Sync Status</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold text-green-500">Active</div>
+                        <div className="text-3xl font-bold text-green-500">Stable</div>
                     </CardContent>
                 </Card>
                 <Card className="bg-accent/5 border-accent/20">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">Admin Mode</CardTitle>
+                        <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-widest">Access Protocol</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <Badge variant="outline" className="text-lg py-1 px-4">Master Level</Badge>
+                        <Badge variant="outline" className="text-lg py-1 px-4 border-primary/50 text-primary">MASTER KEY</Badge>
                     </CardContent>
                 </Card>
             </div>
@@ -124,8 +133,8 @@ export default function AdminPage() {
                 <CardHeader className="border-b bg-muted/30">
                     <div className="flex items-center justify-between">
                         <div>
-                            <CardTitle>User Directory</CardTitle>
-                            <CardDescription>Manage scan limits for all active E-Job Finder accounts.</CardDescription>
+                            <CardTitle>User Directory & Quota Control</CardTitle>
+                            <CardDescription>Manually override scan limits for E-Job Finder users.</CardDescription>
                         </div>
                         <Settings className="h-5 w-5 text-muted-foreground animate-spin-slow" />
                     </div>
@@ -139,15 +148,15 @@ export default function AdminPage() {
                         <Table>
                             <TableHeader className="bg-muted/10">
                                 <TableRow>
-                                    <TableHead className="w-[350px]">User Profile</TableHead>
-                                    <TableHead>Target Role</TableHead>
-                                    <TableHead>Scan Quota (Used/Limit)</TableHead>
-                                    <TableHead className="text-right pr-6">Manual Control</TableHead>
+                                    <TableHead className="w-[350px]">User Identifier</TableHead>
+                                    <TableHead>Current Role</TableHead>
+                                    <TableHead>Weekly Usage (Used/Limit)</TableHead>
+                                    <TableHead className="text-right pr-6">Override Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {filteredUsers?.map((u) => (
-                                    <TableRow key={u.id} className="hover:bg-muted/5 transition-colors">
+                                    <TableRow key={u.id} className="hover:bg-muted/5 transition-colors group">
                                         <TableCell>
                                             <div className="flex items-center gap-4">
                                                 <div className="h-10 w-10 rounded-full border-2 border-primary/20 bg-muted flex items-center justify-center overflow-hidden">
@@ -159,12 +168,12 @@ export default function AdminPage() {
                                                 </div>
                                                 <div className="flex flex-col min-w-0">
                                                     <span className="font-bold text-sm truncate">{u.email}</span>
-                                                    <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">ID: {u.id.substring(0, 12)}...</span>
+                                                    <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">UID: {u.id}</span>
                                                 </div>
                                             </div>
                                         </TableCell>
                                         <TableCell>
-                                            <Badge variant="secondary" className="font-medium">{u.targetRole || 'Not Set'}</Badge>
+                                            <Badge variant="secondary" className="font-medium">{u.targetRole || 'Profile Incomplete'}</Badge>
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex items-center gap-3">
@@ -189,6 +198,7 @@ export default function AdminPage() {
                                                     className="h-9 w-9 border hover:bg-destructive hover:text-destructive-foreground transition-all"
                                                     onClick={() => handleUpdateScans(u.id, u.scansUsed, -1)}
                                                     disabled={isUpdating === u.id || u.scansUsed === 0}
+                                                    title="Decrease Scan Count"
                                                 >
                                                     <Minus className="h-4 w-4" />
                                                 </Button>
@@ -198,6 +208,7 @@ export default function AdminPage() {
                                                     className="h-9 w-9 border hover:bg-primary hover:text-primary-foreground transition-all"
                                                     onClick={() => handleUpdateScans(u.id, u.scansUsed, 1)}
                                                     disabled={isUpdating === u.id}
+                                                    title="Increase Scan Count"
                                                 >
                                                     {isUpdating === u.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                                                 </Button>
@@ -208,7 +219,7 @@ export default function AdminPage() {
                                 {filteredUsers?.length === 0 && (
                                     <TableRow>
                                         <TableCell colSpan={4} className="text-center py-20 text-muted-foreground italic">
-                                            No matches found for "{searchTerm}"
+                                            No system matches found for "{searchTerm}"
                                         </TableCell>
                                     </TableRow>
                                 )}

@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth, useUser } from '@/firebase';
-import { Eye, EyeOff, Lock, Mail, ShieldAlert } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, ShieldAlert, Loader2 } from 'lucide-react';
 
 type Mode = 'login' | 'signup';
 const ADMIN_EMAIL = 'Giftmpofud@gmail.com';
@@ -28,12 +28,14 @@ export default function AuthForm({ mode }: { mode: Mode }) {
   const auth = useAuth();
   const { user } = useUser();
 
+  const isAdmin = email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+
   useEffect(() => {
     if (user) {
-      if (user.email === ADMIN_EMAIL) {
-        router.push('/dashboard/admin');
+      if (user.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+        router.replace('/dashboard/admin');
       } else {
-        router.push('/dashboard');
+        router.replace('/dashboard');
       }
     }
   }, [user, router]);
@@ -45,14 +47,20 @@ export default function AuthForm({ mode }: { mode: Mode }) {
       if (mode === 'login') {
         const result = await signInWithEmailAndPassword(auth, email, password);
         toast({
-          title: 'Welcome back!',
-          description: `Logged in as ${result.user.email}`,
+          title: 'Master Key Accepted' : 'Welcome back!',
+          description: isAdmin ? 'System level access granted.' : `Logged in as ${result.user.email}`,
         });
+        
+        if (result.user.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+          router.replace('/dashboard/admin');
+        } else {
+          router.replace('/dashboard');
+        }
       } else {
         await createUserWithEmailAndPassword(auth, email, password);
         toast({
           title: 'Account created!',
-          description: 'Welcome to E-Job Finder Pro.',
+          description: isAdmin ? 'Admin account initialized.' : 'Welcome to E-Job Finder.',
         });
       }
     } catch (error: any) {
@@ -62,10 +70,10 @@ export default function AuthForm({ mode }: { mode: Mode }) {
         variant: 'destructive',
       });
       // Hint for new admin users
-      if (email === ADMIN_EMAIL && error.code === 'auth/invalid-credential') {
+      if (isAdmin && error.code === 'auth/invalid-credential') {
         toast({
-          title: 'Admin Hint',
-          description: 'If this is your first time, please use the Sign Up tab to create the master account.',
+          title: 'Admin Setup Required',
+          description: 'If this is your first time, please use the Sign Up tab to register the master account.',
         });
       }
     } finally {
@@ -76,7 +84,12 @@ export default function AuthForm({ mode }: { mode: Mode }) {
   const handleGoogle = async () => {
     try {
       const googleProvider = new GoogleAuthProvider();
-      await signInWithPopup(auth, googleProvider);
+      const result = await signInWithPopup(auth, googleProvider);
+      if (result.user.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+        router.replace('/dashboard/admin');
+      } else {
+        router.replace('/dashboard');
+      }
     } catch (error: any) {
       toast({
         title: 'Google Sign-In Error',
@@ -88,7 +101,7 @@ export default function AuthForm({ mode }: { mode: Mode }) {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-muted/30 px-4">
-      <div className="w-full max-w-md p-8 space-y-6 bg-card border rounded-xl shadow-xl">
+      <div className="w-full max-w-md p-8 space-y-6 bg-card border rounded-xl shadow-xl transition-all duration-500">
         <div className="space-y-2 text-center">
           <h2 className="text-3xl font-bold tracking-tight">
             {mode === 'login' ? 'Welcome Back' : 'Create Account'}
@@ -100,13 +113,13 @@ export default function AuthForm({ mode }: { mode: Mode }) {
           </p>
         </div>
 
-        {email.toLowerCase() === ADMIN_EMAIL.toLowerCase() && (
+        {isAdmin && (
           <div className="bg-primary/10 border border-primary/20 p-4 rounded-lg text-sm text-primary font-bold text-center flex flex-col items-center justify-center gap-2 animate-pulse">
             <div className="flex items-center gap-2">
                 <ShieldAlert className="h-5 w-5" />
                 <span>Admin Master Key Detected</span>
             </div>
-            <p className="text-[10px] font-normal opacity-80 uppercase tracking-widest">System Level Access Granted</p>
+            <p className="text-[10px] font-normal opacity-80 uppercase tracking-widest">Redirecting to Admin Panel after Login</p>
           </div>
         )}
 
@@ -151,6 +164,7 @@ export default function AuthForm({ mode }: { mode: Mode }) {
           </div>
 
           <Button type="submit" className="w-full font-semibold" disabled={isLoading}>
+            {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             {isLoading ? 'Processing...' : (mode === 'login' ? 'Log In' : 'Sign Up')}
           </Button>
         </form>
