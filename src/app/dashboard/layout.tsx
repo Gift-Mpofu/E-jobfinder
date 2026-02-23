@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, createContext, useContext, useCallback } from "react";
@@ -61,11 +60,17 @@ export const useDashboard = () => {
 
 const NavItems = ({ isAdmin }: { isAdmin: boolean }) => {
     const pathname = usePathname();
+    const isAdminPage = pathname === '/dashboard/admin';
+
     const navLinks = [
-        { href: '/dashboard', label: 'Dashboard' },
-        { href: '/dashboard/profile', label: 'Profile' },
+        ...(!isAdminPage ? [
+            { href: '/dashboard', label: 'Dashboard' },
+            { href: '/dashboard/profile', label: 'Profile' },
+        ] : []),
         ...(isAdmin ? [{ href: '/dashboard/admin', label: 'Admin Panel', icon: ShieldCheck }] : []),
-        { href: '/dashboard/upgrade', label: 'Upgrade to Pro' }
+        ...(!isAdminPage ? [
+            { href: '/dashboard/upgrade', label: 'Upgrade to Pro' }
+        ] : [])
     ];
 
     return (
@@ -87,6 +92,7 @@ const NavItems = ({ isAdmin }: { isAdmin: boolean }) => {
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { toast } = useToast();
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
@@ -103,6 +109,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // Defer admin check until after hydration to avoid mismatch
   const isAdminUser = mounted && user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+  const isAdminPage = pathname === '/dashboard/admin';
 
   const userProfileRef = useMemoFirebase(() => {
     if (!user) return null;
@@ -274,12 +281,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                     <span>E-Job Finder</span>
                                 </Link>
                                 <nav className="flex flex-col gap-2">
-                                    <Button asChild variant="ghost" className="justify-start" onClick={() => setMobileMenuOpen(false)}><Link href="/dashboard"><LayoutDashboard className="mr-2"/>Dashboard</Link></Button>
-                                    <Button asChild variant="ghost" className="justify-start" onClick={() => setMobileMenuOpen(false)}><Link href="/dashboard/profile"><User className="mr-2"/>Profile</Link></Button>
+                                    {!isAdminPage && (
+                                        <>
+                                            <Button asChild variant="ghost" className="justify-start" onClick={() => setMobileMenuOpen(false)}><Link href="/dashboard"><LayoutDashboard className="mr-2"/>Dashboard</Link></Button>
+                                            <Button asChild variant="ghost" className="justify-start" onClick={() => setMobileMenuOpen(false)}><Link href="/dashboard/profile"><User className="mr-2"/>Profile</Link></Button>
+                                        </>
+                                    )}
                                     {isAdminUser && (
                                         <Button asChild variant="ghost" className="justify-start text-primary" onClick={() => setMobileMenuOpen(false)}><Link href="/dashboard/admin"><ShieldCheck className="mr-2"/>Admin Panel</Link></Button>
                                     )}
-                                    <Button asChild variant="ghost" className="justify-start" onClick={() => setMobileMenuOpen(false)}><Link href="/dashboard/upgrade"><CreditCard className="mr-2"/>Upgrade</Link></Button>
+                                    {!isAdminPage && (
+                                        <Button asChild variant="ghost" className="justify-start" onClick={() => setMobileMenuOpen(false)}><Link href="/dashboard/upgrade"><CreditCard className="mr-2"/>Upgrade</Link></Button>
+                                    )}
                                 </nav>
                             </div>
                         </SheetContent>
