@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth, useUser } from '@/firebase';
-import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, ShieldAlert } from 'lucide-react';
 
 type Mode = 'login' | 'signup';
 const ADMIN_EMAIL = 'Giftmpofud@gmail.com';
@@ -61,6 +61,13 @@ export default function AuthForm({ mode }: { mode: Mode }) {
         description: error.message,
         variant: 'destructive',
       });
+      // Hint for new admin users
+      if (email === ADMIN_EMAIL && error.code === 'auth/invalid-credential') {
+        toast({
+          title: 'Admin Hint',
+          description: 'If this is your first time, please use the Sign Up tab to create the master account.',
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -93,10 +100,13 @@ export default function AuthForm({ mode }: { mode: Mode }) {
           </p>
         </div>
 
-        {email === ADMIN_EMAIL && (
-          <div className="bg-primary/10 border border-primary/20 p-3 rounded-lg text-xs text-primary font-bold text-center flex items-center justify-center gap-2">
-            <Lock className="h-3 w-3" />
-            Admin/Master Key Access Detected
+        {email.toLowerCase() === ADMIN_EMAIL.toLowerCase() && (
+          <div className="bg-primary/10 border border-primary/20 p-4 rounded-lg text-sm text-primary font-bold text-center flex flex-col items-center justify-center gap-2 animate-pulse">
+            <div className="flex items-center gap-2">
+                <ShieldAlert className="h-5 w-5" />
+                <span>Admin Master Key Detected</span>
+            </div>
+            <p className="text-[10px] font-normal opacity-80 uppercase tracking-widest">System Level Access Granted</p>
           </div>
         )}
 
