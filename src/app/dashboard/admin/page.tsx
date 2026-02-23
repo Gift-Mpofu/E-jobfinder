@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { collection, doc, updateDoc, query, orderBy, type Timestamp } from 'firebase/firestore';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
@@ -34,9 +35,14 @@ export default function AdminPage() {
     const firestore = useFirestore();
     const router = useRouter();
     const { toast } = useToast();
+    const [mounted, setMounted] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [isUpdating, setIsUpdating] = useState<string | null>(null);
     const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     // Security check: Only allow the specific admin email
     if (!isUserLoading && user?.email?.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
@@ -51,9 +57,9 @@ export default function AdminPage() {
 
     const { data: users, isLoading } = useCollection<UserProfile>(usersQuery);
 
-    // Metrics Calculation
+    // Metrics Calculation - Deferred until mounted to avoid hydration errors with Date()
     const metrics = useMemo(() => {
-        if (!users) return { total: 0, active: 0, totalScans: 0 };
+        if (!users || !mounted) return { total: 0, active: 0, totalScans: 0 };
         const now = new Date();
         const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         
@@ -62,7 +68,7 @@ export default function AdminPage() {
             active: users.filter(u => u.lastActive && u.lastActive.toDate() > sevenDaysAgo).length,
             totalScans: users.reduce((acc, u) => acc + (u.scansUsed || 0), 0)
         };
-    }, [users]);
+    }, [users, mounted]);
 
     const handleUpdateScans = async (userId: string, currentScans: number, delta: number) => {
         if (!firestore) return;
@@ -88,7 +94,7 @@ export default function AdminPage() {
     };
 
     const filteredUsers = useMemo(() => {
-        if (!users) return [];
+        if (!users || !mounted) return [];
         let result = users;
 
         // Apply Search
@@ -112,16 +118,15 @@ export default function AdminPage() {
                 break;
             case 'cvs':
             case 'jds':
-                // Since we don't have counts in root user doc, we show all users for now
-                // but highlight the context. Real implementation would use aggregation.
+                // Root filtering placeholder
                 break;
             case 'errors':
-                result = []; // No users currently have error logs associated
+                result = []; 
                 break;
         }
 
         return result;
-    }, [users, searchTerm, activeFilter]);
+    }, [users, searchTerm, activeFilter, mounted]);
 
     const StatCard = ({ title, value, icon: Icon, description, colorClass = "text-primary", type }: any) => {
         const isActive = activeFilter === type;
@@ -149,6 +154,8 @@ export default function AdminPage() {
             </Card>
         );
     };
+
+    if (!mounted) return null;
 
     return (
         <div className="space-y-8 max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">

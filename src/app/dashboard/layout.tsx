@@ -92,6 +92,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const auth = useAuth();
   const firestore = useFirestore();
   
+  const [mounted, setMounted] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
@@ -100,7 +101,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [resetTimeLeft, setResetTimeLeft] = useState('');
   const [isLimitActive, setIsLimitActive] = useState(false);
 
-  const isAdminUser = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+  // Defer admin check until after hydration to avoid mismatch
+  const isAdminUser = mounted && user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
   const userProfileRef = useMemoFirebase(() => {
     if (!user) return null;
@@ -110,6 +112,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const scansUsed = userProfile?.scansUsed ?? 0;
   const scanLimitReachedAt = userProfile?.scanLimitReachedAt;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Track user activity
   useEffect(() => {
@@ -192,12 +198,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     // Redirect non-admins without profiles to onboarding
-    if (!isUserLoading && user && !isAdminUser) {
+    if (mounted && !isUserLoading && user && !isAdminUser) {
       if (!isProfileLoading && !userProfile) {
         router.push('/dashboard/onboarding');
       }
     }
-  }, [isUserLoading, user, isAdminUser, isProfileLoading, userProfile, router]);
+  }, [mounted, isUserLoading, user, isAdminUser, isProfileLoading, userProfile, router]);
 
 
   const displayName = user?.displayName || (user?.email ? user.email.split('@')[0] : 'User');
@@ -282,7 +288,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         <Briefcase />
                         <span>E-Job Finder</span>
                     </Link>
-                    <NavItems isAdmin={isAdminUser} />
+                    {mounted && <NavItems isAdmin={isAdminUser} />}
                  </div>
                 <div className="flex items-center gap-2">
                   <ThemeToggle />
@@ -290,7 +296,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     <PopoverTrigger asChild>
                       <Button variant="ghost" size="icon" className="relative">
                         <Bell className="h-5 w-5" />
-                        {notifications.length > 0 && <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary" />}
+                        {mounted && notifications.length > 0 && <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary" />}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-96" align="end">
@@ -329,15 +335,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                           <Avatar className="h-8 w-8">
                             <AvatarImage src={photoURL || ''} alt={displayName} />
-                            <AvatarFallback>{user ? getInitials(displayName) : 'U'}</AvatarFallback>
+                            <AvatarFallback>{mounted && user ? getInitials(displayName) : 'U'}</AvatarFallback>
                           </Avatar>
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-56" align="end">
                          <div className="flex flex-col space-y-2">
                           <div className="flex flex-col space-y-1">
-                            <p className="text-sm font-medium leading-none">{displayName}</p>
-                            <p className="text-xs leading-none text-muted-foreground">{user?.email || ''}</p>
+                            <p className="text-sm font-medium leading-none">{mounted ? displayName : 'User'}</p>
+                            <p className="text-xs leading-none text-muted-foreground">{mounted ? user?.email : ''}</p>
                           </div>
                           <Button variant="outline" size="sm" onClick={onSignOut} className="w-full">
                             <LogOut className="mr-2 h-4 w-4" />
