@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, createContext, useContext, useCallback } from "react";
@@ -23,6 +24,7 @@ type UserProfile = {
     scanLimitReachedAt?: Timestamp | null;
     photoURL?: string;
     email?: string;
+    lastActive?: Timestamp | null;
 };
 
 type Notification = {
@@ -108,6 +110,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const scansUsed = userProfile?.scansUsed ?? 0;
   const scanLimitReachedAt = userProfile?.scanLimitReachedAt;
+
+  // Track user activity
+  useEffect(() => {
+    if (userProfileRef) {
+      updateDoc(userProfileRef, { lastActive: serverTimestamp() })
+        .catch(err => console.warn("Activity tracking error:", err));
+    }
+  }, [userProfileRef]);
 
   const addNotification = useCallback((notification: Omit<Notification, 'id'>) => {
     const newNotification = { ...notification, id: new Date().toISOString() };

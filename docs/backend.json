@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -62,6 +63,11 @@
         "scanLimitReachedAt": {
             "type": "string",
             "description": "Timestamp when the user hit their scan limit.",
+            "format": "date-time"
+        },
+        "lastActive": {
+            "type": "string",
+            "description": "Last time the user was active in the app.",
             "format": "date-time"
         }
       },
