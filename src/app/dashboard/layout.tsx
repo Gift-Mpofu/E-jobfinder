@@ -115,7 +115,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, []);
 
   const isAdminUser = mounted && user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
-  const isAdminPage = pathname === '/dashboard/admin';
+
+  // Master Admin Global Redirect
+  useEffect(() => {
+    if (mounted && !isUserLoading && isAdminUser && pathname.startsWith('/dashboard') && pathname !== '/dashboard/admin') {
+      router.replace('/dashboard/admin');
+    }
+  }, [mounted, isUserLoading, isAdminUser, pathname, router]);
 
   const userProfileRef = useMemoFirebase(() => {
     if (!user) return null;
@@ -283,7 +289,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                     <span>E-Job Finder</span>
                                 </Link>
                                 <nav className="flex flex-col gap-2">
-                                    {!isAdminPage && (
+                                    {(!isAdminUser || pathname !== '/dashboard/admin') && (
                                         <>
                                             <Button asChild variant="ghost" className="justify-start" onClick={() => setMobileMenuOpen(false)}><Link href="/dashboard"><LayoutDashboard className="mr-2"/>Dashboard</Link></Button>
                                             <Button asChild variant="ghost" className="justify-start" onClick={() => setMobileMenuOpen(false)}><Link href="/dashboard/profile"><User className="mr-2"/>Profile</Link></Button>
@@ -292,7 +298,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                     {isAdminUser && (
                                         <Button asChild variant="ghost" className="justify-start text-primary" onClick={() => setMobileMenuOpen(false)}><Link href="/dashboard/admin"><ShieldCheck className="mr-2"/>Admin Panel</Link></Button>
                                     )}
-                                    {!isAdminPage && (
+                                    {(!isAdminUser || pathname !== '/dashboard/admin') && (
                                         <Button asChild variant="ghost" className="justify-start" onClick={() => setMobileMenuOpen(false)}><Link href="/dashboard/upgrade"><CreditCard className="mr-2"/>Upgrade</Link></Button>
                                     )}
                                 </nav>
