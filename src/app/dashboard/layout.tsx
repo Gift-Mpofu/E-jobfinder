@@ -11,15 +11,18 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bell, User, LogOut, CheckCircle, BrainCircuit, Timer, LayoutDashboard, CreditCard, Menu, Briefcase } from "lucide-react";
+import { Bell, User, LogOut, CheckCircle, BrainCircuit, Timer, LayoutDashboard, CreditCard, Menu, Briefcase, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import type { WithId } from "@/firebase";
+
+const ADMIN_EMAIL = 'Giftmpofud@gmail.com';
 
 type UserProfile = {
     scansUsed?: number;
     scanLimitReachedAt?: Timestamp | null;
     photoURL?: string;
+    email?: string;
 };
 
 type Notification = {
@@ -41,6 +44,7 @@ type DashboardContextType = {
   isLimitActive: boolean;
   userProfile: WithId<UserProfile> | null;
   isProfileLoading: boolean;
+  isAdmin: boolean;
 };
 
 const DashboardContext = createContext<DashboardContextType | null>(null);
@@ -53,18 +57,24 @@ export const useDashboard = () => {
   return context;
 };
 
-const NavItems = () => {
+const NavItems = ({ isAdmin }: { isAdmin: boolean }) => {
     const pathname = usePathname();
     const navLinks = [
         { href: '/dashboard', label: 'Dashboard' },
         { href: '/dashboard/profile', label: 'Profile' },
+        ...(isAdmin ? [{ href: '/dashboard/admin', label: 'Admin Panel', icon: ShieldCheck }] : []),
         { href: '/dashboard/upgrade', label: 'Upgrade to Pro' }
     ];
 
     return (
         <nav className="hidden md:flex items-center space-x-4 lg:space-x-6 text-sm font-medium">
             {navLinks.map(link => (
-                 <Link key={link.href} href={link.href} className={`transition-colors hover:text-primary ${(pathname === link.href || (link.href !== '/dashboard' && pathname.startsWith(link.href))) ? '' : 'text-muted-foreground'}`}>
+                 <Link 
+                    key={link.href} 
+                    href={link.href} 
+                    className={`transition-colors hover:text-primary flex items-center gap-1.5 ${(pathname === link.href || (link.href !== '/dashboard' && pathname.startsWith(link.href))) ? 'text-primary' : 'text-muted-foreground'}`}
+                >
+                    {link.icon && <link.icon className="h-4 w-4" />}
                     {link.label}
                 </Link>
             ))}
@@ -87,6 +97,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [resetTimeLeft, setResetTimeLeft] = useState('');
   const [isLimitActive, setIsLimitActive] = useState(false);
+
+  const isAdminUser = user?.email === ADMIN_EMAIL;
 
   const userProfileRef = useMemoFirebase(() => {
     if (!user) return null;
@@ -125,13 +137,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       await updateDoc(userProfileRef, updateData);
     } catch (error) {
       console.error("Failed to update scan count:", error);
-      toast({
-        variant: "destructive",
-        title: "Update Failed",
-        description: "Could not update your scan usage.",
-      });
     }
-  }, [user, userProfileRef, userProfile?.scansUsed, usageLimit, addNotification, toast]);
+  }, [user, userProfileRef, userProfile?.scansUsed, usageLimit, addNotification]);
 
   useEffect(() => {
     if (!scanLimitReachedAt) {
@@ -143,7 +150,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const limitDate = scanLimitReachedAt.toDate();
     const resetTime = limitDate.getTime() + 7 * 24 * 60 * 60 * 1000;
 
-    // If reset time has passed, reset the user's scan count
     if (new Date().getTime() > resetTime) {
       if (userProfileRef && (userProfile?.scansUsed ?? 0) > 0) {
         updateDoc(userProfileRef, {
@@ -155,7 +161,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       return;
     }
 
-    // Otherwise, calculate time left and show it
     setIsLimitActive(true);
     const interval = setInterval(() => {
       const now = new Date().getTime();
@@ -178,7 +183,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     if (!isUserLoading && user) {
       if (!isProfileLoading && !userProfile) {
-        // If user is loaded, but there's no profile, they need onboarding.
         router.push('/dashboard/onboarding');
       }
     }
@@ -230,6 +234,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     isLimitActive,
     userProfile: userProfile as WithId<UserProfile> | null,
     isProfileLoading,
+    isAdmin: isAdminUser,
   };
 
   return (
@@ -254,6 +259,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 <nav className="flex flex-col gap-2">
                                     <Button asChild variant="ghost" className="justify-start" onClick={() => setMobileMenuOpen(false)}><Link href="/dashboard"><LayoutDashboard className="mr-2"/>Dashboard</Link></Button>
                                     <Button asChild variant="ghost" className="justify-start" onClick={() => setMobileMenuOpen(false)}><Link href="/dashboard/profile"><User className="mr-2"/>Profile</Link></Button>
+                                    {isAdminUser && (
+                                        <Button asChild variant="ghost" className="justify-start text-primary" onClick={() => setMobileMenuOpen(false)}><Link href="/dashboard/admin"><ShieldCheck className="mr-2"/>Admin Panel</Link></Button>
+                                    )}
                                     <Button asChild variant="ghost" className="justify-start" onClick={() => setMobileMenuOpen(false)}><Link href="/dashboard/upgrade"><CreditCard className="mr-2"/>Upgrade</Link></Button>
                                 </nav>
                             </div>
@@ -263,13 +271,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         <Briefcase />
                         <span>E-Job Finder</span>
                     </Link>
-                    <NavItems />
+                    <NavItems isAdmin={isAdminUser} />
                  </div>
                 <div className="flex items-center gap-2">
                   <ThemeToggle />
                   <Popover open={notificationsOpen} onOpenChange={setNotificationsOpen}>
                     <PopoverTrigger asChild>
-                      <Button variant="ghost" size="icon">
+                      <Button variant="ghost" size="icon" className="relative">
                         <Bell className="h-5 w-5" />
                         {notifications.length > 0 && <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary" />}
                       </Button>
@@ -320,7 +328,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             <p className="text-sm font-medium leading-none">{displayName}</p>
                             <p className="text-xs leading-none text-muted-foreground">{user?.email || ''}</p>
                           </div>
-                          <Button variant="outline" size="sm" onClick={onSignOut}>
+                          <Button variant="outline" size="sm" onClick={onSignOut} className="w-full">
                             <LogOut className="mr-2 h-4 w-4" />
                             Log Out
                           </Button>

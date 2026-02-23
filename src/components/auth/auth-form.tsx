@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth, useUser } from '@/firebase';
 
 type Mode = 'login' | 'signup';
+const ADMIN_EMAIL = 'Giftmpofud@gmail.com';
 
 export default function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
@@ -24,7 +25,11 @@ export default function AuthForm({ mode }: { mode: Mode }) {
 
   useEffect(() => {
     if (user) {
-      router.push('/dashboard');
+      if (user.email === ADMIN_EMAIL) {
+        router.push('/dashboard/admin');
+      } else {
+        router.push('/dashboard');
+      }
     }
   }, [user, router]);
 
@@ -32,11 +37,16 @@ export default function AuthForm({ mode }: { mode: Mode }) {
     e.preventDefault();
     try {
       if (mode === 'login') {
-        await signInWithEmailAndPassword(auth, email, password);
+        const result = await signInWithEmailAndPassword(auth, email, password);
+        if (result.user.email === ADMIN_EMAIL) {
+          router.push('/dashboard/admin');
+        } else {
+          router.push('/dashboard');
+        }
       } else {
         await createUserWithEmailAndPassword(auth, email, password);
+        router.push('/dashboard/onboarding');
       }
-      router.push('/dashboard');
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -49,8 +59,12 @@ export default function AuthForm({ mode }: { mode: Mode }) {
   const handleGoogle = async () => {
     try {
       const googleProvider = new GoogleAuthProvider();
-      await signInWithPopup(auth, googleProvider);
-      router.push('/dashboard');
+      const result = await signInWithPopup(auth, googleProvider);
+      if (result.user.email === ADMIN_EMAIL) {
+        router.push('/dashboard/admin');
+      } else {
+        router.push('/dashboard');
+      }
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -61,11 +75,16 @@ export default function AuthForm({ mode }: { mode: Mode }) {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900">
+    <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900 px-4">
       <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md dark:bg-gray-800">
         <h2 className="text-2xl font-bold text-center text-gray-900 dark:text-gray-100">
-          {mode === 'login' ? 'Log In' : 'Sign Up'}
+          {mode === 'login' ? 'Log In to E-Job Finder' : 'Create your Account'}
         </h2>
+        {email === ADMIN_EMAIL && (
+          <div className="bg-primary/10 border border-primary/20 p-3 rounded-md text-xs text-primary font-medium text-center">
+            Admin/Developer Mode detected
+          </div>
+        )}
         <form className="space-y-6" onSubmit={handleSubmit}>
           <InputWithLabel
             id="email"
