@@ -15,7 +15,7 @@ import { useAuth, useUser } from '@/firebase';
 import { Eye, EyeOff, Lock, Mail, ShieldAlert, Loader2 } from 'lucide-react';
 
 type Mode = 'login' | 'signup';
-const ADMIN_EMAIL = 'Giftmpofud@gmail.com';
+const ADMIN_EMAIL = 'giftmpofud@gmail.com';
 
 export default function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
@@ -28,7 +28,7 @@ export default function AuthForm({ mode }: { mode: Mode }) {
   const auth = useAuth();
   const { user } = useUser();
 
-  const isAdmin = email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+  const isEmailAdmin = email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
   useEffect(() => {
     if (user) {
@@ -46,12 +46,14 @@ export default function AuthForm({ mode }: { mode: Mode }) {
     try {
       if (mode === 'login') {
         const result = await signInWithEmailAndPassword(auth, email, password);
+        const isAdminUser = result.user.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+        
         toast({
-          title: isAdmin ? 'Master Key Accepted' : 'Welcome back!',
-          description: isAdmin ? 'System level access granted.' : `Logged in as ${result.user.email}`,
+          title: isAdminUser ? 'Master Key Accepted' : 'Welcome back!',
+          description: isAdminUser ? 'System level access granted.' : `Logged in as ${result.user.email}`,
         });
         
-        if (result.user.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+        if (isAdminUser) {
           router.replace('/dashboard/admin');
         } else {
           router.replace('/dashboard');
@@ -59,8 +61,8 @@ export default function AuthForm({ mode }: { mode: Mode }) {
       } else {
         await createUserWithEmailAndPassword(auth, email, password);
         toast({
-          title: isAdmin ? 'Account created!' : 'Account created!',
-          description: isAdmin ? 'Admin account initialized.' : 'Welcome to E-Job Finder.',
+          title: 'Account created!',
+          description: isEmailAdmin ? 'Admin account initialized.' : 'Welcome to E-Job Finder.',
         });
       }
     } catch (error: any) {
@@ -70,7 +72,7 @@ export default function AuthForm({ mode }: { mode: Mode }) {
         variant: 'destructive',
       });
       // Hint for new admin users
-      if (isAdmin && error.code === 'auth/invalid-credential') {
+      if (isEmailAdmin && error.code === 'auth/invalid-credential') {
         toast({
           title: 'Admin Setup Required',
           description: 'If this is your first time, please use the Sign Up tab to register the master account.',
@@ -113,7 +115,7 @@ export default function AuthForm({ mode }: { mode: Mode }) {
           </p>
         </div>
 
-        {isAdmin && (
+        {isEmailAdmin && (
           <div className="bg-primary/10 border border-primary/20 p-4 rounded-lg text-sm text-primary font-bold text-center flex flex-col items-center justify-center gap-2 animate-pulse">
             <div className="flex items-center gap-2">
                 <ShieldAlert className="h-5 w-5" />

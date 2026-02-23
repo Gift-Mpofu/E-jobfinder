@@ -5,7 +5,7 @@
  * Data Structure: All data is nested under `/users/{userId}`.
  *
  * Key Security Decisions:
- * - Admin Access: The user with email 'Giftmpofud@gmail.com' is granted global
+ * - Admin Access: The user with email 'giftmpofud@gmail.com' is granted global
  *   read/write access to manage user quotas and support.
  * - User Isolation: Standard users are confined to their own document tree.
  * - No User Listing: Only the Admin can list the top-level `/users` collection.
@@ -24,9 +24,10 @@ service cloud.firestore {
 
     /**
      * Checks if the requesting user is the designated Admin.
+     * Note: comparison is case-sensitive in rules.
      */
     function isAdmin() {
-      return isSignedIn() && request.auth.token.email == 'Giftmpofud@gmail.com';
+      return isSignedIn() && request.auth.token.email == 'giftmpofud@gmail.com';
     }
 
     function isOwner(userId) {
