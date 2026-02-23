@@ -21,6 +21,16 @@
           "description": "URL of the user's profile picture.",
           "format": "uri"
         },
+        "role": {
+          "type": "string",
+          "description": "User role (admin or user).",
+          "enum": ["admin", "user"]
+        },
+        "status": {
+          "type": "string",
+          "description": "Account status.",
+          "enum": ["active", "suspended"]
+        },
         "firstName": {
           "type": "string",
           "description": "First name of the user."
