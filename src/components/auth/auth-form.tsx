@@ -47,7 +47,7 @@ export default function AuthForm({ mode }: { mode: Mode }) {
       if (mode === 'login') {
         const result = await signInWithEmailAndPassword(auth, email, password);
         toast({
-          title: 'Master Key Accepted' : 'Welcome back!',
+          title: isAdmin ? 'Master Key Accepted' : 'Welcome back!',
           description: isAdmin ? 'System level access granted.' : `Logged in as ${result.user.email}`,
         });
         
@@ -59,7 +59,7 @@ export default function AuthForm({ mode }: { mode: Mode }) {
       } else {
         await createUserWithEmailAndPassword(auth, email, password);
         toast({
-          title: 'Account created!',
+          title: isAdmin ? 'Account created!' : 'Account created!',
           description: isAdmin ? 'Admin account initialized.' : 'Welcome to E-Job Finder.',
         });
       }
