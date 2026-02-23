@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, createContext, useContext, useCallback } from "react";
@@ -371,7 +370,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   </Popover>
                 </div>
               </div>
-header>
+            </header>
             <main className="container mx-auto p-4 lg:p-8">
               {children}
             </main>
