@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, createContext, useContext, useCallback } from "react";
@@ -62,7 +63,8 @@ const NavItems = ({ isAdmin }: { isAdmin: boolean }) => {
     const pathname = usePathname();
     const isAdminPage = pathname === '/dashboard/admin';
 
-    // Filtered nav links: On admin page, only show Admin Panel link
+    // On admin page, ONLY show the Admin Panel link.
+    // For admins on other pages, show everything.
     const navLinks = [
         ...(!isAdminPage ? [
             { href: '/dashboard', label: 'Dashboard' },
@@ -108,7 +110,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [resetTimeLeft, setResetTimeLeft] = useState('');
   const [isLimitActive, setIsLimitActive] = useState(false);
 
-  // Sync mounted state to prevent hydration mismatches
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -125,11 +126,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const scansUsed = userProfile?.scansUsed ?? 0;
   const scanLimitReachedAt = userProfile?.scanLimitReachedAt;
 
-  // Track user activity
   useEffect(() => {
     if (userProfileRef && mounted) {
       updateDoc(userProfileRef, { lastActive: serverTimestamp() })
-        .catch(err => console.warn("Activity tracking error:", err));
+        .catch(() => {});
     }
   }, [userProfileRef, mounted]);
 
@@ -205,7 +205,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [scanLimitReachedAt, userProfileRef, userProfile?.scansUsed]);
 
   useEffect(() => {
-    // Redirect non-admins without profiles to onboarding
     if (mounted && !isUserLoading && user && !isAdminUser) {
       if (!isProfileLoading && !userProfile && pathname !== '/dashboard/onboarding') {
         router.push('/dashboard/onboarding');

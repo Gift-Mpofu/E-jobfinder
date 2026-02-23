@@ -23,6 +23,7 @@ service cloud.firestore {
 
     /**
      * Checks if the requesting user is the designated Master Admin.
+     * Note: We use lowercase to ensure consistent comparison.
      */
     function isAdmin() {
       return isSignedIn() && request.auth.token.email == 'giftmpofud@gmail.com';
@@ -33,7 +34,7 @@ service cloud.firestore {
     }
 
     // ----------------------------------------------------------------------
-    // Global Admin Bypass (Handles both Collections and Collection Groups)
+    // Global Admin Bypass
     // ----------------------------------------------------------------------
     
     match /{document=**} {
