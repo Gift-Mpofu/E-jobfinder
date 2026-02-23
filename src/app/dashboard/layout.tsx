@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, createContext, useContext, useCallback } from "react";
@@ -62,6 +63,7 @@ const NavItems = ({ isAdmin }: { isAdmin: boolean }) => {
     const pathname = usePathname();
     const isAdminPage = pathname === '/dashboard/admin';
 
+    // Filtered nav links: On admin page, only show Admin Panel link
     const navLinks = [
         ...(!isAdminPage ? [
             { href: '/dashboard', label: 'Dashboard' },
@@ -107,7 +109,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [resetTimeLeft, setResetTimeLeft] = useState('');
   const [isLimitActive, setIsLimitActive] = useState(false);
 
-  // Defer admin check until after hydration to avoid mismatch
+  // Sync mounted state to prevent hydration mismatches
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const isAdminUser = mounted && user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
   const isAdminPage = pathname === '/dashboard/admin';
 
@@ -120,17 +126,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const scansUsed = userProfile?.scansUsed ?? 0;
   const scanLimitReachedAt = userProfile?.scanLimitReachedAt;
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   // Track user activity
   useEffect(() => {
-    if (userProfileRef) {
+    if (userProfileRef && mounted) {
       updateDoc(userProfileRef, { lastActive: serverTimestamp() })
         .catch(err => console.warn("Activity tracking error:", err));
     }
-  }, [userProfileRef]);
+  }, [userProfileRef, mounted]);
 
   const addNotification = useCallback((notification: Omit<Notification, 'id'>) => {
     const newNotification = { ...notification, id: new Date().toISOString() };
@@ -206,11 +208,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     // Redirect non-admins without profiles to onboarding
     if (mounted && !isUserLoading && user && !isAdminUser) {
-      if (!isProfileLoading && !userProfile) {
+      if (!isProfileLoading && !userProfile && pathname !== '/dashboard/onboarding') {
         router.push('/dashboard/onboarding');
       }
     }
-  }, [mounted, isUserLoading, user, isAdminUser, isProfileLoading, userProfile, router]);
+  }, [mounted, isUserLoading, user, isAdminUser, isProfileLoading, userProfile, router, pathname]);
 
 
   const displayName = user?.displayName || (user?.email ? user.email.split('@')[0] : 'User');
@@ -246,6 +248,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       default: return <Bell className="h-6 w-6 text-muted-foreground flex-shrink-0" />;
     }
   };
+
+  if (!mounted) return <div className="min-h-screen bg-background" />;
 
   const contextValue = {
     scansUsed,
@@ -301,7 +305,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         <Briefcase />
                         <span>E-Job Finder</span>
                     </Link>
-                    {mounted && <NavItems isAdmin={isAdminUser} />}
+                    <NavItems isAdmin={isAdminUser} />
                  </div>
                 <div className="flex items-center gap-2">
                   <ThemeToggle />
@@ -309,7 +313,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     <PopoverTrigger asChild>
                       <Button variant="ghost" size="icon" className="relative">
                         <Bell className="h-5 w-5" />
-                        {mounted && notifications.length > 0 && <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary" />}
+                        {notifications.length > 0 && <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary" />}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-96" align="end">
@@ -348,15 +352,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                           <Avatar className="h-8 w-8">
                             <AvatarImage src={photoURL || ''} alt={displayName} />
-                            <AvatarFallback>{mounted && user ? getInitials(displayName) : 'U'}</AvatarFallback>
+                            <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
                           </Avatar>
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-56" align="end">
                          <div className="flex flex-col space-y-2">
                           <div className="flex flex-col space-y-1">
-                            <p className="text-sm font-medium leading-none">{mounted ? displayName : 'User'}</p>
-                            <p className="text-xs leading-none text-muted-foreground">{mounted ? user?.email : ''}</p>
+                            <p className="text-sm font-medium leading-none">{displayName}</p>
+                            <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
                           </div>
                           <Button variant="outline" size="sm" onClick={onSignOut} className="w-full">
                             <LogOut className="mr-2 h-4 w-4" />
@@ -367,7 +371,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   </Popover>
                 </div>
               </div>
-            </header>
+header>
             <main className="container mx-auto p-4 lg:p-8">
               {children}
             </main>

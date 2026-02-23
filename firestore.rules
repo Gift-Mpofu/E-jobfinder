@@ -1,15 +1,13 @@
 
 /**
- * Core Philosophy: This ruleset implements a strict user-ownership security model
- * with an Administrative bypass for the designated master user.
+ * Core Philosophy: Strict user-ownership model with a global bypass for the Master Admin.
  *
  * Data Structure: All data is nested under `/users/{userId}`.
  *
  * Key Security Decisions:
- * - Admin Access: The user with email 'giftmpofud@gmail.com' is granted global
- *   read/write access to manage user quotas and support.
+ * - Admin Access: The master account 'giftmpofud@gmail.com' is granted global 
+ *   read/write access to all collections and document groups.
  * - User Isolation: Standard users are confined to their own document tree.
- * - No User Listing: Only the Admin can list the top-level `/users` collection.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -24,8 +22,7 @@ service cloud.firestore {
     }
 
     /**
-     * Checks if the requesting user is the designated Admin.
-     * Note: comparison is case-sensitive in rules.
+     * Checks if the requesting user is the designated Master Admin.
      */
     function isAdmin() {
       return isSignedIn() && request.auth.token.email == 'giftmpofud@gmail.com';
@@ -34,79 +31,36 @@ service cloud.firestore {
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
-    
-    function isExistingDocument() {
-      return resource != null;
-    }
-
-    function isExistingOwner(userId) {
-      return isOwner(userId) && isExistingDocument();
-    }
-    
-    function isValidUserCreate(userId) {
-      return isOwner(userId) && request.resource.data.id == userId;
-    }
-    
-    function isImmutableUserId() {
-      return request.resource.data.id == resource.data.id;
-    }
-    
-    function isValidOwnedDocumentCreate(userId) {
-      return isOwner(userId) && request.resource.data.userId == userId;
-    }
-    
-    function isImmutableOwnerLink() {
-      return request.resource.data.userId == resource.data.userId;
-    }
 
     // ----------------------------------------------------------------------
-    // Collection Group Rules (Admin Only)
+    // Global Admin Bypass (Handles both Collections and Collection Groups)
     // ----------------------------------------------------------------------
     
-    match /{path=**}/cvs/{cvId} {
-      allow read, write: if isAdmin();
-    }
-    
-    match /{path=**}/jobDescriptions/{jobDescriptionId} {
-      allow read, write: if isAdmin();
-    }
-    
-    match /{path=**}/matchResults/{matchResultId} {
+    match /{document=**} {
       allow read, write: if isAdmin();
     }
 
     // ----------------------------------------------------------------------
-    // Standard Collection Rules
+    // Standard User Collection Rules
     // ----------------------------------------------------------------------
 
     match /users/{userId} {
-      // Admin can list and get any user. Owner can only get their own.
-      allow get: if isOwner(userId) || isAdmin();
-      allow list: if isAdmin();
-      
-      allow create: if isValidUserCreate(userId);
-      
-      // Admin can update any user (for quota management). Owner can update their own.
-      allow update: if (isExistingOwner(userId) && isImmutableUserId()) || isAdmin();
-      allow delete: if isExistingOwner(userId) || isAdmin();
+      // Owner can access their own profile.
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isOwner(userId) && request.resource.data.id == userId;
+      allow delete: if isOwner(userId);
 
       match /cvs/{cvId} {
-        allow get, list: if isOwner(userId) || isAdmin();
-        allow create: if isValidOwnedDocumentCreate(userId);
-        allow update: if (isExistingOwner(userId) && isImmutableOwnerLink()) || isAdmin();
-        allow delete: if isExistingOwner(userId) || isAdmin();
+        allow read, write: if isOwner(userId);
 
         match /matchResults/{matchResultId} {
-          allow get, list, create: if isOwner(userId) || isAdmin();
-          allow update, delete: if isExistingOwner(userId) || isAdmin();
+          allow read, write: if isOwner(userId);
         }
       }
 
       match /jobDescriptions/{jobDescriptionId} {
-        allow get, list: if isOwner(userId) || isAdmin();
-        allow create: if isValidOwnedDocumentCreate(userId);
-        allow update: if (isExistingOwner(userId) && isImmutableOwnerLink()) || isAdmin();
-        allow delete: if isExistingOwner(userId) || isAdmin();
+        allow read, write: if isOwner(userId);
       }
     }
   }

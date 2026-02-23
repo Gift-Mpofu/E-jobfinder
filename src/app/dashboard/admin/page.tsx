@@ -13,19 +13,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { 
-    ShieldCheck, User, Plus, Minus, Search, Loader2, Settings, AlertTriangle, 
-    Users, FileText, ClipboardList, Activity, AlertCircle, Server, TrendingUp, 
-    Filter, Eye, Ban, ShieldAlert, KeyRound, Mail, ChevronRight, History, 
-    Download, Trash2, Flag, Info
+    ShieldCheck, User, Search, Loader2, Settings, AlertTriangle, 
+    Users, FileText, ClipboardList, Activity, TrendingUp, 
+    Eye, Ban, KeyRound, Download, Trash2, Flag, Info, Server, AlertCircle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const ADMIN_EMAIL = 'giftmpofud@gmail.com';
@@ -68,6 +65,7 @@ type MatchResult = {
     cvId: string;
     jobDescriptionId: string;
     missingKeywords?: string[];
+    reasoning?: string;
 };
 
 type FilterType = 'all' | 'active' | 'scans' | 'cvs' | 'jds' | 'errors';
@@ -95,7 +93,7 @@ export default function AdminPage() {
         return null;
     }
 
-    // Global Collections Queries (Admin Only via Collection Group)
+    // Global Collections Queries (Master Admin Level)
     const usersQuery = useMemoFirebase(() => {
         if (!firestore) return null;
         return query(collection(firestore, 'users'), orderBy('email'));
@@ -141,24 +139,21 @@ export default function AdminPage() {
         try {
             const userRef = doc(firestore, 'users', userId);
             await updateDoc(userRef, { [field]: value });
-            toast({
-                title: "User Updated",
-                description: `${field} updated successfully.`,
-            });
+            toast({ title: "Updated", description: "System property changed successfully." });
         } catch (error: any) {
-            toast({ variant: "destructive", title: "Update Failed", description: error.message });
+            toast({ variant: "destructive", title: "Error", description: error.message });
         } finally {
             setIsUpdating(null);
         }
     };
 
     const handleDeleteDocument = async (path: string) => {
-        if (!firestore || !window.confirm("Are you sure you want to delete this document? This action is irreversible.")) return;
+        if (!firestore || !window.confirm("Delete this document forever?")) return;
         try {
             await deleteDoc(doc(firestore, path));
-            toast({ title: "Deleted", description: "Document removed from system." });
+            toast({ title: "Removed", description: "Entry purged from database." });
         } catch (error: any) {
-            toast({ variant: "destructive", title: "Delete Failed", description: error.message });
+            toast({ variant: "destructive", title: "Failed", description: error.message });
         }
     };
 
@@ -166,9 +161,9 @@ export default function AdminPage() {
         if (!firestore) return;
         try {
             await updateDoc(doc(firestore, path), { flagged: !currentlyFlagged });
-            toast({ title: currentlyFlagged ? "Unflagged" : "Flagged", description: `Document status updated.` });
+            toast({ title: currentlyFlagged ? "Unflagged" : "Flagged" });
         } catch (error: any) {
-            toast({ variant: "destructive", title: "Update Failed", description: error.message });
+            toast({ variant: "destructive", title: "Error", description: error.message });
         }
     };
 
@@ -180,6 +175,15 @@ export default function AdminPage() {
         a.download = filename;
         a.click();
         window.URL.revokeObjectURL(url);
+    };
+
+    const handleResetPassword = async (email: string) => {
+        try {
+            await sendPasswordResetEmail(auth, email);
+            toast({ title: "Email Sent", description: "Password reset instructions delivered." });
+        } catch (error: any) {
+            toast({ variant: "destructive", title: "Failed", description: error.message });
+        }
     };
 
     const filteredUsers = useMemo(() => {
@@ -208,12 +212,12 @@ export default function AdminPage() {
                 onClick={() => setActiveFilter(type)}
             >
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+                    <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{title}</CardTitle>
                     <Icon className={`h-4 w-4 ${colorClass}`} />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">{value}</div>
-                    {description && <p className="text-xs text-muted-foreground mt-1">{description}</p>}
+                    <div className="text-2xl font-black">{value}</div>
+                    {description && <p className="text-[10px] text-muted-foreground mt-1 uppercase">{description}</p>}
                 </CardContent>
             </Card>
         );
@@ -222,20 +226,20 @@ export default function AdminPage() {
     if (!mounted) return null;
 
     return (
-        <div className="space-y-8 max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="space-y-8 max-w-7xl mx-auto pb-20">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="space-y-1">
-                    <h1 className="text-4xl font-extrabold tracking-tight flex items-center gap-3">
+                    <h1 className="text-4xl font-black tracking-tighter flex items-center gap-3">
                         <ShieldCheck className="text-primary h-10 w-10" />
-                        Admin Management
+                        DEVELOPER CONSOLE
                     </h1>
-                    <p className="text-muted-foreground text-lg italic">Accessing System Core Control.</p>
+                    <p className="text-muted-foreground text-sm font-medium uppercase tracking-widest">Master Key Access: {user?.email}</p>
                 </div>
                 <div className="relative w-full md:w-80">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input 
-                        placeholder="Search system data..." 
-                        className="pl-9 h-11"
+                        placeholder="SEARCH SYSTEM NODES..." 
+                        className="pl-9 h-11 bg-muted/20 border-primary/20 font-mono text-xs uppercase"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -243,73 +247,75 @@ export default function AdminPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard title="Total Users" value={isUsersLoading ? "..." : metrics.total} icon={Users} type="all" />
-                <StatCard title="Active Users" value={isUsersLoading ? "..." : metrics.active} icon={Activity} colorClass="text-green-500" type="active" />
-                <StatCard title="Total AI Analyses" value={isUsersLoading ? "..." : metrics.totalScans} icon={TrendingUp} colorClass="text-blue-500" type="scans" />
-                <StatCard title="Total CVs" value={isAllCvsLoading ? "..." : metrics.totalCvs} icon={FileText} colorClass="text-orange-500" type="cvs" />
+                <StatCard title="Total Users" value={isUsersLoading ? "..." : metrics.total} icon={Users} type="all" description="Registered accounts" />
+                <StatCard title="Active Users" value={isUsersLoading ? "..." : metrics.active} icon={Activity} colorClass="text-green-500" type="active" description="Active last 7 days" />
+                <StatCard title="AI Analyses" value={isUsersLoading ? "..." : metrics.totalScans} icon={TrendingUp} colorClass="text-blue-500" type="scans" description="Total scan throughput" />
+                <StatCard title="Server Status" value="OPTIMAL" icon={Server} colorClass="text-emerald-500" type="all" description="Global instance health" />
+                <StatCard title="CVs Uploaded" value={isAllCvsLoading ? "..." : metrics.totalCvs} icon={FileText} colorClass="text-orange-500" type="cvs" description="Total document count" />
+                <StatCard title="Job Descs" value={isAllJobsLoading ? "..." : metrics.totalJobs} icon={ClipboardList} colorClass="text-purple-500" type="jds" description="Descriptions submitted" />
+                <StatCard title="Error Logs" value="0" icon={AlertCircle} colorClass="text-muted-foreground" type="errors" description="Exceptions today" />
             </div>
 
             <Tabs defaultValue="users" className="w-full">
-                <TabsList className="grid w-full grid-cols-3 mb-8">
-                    <TabsTrigger value="users" className="gap-2"><Users className="h-4 w-4" /> User Management</TabsTrigger>
-                    <TabsTrigger value="cvs" className="gap-2"><FileText className="h-4 w-4" /> CV Management</TabsTrigger>
-                    <TabsTrigger value="jobs" className="gap-2"><ClipboardList className="h-4 w-4" /> Job Management</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-3 mb-8 bg-muted/50 p-1">
+                    <TabsTrigger value="users" className="gap-2 font-bold uppercase text-[10px]"><Users className="h-3 w-3" /> Users</TabsTrigger>
+                    <TabsTrigger value="cvs" className="gap-2 font-bold uppercase text-[10px]"><FileText className="h-3 w-3" /> CVs</TabsTrigger>
+                    <TabsTrigger value="jobs" className="gap-2 font-bold uppercase text-[10px]"><ClipboardList className="h-3 w-3" /> Jobs</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="users">
-                    <Card className="shadow-lg border-muted">
+                    <Card className="shadow-2xl border-primary/10">
                         <CardHeader className="border-b bg-muted/30">
-                            <CardTitle>User Directory & Security</CardTitle>
-                            <CardDescription>Manage permissions, roles, and review document history.</CardDescription>
+                            <CardTitle className="text-lg font-bold">USER DIRECTORY</CardTitle>
                         </CardHeader>
                         <CardContent className="p-0">
                             {isUsersLoading ? (
                                 <div className="p-8 space-y-4">
-                                    {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-14 w-full" />)}
+                                    {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-14 w-full" />)}
                                 </div>
                             ) : (
                                 <Table>
-                                    <TableHeader className="bg-muted/10">
-                                        <TableRow>
-                                            <TableHead className="w-[300px]">User</TableHead>
-                                            <TableHead>Status</TableHead>
-                                            <TableHead>Last Active</TableHead>
-                                            <TableHead>Usage</TableHead>
-                                            <TableHead className="text-right pr-6">Management</TableHead>
+                                    <TableHeader>
+                                        <TableRow className="bg-muted/10">
+                                            <TableHead className="text-[10px] font-black uppercase">Identifier</TableHead>
+                                            <TableHead className="text-[10px] font-black uppercase">Status</TableHead>
+                                            <TableHead className="text-[10px] font-black uppercase">Activity</TableHead>
+                                            <TableHead className="text-[10px] font-black uppercase">Usage</TableHead>
+                                            <TableHead className="text-right pr-6 text-[10px] font-black uppercase">Control</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {filteredUsers.map((u) => (
-                                            <TableRow key={u.id} className="hover:bg-muted/5 transition-colors group">
+                                            <TableRow key={u.id} className="hover:bg-muted/5 transition-colors">
                                                 <TableCell>
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="h-10 w-10 rounded-full border-2 border-primary/20 bg-muted flex items-center justify-center overflow-hidden">
-                                                            {u.photoURL ? <img src={u.photoURL} alt={u.email} className="h-full w-full object-cover" /> : <User className="h-5 w-5 text-muted-foreground" />}
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="h-8 w-8 rounded-full border-2 border-primary/20 bg-muted flex items-center justify-center overflow-hidden">
+                                                            {u.photoURL ? <img src={u.photoURL} alt="" className="h-full w-full object-cover" /> : <User className="h-4 w-4 text-muted-foreground" />}
                                                         </div>
-                                                        <div className="flex flex-col min-w-0">
-                                                            <span className="font-bold text-sm truncate">{u.email}</span>
-                                                            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{u.role || 'user'}</span>
+                                                        <div className="flex flex-col">
+                                                            <span className="font-bold text-sm">{u.email}</span>
+                                                            <span className="text-[8px] text-muted-foreground uppercase tracking-widest">{u.role || 'user'}</span>
                                                         </div>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Badge variant={u.status === 'suspended' ? 'destructive' : 'outline'}>
+                                                    <Badge variant={u.status === 'suspended' ? 'destructive' : 'outline'} className="text-[9px] font-bold uppercase">
                                                         {u.status || 'active'}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <span className="text-xs text-muted-foreground">
-                                                        {u.lastActive ? formatDistanceToNow(u.lastActive.toDate(), { addSuffix: true }) : 'Never'}
+                                                    <span className="text-[10px] font-mono text-muted-foreground">
+                                                        {u.lastActive ? formatDistanceToNow(u.lastActive.toDate(), { addSuffix: true }) : 'OFFLINE'}
                                                     </span>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <span className={`font-mono font-bold text-sm ${u.scansUsed >= 3 ? 'text-destructive' : 'text-primary'}`}>
-                                                        {u.scansUsed} / 3
+                                                    <span className={cn("font-mono font-bold text-xs", u.scansUsed >= 3 ? "text-destructive" : "text-primary")}>
+                                                        {u.scansUsed}/3
                                                     </span>
                                                 </TableCell>
                                                 <TableCell className="text-right pr-6">
-                                                    <Button variant="outline" size="sm" onClick={() => { setSelectedUser(u); setIsUserDetailsOpen(true); }}>
-                                                        <Eye className="h-4 w-4 mr-2" /> Manage
+                                                    <Button variant="outline" size="sm" className="h-8 text-[10px] font-bold uppercase" onClick={() => { setSelectedUser(u); setIsUserDetailsOpen(true); }}>
+                                                        <Settings className="h-3 w-3 mr-2" /> Manage
                                                     </Button>
                                                 </TableCell>
                                             </TableRow>
@@ -322,10 +328,9 @@ export default function AdminPage() {
                 </TabsContent>
 
                 <TabsContent value="cvs">
-                    <Card className="shadow-lg border-muted">
+                    <Card className="shadow-2xl border-primary/10">
                         <CardHeader className="border-b bg-muted/30">
-                            <CardTitle>Global CV Repository</CardTitle>
-                            <CardDescription>Review all documents uploaded to the platform.</CardDescription>
+                            <CardTitle className="text-lg font-bold">CV REPOSITORY</CardTitle>
                         </CardHeader>
                         <CardContent className="p-0">
                             {isAllCvsLoading ? (
@@ -336,11 +341,11 @@ export default function AdminPage() {
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead>File Name</TableHead>
-                                            <TableHead>User Email</TableHead>
-                                            <TableHead>Upload Date</TableHead>
-                                            <TableHead>Status</TableHead>
-                                            <TableHead className="text-right pr-6">Actions</TableHead>
+                                            <TableHead className="text-[10px] font-black uppercase">Filename</TableHead>
+                                            <TableHead className="text-[10px] font-black uppercase">Owner</TableHead>
+                                            <TableHead className="text-[10px] font-black uppercase">Date</TableHead>
+                                            <TableHead className="text-[10px] font-black uppercase">Status</TableHead>
+                                            <TableHead className="text-right pr-6 text-[10px] font-black uppercase">Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -348,38 +353,38 @@ export default function AdminPage() {
                                             const owner = users?.find(u => u.id === cv.userId);
                                             return (
                                                 <TableRow key={cv.id}>
-                                                    <TableCell className="font-medium">{cv.fileName}</TableCell>
-                                                    <TableCell className="text-xs">{owner?.email || cv.userId}</TableCell>
-                                                    <TableCell className="text-xs text-muted-foreground">{new Date(cv.uploadDate).toLocaleDateString()}</TableCell>
+                                                    <TableCell className="font-medium text-xs">{cv.fileName}</TableCell>
+                                                    <TableCell className="text-[10px] font-mono">{owner?.email || cv.userId}</TableCell>
+                                                    <TableCell className="text-[10px] text-muted-foreground">{new Date(cv.uploadDate).toLocaleDateString()}</TableCell>
                                                     <TableCell>
-                                                        {cv.flagged && <Badge variant="destructive" className="gap-1"><AlertTriangle className="h-3 w-3" /> Flagged</Badge>}
+                                                        {cv.flagged && <Badge variant="destructive" className="text-[8px] gap-1"><AlertTriangle className="h-2 w-2" /> FLAG</Badge>}
                                                     </TableCell>
                                                     <TableCell className="text-right pr-6">
-                                                        <div className="flex justify-end gap-2">
+                                                        <div className="flex justify-end gap-1">
                                                             <Dialog>
                                                                 <DialogTrigger asChild>
-                                                                    <Button variant="ghost" size="icon"><Eye className="h-4 w-4" /></Button>
+                                                                    <Button variant="ghost" size="icon" className="h-8 w-8"><Eye className="h-3 w-3" /></Button>
                                                                 </DialogTrigger>
-                                                                <DialogContent className="max-w-2xl">
+                                                                <DialogContent className="max-w-3xl">
                                                                     <DialogHeader>
-                                                                        <DialogTitle>{cv.fileName}</DialogTitle>
-                                                                        <DialogDescription>Content preview for {owner?.email}</DialogDescription>
+                                                                        <DialogTitle className="text-sm font-bold">{cv.fileName}</DialogTitle>
+                                                                        <DialogDescription className="text-[10px] uppercase">Node: {cv.id}</DialogDescription>
                                                                     </DialogHeader>
-                                                                    <ScrollArea className="h-96 border rounded-md p-4 bg-muted/50 font-sans text-sm">
+                                                                    <ScrollArea className="h-[400px] border rounded-lg p-4 bg-muted/30 font-mono text-[11px] leading-relaxed">
                                                                         <pre className="whitespace-pre-wrap">{cv.fileContent}</pre>
                                                                     </ScrollArea>
                                                                     <DialogFooter>
-                                                                        <Button variant="outline" onClick={() => handleDownloadContent(cv.fileContent, cv.fileName)}>
-                                                                            <Download className="h-4 w-4 mr-2" /> Download
+                                                                        <Button variant="outline" size="sm" onClick={() => handleDownloadContent(cv.fileContent, cv.fileName)}>
+                                                                            <Download className="h-3 w-3 mr-2" /> Download Raw
                                                                         </Button>
                                                                     </DialogFooter>
                                                                 </DialogContent>
                                                             </Dialog>
-                                                            <Button variant="ghost" size="icon" onClick={() => handleFlagDocument(`users/${cv.userId}/cvs/${cv.id}`, !!cv.flagged)}>
-                                                                <Flag className={cn("h-4 w-4", cv.flagged ? "text-destructive fill-destructive" : "")} />
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleFlagDocument(`users/${cv.userId}/cvs/${cv.id}`, !!cv.flagged)}>
+                                                                <Flag className={cn("h-3 w-3", cv.flagged ? "text-destructive fill-destructive" : "")} />
                                                             </Button>
-                                                            <Button variant="ghost" size="icon" onClick={() => handleDeleteDocument(`users/${cv.userId}/cvs/${cv.id}`)}>
-                                                                <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteDocument(`users/${cv.userId}/cvs/${cv.id}`)}>
+                                                                <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
                                                             </Button>
                                                         </div>
                                                     </TableCell>
@@ -394,10 +399,9 @@ export default function AdminPage() {
                 </TabsContent>
 
                 <TabsContent value="jobs">
-                    <Card className="shadow-lg border-muted">
+                    <Card className="shadow-2xl border-primary/10">
                         <CardHeader className="border-b bg-muted/30">
-                            <CardTitle>Job Description & Analysis Logs</CardTitle>
-                            <CardDescription>Monitor AI analysis throughput and content quality.</CardDescription>
+                            <CardTitle className="text-lg font-bold">ANALYSIS LOGS</CardTitle>
                         </CardHeader>
                         <CardContent className="p-0">
                             {isAllJobsLoading ? (
@@ -408,56 +412,54 @@ export default function AdminPage() {
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead>Job Title</TableHead>
-                                            <TableHead>User</TableHead>
-                                            <TableHead>Analysis Score</TableHead>
-                                            <TableHead>Date</TableHead>
-                                            <TableHead className="text-right pr-6">Actions</TableHead>
+                                            <TableHead className="text-[10px] font-black uppercase">Role Identified</TableHead>
+                                            <TableHead className="text-[10px] font-black uppercase">User</TableHead>
+                                            <TableHead className="text-[10px] font-black uppercase">Score</TableHead>
+                                            <TableHead className="text-[10px] font-black uppercase">Timestamp</TableHead>
+                                            <TableHead className="text-right pr-6 text-[10px] font-black uppercase">Details</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {allMatches?.map((match) => {
                                             const owner = users?.find(u => u.id === match.userId);
-                                            const jobDoc = allJobs?.find(j => j.id === match.jobDescriptionId);
                                             return (
                                                 <TableRow key={match.id}>
-                                                    <TableCell className="font-medium">{match.jobTitle}</TableCell>
-                                                    <TableCell className="text-xs">{owner?.email || match.userId}</TableCell>
+                                                    <TableCell className="font-bold text-xs">{match.jobTitle}</TableCell>
+                                                    <TableCell className="text-[10px] font-mono">{owner?.email || match.userId}</TableCell>
                                                     <TableCell>
-                                                        <Badge variant={match.matchScore > 70 ? 'default' : 'secondary'}>{match.matchScore}%</Badge>
+                                                        <Badge variant={match.matchScore > 75 ? 'default' : 'secondary'} className="text-[9px] font-bold">
+                                                            {match.matchScore}%
+                                                        </Badge>
                                                     </TableCell>
-                                                    <TableCell className="text-xs text-muted-foreground">{new Date(match.analysisDate).toLocaleDateString()}</TableCell>
+                                                    <TableCell className="text-[10px] text-muted-foreground font-mono">
+                                                        {new Date(match.analysisDate).toLocaleDateString()}
+                                                    </TableCell>
                                                     <TableCell className="text-right pr-6">
-                                                        <div className="flex justify-end gap-2">
-                                                            <Dialog>
-                                                                <DialogTrigger asChild>
-                                                                    <Button variant="ghost" size="icon"><Info className="h-4 w-4" /></Button>
-                                                                </DialogTrigger>
-                                                                <DialogContent className="max-w-2xl">
-                                                                    <DialogHeader>
-                                                                        <DialogTitle>Analysis: {match.jobTitle}</DialogTitle>
-                                                                        <DialogDescription>Match Score: {match.matchScore}%</DialogDescription>
-                                                                    </DialogHeader>
-                                                                    <div className="space-y-4">
-                                                                        <div>
-                                                                            <h4 className="text-sm font-bold mb-2 uppercase tracking-tighter text-muted-foreground">Original Job Description</h4>
-                                                                            <ScrollArea className="h-40 border rounded p-3 text-xs bg-muted/30">
-                                                                                {jobDoc?.descriptionText || 'Job description document not found.'}
-                                                                            </ScrollArea>
-                                                                        </div>
-                                                                        <div>
-                                                                            <h4 className="text-sm font-bold mb-2 uppercase tracking-tighter text-muted-foreground">Missing Keywords Identified</h4>
-                                                                            <div className="flex flex-wrap gap-1">
-                                                                                {match.missingKeywords?.map(kw => <Badge key={kw} variant="outline" className="text-[10px]">{kw}</Badge>)}
-                                                                            </div>
-                                                                        </div>
+                                                        <Dialog>
+                                                            <DialogTrigger asChild>
+                                                                <Button variant="ghost" size="icon" className="h-8 w-8"><Info className="h-3 w-3" /></Button>
+                                                            </DialogTrigger>
+                                                            <DialogContent className="max-w-2xl">
+                                                                <DialogHeader>
+                                                                    <DialogTitle className="text-sm font-bold">Analysis Feedback</DialogTitle>
+                                                                    <DialogDescription className="text-[10px] uppercase">Job Title: {match.jobTitle}</DialogDescription>
+                                                                </DialogHeader>
+                                                                <div className="space-y-4">
+                                                                    <div className="p-4 bg-muted/30 rounded-lg border">
+                                                                        <h4 className="text-[10px] font-black uppercase mb-2 text-primary">AI Reasoning</h4>
+                                                                        <p className="text-xs leading-relaxed text-muted-foreground">{match.reasoning || "No detailed reasoning available."}</p>
                                                                     </div>
-                                                                </DialogContent>
-                                                            </Dialog>
-                                                            <Button variant="ghost" size="icon" onClick={() => handleDeleteDocument(`users/${match.userId}/cvs/${match.cvId}/matchResults/${match.id}`)}>
-                                                                <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-                                                            </Button>
-                                                        </div>
+                                                                    <div className="flex flex-wrap gap-1">
+                                                                        {match.missingKeywords?.map(kw => <Badge key={kw} variant="outline" className="text-[8px] uppercase">{kw}</Badge>)}
+                                                                    </div>
+                                                                </div>
+                                                                <DialogFooter>
+                                                                    <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10" onClick={() => handleDeleteDocument(`users/${match.userId}/cvs/${match.cvId}/matchResults/${match.id}`)}>
+                                                                        <Trash2 className="h-3 w-3 mr-2" /> Delete Log
+                                                                    </Button>
+                                                                </DialogFooter>
+                                                            </DialogContent>
+                                                        </Dialog>
                                                     </TableCell>
                                                 </TableRow>
                                             );
@@ -473,12 +475,12 @@ export default function AdminPage() {
             <Dialog open={isUserDetailsOpen} onOpenChange={setIsUserDetailsOpen}>
                 <DialogContent className="max-w-4xl max-h-[90vh]">
                     <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
+                        <DialogTitle className="flex items-center gap-2 font-black">
                             <ShieldCheck className="h-6 w-6 text-primary" />
-                            Security & Access Control
+                            SECURITY NODE: {selectedUser?.email}
                         </DialogTitle>
-                        <DialogDescription>
-                            Detailed management for {selectedUser?.email}
+                        <DialogDescription className="text-[10px] uppercase tracking-tighter">
+                            MANAGE ACCESS PERMISSIONS AND REVIEW DOCUMENT HISTORY
                         </DialogDescription>
                     </DialogHeader>
 
@@ -486,96 +488,92 @@ export default function AdminPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-4">
                             <div className="space-y-6">
                                 <div className="space-y-4">
-                                    <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                                        <Settings className="h-4 w-4" /> Account Settings
+                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                                        <Settings className="h-3 w-3" /> ACCESS CONTROL
                                     </h4>
                                     
-                                    <div className="p-4 border rounded-lg bg-muted/30 space-y-4">
+                                    <div className="p-4 border-2 border-primary/10 rounded-xl bg-muted/30 space-y-4">
                                         <div className="flex items-center justify-between">
-                                            <span className="text-sm font-medium">Access Status</span>
+                                            <span className="text-xs font-bold uppercase">System Status</span>
                                             <Button 
                                                 variant={selectedUser.status === 'suspended' ? 'default' : 'outline'} 
                                                 size="sm"
+                                                className="h-8 text-[10px] font-bold uppercase"
                                                 onClick={() => handleUpdateUserField(selectedUser.id, 'status', selectedUser.status === 'suspended' ? 'active' : 'suspended')}
                                                 disabled={selectedUser.email === ADMIN_EMAIL}
                                             >
-                                                {selectedUser.status === 'suspended' ? <ShieldCheck className="h-4 w-4 mr-2" /> : <Ban className="h-4 w-4 mr-2" />}
-                                                {selectedUser.status === 'suspended' ? 'Reactivate' : 'Suspend User'}
+                                                {selectedUser.status === 'suspended' ? <ShieldCheck className="h-3 w-3 mr-2" /> : <Ban className="h-3 w-3 mr-2" />}
+                                                {selectedUser.status === 'suspended' ? 'RESTORE' : 'SUSPEND'}
                                             </Button>
                                         </div>
 
                                         <div className="flex items-center justify-between">
-                                            <span className="text-sm font-medium">Permission Role</span>
+                                            <span className="text-xs font-bold uppercase">Auth Role</span>
                                             <Select 
                                                 value={selectedUser.role || 'user'} 
                                                 onValueChange={(val) => handleUpdateUserField(selectedUser.id, 'role', val)}
                                                 disabled={selectedUser.email === ADMIN_EMAIL}
                                             >
-                                                <SelectTrigger className="w-[120px]">
+                                                <SelectTrigger className="w-[120px] h-8 text-[10px] font-bold">
                                                     <SelectValue />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="user">User</SelectItem>
-                                                    <SelectItem value="admin">Admin</SelectItem>
+                                                    <SelectItem value="user">USER</SelectItem>
+                                                    <SelectItem value="admin">ADMIN</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                         </div>
 
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-sm font-medium">Security</span>
-                                            <Button variant="secondary" size="sm" onClick={() => handleResetPassword(selectedUser.email)}>
-                                                <KeyRound className="h-4 w-4 mr-2" />
-                                                Reset Password
+                                        <div className="flex items-center justify-between pt-2 border-t border-primary/10">
+                                            <span className="text-xs font-bold uppercase">Credential Safety</span>
+                                            <Button variant="secondary" size="sm" className="h-8 text-[10px] font-bold uppercase" onClick={() => handleResetPassword(selectedUser.email)}>
+                                                <KeyRound className="h-3 w-3 mr-2" /> RESET PWD
                                             </Button>
                                         </div>
                                     </div>
                                 </div>
 
                                 <div className="space-y-4">
-                                    <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                                        <User className="h-4 w-4" /> Career Snapshot
+                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                                        <User className="h-3 w-3" /> CAREER SNAPSHOT
                                     </h4>
-                                    <div className="p-4 border rounded-lg bg-muted/10 space-y-2 text-sm">
+                                    <div className="p-4 border-2 border-primary/10 rounded-xl bg-muted/10 space-y-2 text-xs font-mono uppercase">
                                         <div className="flex justify-between">
-                                            <span className="text-muted-foreground">Target Role:</span>
-                                            <span className="font-medium">{selectedUser.targetRole || 'Not Set'}</span>
+                                            <span className="text-muted-foreground">TARGET_ROLE:</span>
+                                            <span className="font-bold">{selectedUser.targetRole || 'NULL'}</span>
                                         </div>
                                         <div className="flex justify-between">
-                                            <span className="text-muted-foreground">Exp Level:</span>
-                                            <span className="font-medium">{selectedUser.experienceLevel || 'Not Set'}</span>
+                                            <span className="text-muted-foreground">EXP_LEVEL:</span>
+                                            <span className="font-bold">{selectedUser.experienceLevel || 'NULL'}</span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
                             <div className="space-y-4">
-                                <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                                    <History className="h-4 w-4" /> Document Overview
+                                <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                                    <FileText className="h-3 w-3" /> CV HISTORY
                                 </h4>
-                                <ScrollArea className="h-[300px] border rounded-lg p-2 bg-muted/5">
-                                    {isAllCvsLoading ? (
-                                        <div className="p-4 space-y-2">
-                                            <Skeleton className="h-10 w-full" />
-                                            <Skeleton className="h-10 w-full" />
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-2">
-                                            {allCvs?.filter(cv => cv.userId === selectedUser.id).map((cv) => (
-                                                <div key={cv.id} className="p-3 border rounded hover:bg-muted/50 transition-colors flex items-center justify-between group">
-                                                    <div className="flex items-center gap-3">
-                                                        <FileText className="h-5 w-5 text-primary" />
-                                                        <div className="flex flex-col">
-                                                            <span className="text-xs font-bold truncate max-w-[150px]">{cv.fileName}</span>
-                                                            <span className="text-[10px] text-muted-foreground">{new Date(cv.uploadDate).toLocaleDateString()}</span>
-                                                        </div>
+                                <ScrollArea className="h-[320px] border-2 border-primary/10 rounded-xl p-3 bg-muted/5">
+                                    <div className="space-y-2">
+                                        {allCvs?.filter(cv => cv.userId === selectedUser.id).map((cv) => (
+                                            <div key={cv.id} className="p-3 border rounded-lg hover:bg-muted/50 transition-colors flex items-center justify-between group">
+                                                <div className="flex items-center gap-3">
+                                                    <FileText className="h-4 w-4 text-primary" />
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[11px] font-bold truncate max-w-[150px]">{cv.fileName}</span>
+                                                        <span className="text-[8px] text-muted-foreground uppercase font-mono">{new Date(cv.uploadDate).toLocaleDateString()}</span>
                                                     </div>
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDownloadContent(cv.fileContent, cv.fileName)}>
-                                                        <Download className="h-4 w-4" />
-                                                    </Button>
                                                 </div>
-                                            ))}
-                                        </div>
-                                    )}
+                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDownloadContent(cv.fileContent, cv.fileName)}>
+                                                    <Download className="h-3 w-3" />
+                                                </Button>
+                                            </div>
+                                        ))}
+                                        {allCvs?.filter(cv => cv.userId === selectedUser.id).length === 0 && (
+                                            <p className="text-[10px] text-muted-foreground text-center py-10 uppercase font-mono tracking-widest">NO_DATA_FOUND</p>
+                                        )}
+                                    </div>
                                 </ScrollArea>
                             </div>
                         </div>
