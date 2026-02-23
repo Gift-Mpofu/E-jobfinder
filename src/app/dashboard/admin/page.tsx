@@ -87,35 +87,32 @@ export default function AdminPage() {
         setMounted(true);
     }, []);
 
-    // Security check: Only allow the specific admin email
-    if (!isUserLoading && user?.email?.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
-        router.push('/dashboard');
-        return null;
-    }
+    const isActualAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
-    // Global Collections Queries (Master Admin Level)
+    // Global Collections Queries - DEFER until we are sure user is Admin
+    // This prevents "Missing or insufficient permissions" errors on initial load
     const usersQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
+        if (!firestore || !isActualAdmin) return null;
         return query(collection(firestore, 'users'), orderBy('email'));
-    }, [firestore]);
+    }, [firestore, isActualAdmin]);
     const { data: users, isLoading: isUsersLoading } = useCollection<UserProfile>(usersQuery);
 
     const cvsQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
+        if (!firestore || !isActualAdmin) return null;
         return query(collectionGroup(firestore, 'cvs'), orderBy('uploadDate', 'desc'));
-    }, [firestore]);
+    }, [firestore, isActualAdmin]);
     const { data: allCvs, isLoading: isAllCvsLoading } = useCollection<CV>(cvsQuery);
 
     const jobsQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
+        if (!firestore || !isActualAdmin) return null;
         return query(collectionGroup(firestore, 'jobDescriptions'), orderBy('creationDate', 'desc'));
-    }, [firestore]);
+    }, [firestore, isActualAdmin]);
     const { data: allJobs, isLoading: isAllJobsLoading } = useCollection<JobDescription>(jobsQuery);
 
     const matchResultsQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
+        if (!firestore || !isActualAdmin) return null;
         return query(collectionGroup(firestore, 'matchResults'), orderBy('analysisDate', 'desc'));
-    }, [firestore]);
+    }, [firestore, isActualAdmin]);
     const { data: allMatches, isLoading: isAllMatchesLoading } = useCollection<MatchResult>(matchResultsQuery);
 
     // Metrics Calculation
@@ -132,6 +129,12 @@ export default function AdminPage() {
             totalJobs: allJobs?.length || 0
         };
     }, [users, allCvs, allJobs, mounted]);
+
+    useEffect(() => {
+        if (mounted && !isUserLoading && !isActualAdmin) {
+            router.push('/dashboard');
+        }
+    }, [mounted, isUserLoading, isActualAdmin, router]);
 
     const handleUpdateUserField = async (userId: string, field: string, value: any) => {
         if (!firestore) return;
@@ -201,6 +204,16 @@ export default function AdminPage() {
         return result;
     }, [users, searchTerm, activeFilter, mounted]);
 
+    if (!mounted || isUserLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
+
+    if (!isActualAdmin) return null;
+
     const StatCard = ({ title, value, icon: Icon, description, colorClass = "text-primary", type }: any) => {
         const isActive = activeFilter === type;
         return (
@@ -222,8 +235,6 @@ export default function AdminPage() {
             </Card>
         );
     };
-
-    if (!mounted) return null;
 
     return (
         <div className="space-y-8 max-w-7xl mx-auto pb-20">
