@@ -113,6 +113,10 @@
           "type": "string",
           "description": "Content of the CV file (e.g., base64 encoded).",
           "format": "string"
+        },
+        "flagged": {
+          "type": "boolean",
+          "description": "Whether the CV has been flagged by an admin."
         }
       },
       "required": [

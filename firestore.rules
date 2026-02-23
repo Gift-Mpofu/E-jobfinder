@@ -1,3 +1,4 @@
+
 /**
  * Core Philosophy: This ruleset implements a strict user-ownership security model
  * with an Administrative bypass for the designated master user.
@@ -59,7 +60,23 @@ service cloud.firestore {
     }
 
     // ----------------------------------------------------------------------
-    // Collection Rules
+    // Collection Group Rules (Admin Only)
+    // ----------------------------------------------------------------------
+    
+    match /{path=**}/cvs/{cvId} {
+      allow read, write: if isAdmin();
+    }
+    
+    match /{path=**}/jobDescriptions/{jobDescriptionId} {
+      allow read, write: if isAdmin();
+    }
+    
+    match /{path=**}/matchResults/{matchResultId} {
+      allow read, write: if isAdmin();
+    }
+
+    // ----------------------------------------------------------------------
+    // Standard Collection Rules
     // ----------------------------------------------------------------------
 
     match /users/{userId} {
