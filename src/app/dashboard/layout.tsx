@@ -164,13 +164,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [user, userProfileRef, userProfile?.scansUsed, usageLimit, addNotification]);
 
   useEffect(() => {
-    if (!scanLimitReachedAt) {
+    if (!userProfile?.scanLimitReachedAt) {
         setIsLimitActive(false);
         setResetTimeLeft('');
         return;
     }
 
-    const limitDate = scanLimitReachedAt.toDate();
+    const limitDate = userProfile.scanLimitReachedAt.toDate();
     const resetTime = limitDate.getTime() + 7 * 24 * 60 * 60 * 1000;
 
     if (new Date().getTime() > resetTime) {
