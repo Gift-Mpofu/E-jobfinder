@@ -87,7 +87,7 @@ export default function AdminPage() {
         setMounted(true);
     }, []);
 
-    const isActualAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+    const isActualAdmin = !isUserLoading && user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
     // Global Collections Queries - DEFER until we are sure user is Admin
     // This prevents "Missing or insufficient permissions" errors on initial load

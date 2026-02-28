@@ -37,7 +37,7 @@ service cloud.firestore {
     // Global Admin Bypass
     // ----------------------------------------------------------------------
     
-    // Using {allPaths=**} is more robust for collectionGroup queries in some environments
+    // Using {allPaths=**} to ensure global collectionGroup queries work for admin
     match /{allPaths=**} {
       allow read, write: if isAdmin();
     }
