@@ -1,10 +1,8 @@
-
 'use client';
 
 import { useState, useEffect, createContext, useContext, useCallback } from "react";
 import Link from "next/link";
-import { usePathname } from 'next/navigation';
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from 'next/navigation';
 import { signOut } from "firebase/auth";
 import { doc, updateDoc, serverTimestamp, type Timestamp } from "firebase/firestore";
 import { useUser, useAuth, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
@@ -63,8 +61,6 @@ const NavItems = ({ isAdmin }: { isAdmin: boolean }) => {
     const pathname = usePathname();
     const isAdminPage = pathname === '/dashboard/admin';
 
-    // On admin page, ONLY show the Admin Panel link.
-    // For admins on other pages, show everything.
     const navLinks = [
         ...(!isAdminPage ? [
             { href: '/dashboard', label: 'Dashboard' },
@@ -128,9 +124,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return doc(firestore, 'users', user.uid);
   }, [user, firestore]);
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
-
-  const scansUsed = userProfile?.scansUsed ?? 0;
-  const scanLimitReachedAt = userProfile?.scanLimitReachedAt;
 
   useEffect(() => {
     if (userProfileRef && mounted) {
@@ -208,7 +201,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [scanLimitReachedAt, userProfileRef, userProfile?.scansUsed]);
+  }, [userProfile?.scanLimitReachedAt, userProfileRef, userProfile?.scansUsed]);
 
   useEffect(() => {
     if (mounted && !isUserLoading && user && !isAdminUser) {
@@ -217,7 +210,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       }
     }
   }, [mounted, isUserLoading, user, isAdminUser, isProfileLoading, userProfile, router, pathname]);
-
 
   const displayName = user?.displayName || (user?.email ? user.email.split('@')[0] : 'User');
   const photoURL = userProfile?.photoURL || user?.photoURL;
@@ -230,11 +222,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       router.push('/login');
     } catch (error) {
       console.error("Sign out failed", error);
-      toast({
-        variant: "destructive",
-        title: "Sign Out Failed",
-        description: "An error occurred while signing out.",
-      });
     }
   };
 
@@ -246,17 +233,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const getNotificationIcon = (type: Notification['type']) => {
     switch (type) {
-      case 'scan_complete': return <CheckCircle className="h-6 w-6 text-green-500 flex-shrink-0" />;
-      case 'limit_reached': return <Timer className="h-6 w-6 text-yellow-500 flex-shrink-0" />;
-      case 'scan_in_progress': return <BrainCircuit className="h-6 w-6 text-primary animate-pulse flex-shrink-0" />;
-      default: return <Bell className="h-6 w-6 text-muted-foreground flex-shrink-0" />;
+      case 'scan_complete': return <CheckCircle className="h-6 w-6 text-green-500" />;
+      case 'limit_reached': return <Timer className="h-6 w-6 text-yellow-500" />;
+      case 'scan_in_progress': return <BrainCircuit className="h-6 w-6 text-primary animate-pulse" />;
+      default: return <Bell className="h-6 w-6 text-muted-foreground" />;
     }
   };
 
   if (!mounted) return <div className="min-h-screen bg-background" />;
 
   const contextValue = {
-    scansUsed,
+    scansUsed: userProfile?.scansUsed ?? 0,
     usageLimit,
     addScan,
     notifications,

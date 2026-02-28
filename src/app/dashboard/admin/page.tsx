@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -87,10 +86,9 @@ export default function AdminPage() {
         setMounted(true);
     }, []);
 
-    const isActualAdmin = !isUserLoading && user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+    const isActualAdmin = mounted && !isUserLoading && user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
     // Global Collections Queries - DEFER until we are sure user is Admin
-    // This prevents "Missing or insufficient permissions" errors on initial load
     const usersQuery = useMemoFirebase(() => {
         if (!firestore || !isActualAdmin) return null;
         return query(collection(firestore, 'users'), orderBy('email'));
@@ -115,7 +113,6 @@ export default function AdminPage() {
     }, [firestore, isActualAdmin]);
     const { data: allMatches, isLoading: isAllMatchesLoading } = useCollection<MatchResult>(matchResultsQuery);
 
-    // Metrics Calculation
     const metrics = useMemo(() => {
         if (!users || !mounted) return { total: 0, active: 0, totalScans: 0, totalCvs: 0, totalJobs: 0 };
         const now = new Date();
@@ -142,7 +139,7 @@ export default function AdminPage() {
         try {
             const userRef = doc(firestore, 'users', userId);
             await updateDoc(userRef, { [field]: value });
-            toast({ title: "Updated", description: "System property changed successfully." });
+            toast({ title: "Updated", description: "Property changed successfully." });
         } catch (error: any) {
             toast({ variant: "destructive", title: "Error", description: error.message });
         } finally {
