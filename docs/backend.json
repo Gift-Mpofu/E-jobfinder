@@ -1,137 +1,47 @@
-
 {
   "entities": {
-    "User": {
+    "UserCV": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "User",
+      "title": "UserCV",
       "type": "object",
-      "description": "Represents a user of the E-Job Finder Pro application.",
+      "description": "Represents a user's uploaded Curriculum Vitae (CV) document within the E-Jobfinder Pro application.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the User entity."
-        },
-        "email": {
-          "type": "string",
-          "description": "Email address of the user.",
-          "format": "email"
-        },
-        "photoURL": {
-          "type": "string",
-          "description": "URL of the user's profile picture.",
-          "format": "uri"
-        },
-        "role": {
-          "type": "string",
-          "description": "User role (admin or user).",
-          "enum": ["admin", "user"]
-        },
-        "status": {
-          "type": "string",
-          "description": "Account status.",
-          "enum": ["active", "suspended"]
-        },
-        "firstName": {
-          "type": "string",
-          "description": "First name of the user."
-        },
-        "lastName": {
-          "type": "string",
-          "description": "Last name of the user."
-        },
-        "targetRole": {
-            "type": "string",
-            "description": "User's target job role."
-        },
-        "experienceLevel": {
-            "type": "string",
-            "description": "User's experience level."
-        },
-        "skills": {
-            "type": "array",
-            "items": {
-                "type": "string"
-            },
-            "description": "User's key skills."
-        },
-        "achievements": {
-            "type": "string",
-            "description": "User's recent proud achievement or responsibility."
-        },
-        "careerGoals": {
-            "type": "string",
-            "description": "User's current main career goal."
-        },
-        "location": {
-            "type": "string",
-            "description": "User's location."
-        },
-        "scansUsed": {
-          "type": "number",
-          "description": "Number of CV scans used in the current period."
-        },
-        "scanLimitReachedAt": {
-            "type": "string",
-            "description": "Timestamp when the user hit their scan limit.",
-            "format": "date-time"
-        },
-        "lastActive": {
-            "type": "string",
-            "description": "Last time the user was active in the app.",
-            "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "email"
-      ]
-    },
-    "CV": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "CV",
-      "type": "object",
-      "description": "Represents a user's CV (resume).",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the CV entity."
+          "description": "Unique identifier for the UserCV entity."
         },
         "userId": {
           "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N CV)"
+          "description": "Reference to the external user system's identifier for the user who uploaded this CV. (Relationship: User 1:N UserCV)"
         },
         "fileName": {
           "type": "string",
-          "description": "Name of the CV file."
+          "description": "The original file name of the uploaded CV (e.g., 'JohnDoe_CV.pdf')."
+        },
+        "fileStoragePath": {
+          "type": "string",
+          "description": "The storage path or URL where the CV file is stored (e.g., a cloud storage URL or a path within a storage bucket).",
+          "format": "uri"
         },
         "uploadDate": {
           "type": "string",
-          "description": "Date and time when the CV was uploaded.",
+          "description": "The date and time when the CV was uploaded.",
           "format": "date-time"
-        },
-        "fileContent": {
-          "type": "string",
-          "description": "Content of the CV file (e.g., base64 encoded).",
-          "format": "string"
-        },
-        "flagged": {
-          "type": "boolean",
-          "description": "Whether the CV has been flagged by an admin."
         }
       },
       "required": [
         "id",
         "userId",
         "fileName",
-        "uploadDate",
-        "fileContent"
+        "fileStoragePath",
+        "uploadDate"
       ]
     },
     "JobDescription": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "JobDescription",
       "type": "object",
-      "description": "Represents a job description entered by a user.",
+      "description": "Represents a job description text pasted or entered by a user for compatibility analysis.",
       "properties": {
         "id": {
           "type": "string",
@@ -139,15 +49,19 @@
         },
         "userId": {
           "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N JobDescription)"
+          "description": "Reference to the external user system's identifier for the user who provided this job description. (Relationship: User 1:N JobDescription)"
+        },
+        "title": {
+          "type": "string",
+          "description": "An optional user-provided or automatically extracted title for the job description (e.g., 'Senior Software Engineer')."
         },
         "descriptionText": {
           "type": "string",
-          "description": "The text content of the job description."
+          "description": "The full text content of the job description as provided by the user."
         },
-        "creationDate": {
+        "pasteDate": {
           "type": "string",
-          "description": "Date and time when the job description was created.",
+          "description": "The date and time when the job description text was entered or pasted.",
           "format": "date-time"
         }
       },
@@ -155,85 +69,64 @@
         "id",
         "userId",
         "descriptionText",
-        "creationDate"
+        "pasteDate"
       ]
     },
-    "MatchResult": {
+    "CVJobMatch": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "MatchResult",
+      "title": "CVJobMatch",
       "type": "object",
-      "description": "Represents the results of matching a CV against a job description.",
+      "description": "Stores the results of a compatibility analysis performed between a user's CV and a specific job description.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the MatchResult entity."
+          "description": "Unique identifier for the CVJobMatch entity."
         },
-        "cvId": {
+        "userCVId": {
           "type": "string",
-          "description": "Reference to CV. (Relationship: CV 1:N MatchResult)"
+          "description": "Reference to the UserCV entity that was used for this analysis. (Relationship: UserCV 1:N CVJobMatch)"
         },
         "jobDescriptionId": {
           "type": "string",
-          "description": "Reference to JobDescription. (Relationship: JobDescription 1:N MatchResult)"
+          "description": "Reference to the JobDescription entity that was used for this analysis. (Relationship: JobDescription 1:N CVJobMatch)"
         },
         "matchScore": {
           "type": "number",
-          "description": "The overall match score (e.g., percentage) between the CV and the job description."
+          "description": "The compatibility score (e.g., a percentage from 0 to 100) indicating how well the CV matches the job description."
         },
         "strengths": {
           "type": "array",
-          "description": "A list of strengths identified in the CV that match the job description.",
+          "description": "A list of key strengths, skills, or experiences identified in the CV that are highly relevant to the job description.",
           "items": {
             "type": "string"
           }
         },
         "missingKeywords": {
           "type": "array",
-          "description": "A list of keywords missing from the CV that are present in the job description.",
+          "description": "A list of important keywords, skills, or requirements from the job description that are missing or underrepresented in the CV.",
           "items": {
             "type": "string"
           }
         },
         "improvementSuggestions": {
           "type": "string",
-          "description": "Suggestions for improving the CV to better match the job description."
+          "description": "Detailed textual suggestions for improving the CV's alignment with the specific job description, including reasons for incorporating certain information."
         },
         "analysisDate": {
           "type": "string",
-          "description": "Date and time when the match analysis was performed.",
+          "description": "The date and time when this match analysis was performed.",
           "format": "date-time"
-        },
-        "jobTitle": {
-            "type": "string",
-            "description": "The identified job title from the job description."
-        },
-        "reasoning": {
-            "type": "string",
-            "description": "The reasoning behind the analysis."
-        },
-        "hireRateData": {
-            "type": "array",
-            "description": "Hiring rate data from the analysis.",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "level": { "type": "string" },
-                    "rate": { "type": "number" }
-                }
-            }
-        },
-        "userId": {
-            "type": "string",
-            "description": "The ID of the user who owns this result."
         }
       },
       "required": [
         "id",
-        "cvId",
+        "userCVId",
         "jobDescriptionId",
         "matchScore",
-        "analysisDate",
-        "userId"
+        "strengths",
+        "missingKeywords",
+        "improvementSuggestions",
+        "analysisDate"
       ]
     }
   },
@@ -246,37 +139,37 @@
   "firestore": {
     "structure": [
       {
-        "path": "/users/{userId}",
+        "path": "/admins/{adminId}",
         "definition": {
-          "entityName": "User",
+          "entityName": "Admin",
           "schema": {
-            "$ref": "#/backend/entities/User"
+            "$ref": "#/backend/entities/Admin"
           },
-          "description": "Stores user profiles.",
+          "description": "Dedicated collection for Database Access Control (DBAC). Each document's ID is the unique identifier (UID) of an administrative user. The presence of a document signifies admin status, granting elevated permissions across the entire database. Used solely for authorization checks within Firestore Security Rules. Each document will contain a simple field like `isAdmin: true`.",
           "params": [
             {
-              "name": "userId",
-              "description": "The unique identifier of the user."
+              "name": "adminId",
+              "description": "The unique identifier (UID) of the administrative user."
             }
           ]
         }
       },
       {
-        "path": "/users/{userId}/cvs/{cvId}",
+        "path": "/users/{userId}/userCVs/{userCVId}",
         "definition": {
-          "entityName": "CV",
+          "entityName": "UserCV",
           "schema": {
-            "$ref": "#/backend/entities/CV"
+            "$ref": "#/backend/entities/UserCV"
           },
-          "description": "Stores CVs associated with a user.",
+          "description": "Stores individual Curriculum Vitae (CV) documents uploaded by each user. Access is strictly restricted to the owner, identified by the `{userId}` in the path. This structure ensures Authorization Independence as the owner's ID is part of the document's full path.",
           "params": [
             {
               "name": "userId",
-              "description": "The unique identifier of the user."
+              "description": "The unique identifier (UID) of the user who owns this CV."
             },
             {
-              "name": "cvId",
-              "description": "The unique identifier of the CV."
+              "name": "userCVId",
+              "description": "The unique identifier for the specific UserCV document."
             }
           ]
         }
@@ -288,44 +181,40 @@
           "schema": {
             "$ref": "#/backend/entities/JobDescription"
           },
-          "description": "Stores job descriptions created by a user.",
+          "description": "Stores job description texts provided by each user. Access is strictly restricted to the owner, identified by the `{userId}` in the path. This structure ensures Authorization Independence as the owner's ID is part of the document's full path.",
           "params": [
             {
               "name": "userId",
-              "description": "The unique identifier of the user."
+              "description": "The unique identifier (UID) of the user who owns this job description."
             },
             {
               "name": "jobDescriptionId",
-              "description": "The unique identifier of the job description."
+              "description": "The unique identifier for the specific JobDescription document."
             }
           ]
         }
       },
       {
-        "path": "/users/{userId}/cvs/{cvId}/matchResults/{matchResultId}",
+        "path": "/users/{userId}/cvJobMatches/{cvJobMatchId}",
         "definition": {
-          "entityName": "MatchResult",
+          "entityName": "CVJobMatch",
           "schema": {
-            "$ref": "#/backend/entities/MatchResult"
+            "$ref": "#/backend/entities/CVJobMatch"
           },
-          "description": "Stores match results for a specific CV.",
+          "description": "Stores the results of compatibility analysis between a user's CV and a job description. Access is strictly restricted to the owner, identified by the `{userId}` in the path. For robust Authorization Independence, the document **MUST** contain a denormalized `userId` field that matches the `{userId}` in the path, allowing rules to check `resource.data.userId == request.auth.uid` directly.",
           "params": [
             {
               "name": "userId",
-              "description": "The unique identifier of the user."
+              "description": "The unique identifier (UID) of the user who owns this CVJobMatch result."
             },
             {
-              "name": "cvId",
-              "description": "The unique identifier of the CV."
-            },
-            {
-              "name": "matchResultId",
-              "description": "The unique identifier of the match result."
+              "name": "cvJobMatchId",
+              "description": "The unique identifier for the specific CVJobMatch document."
             }
           ]
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to securely store user data, CVs, job descriptions, and match results, ensuring authorization independence and enabling secure list operations. It leverages path-based ownership for user-specific data and denormalization to avoid `get()` calls in security rules.\n\n*   `/users/{userId}`: Stores user profiles. This collection provides a central location for user information and serves as the root for user-owned data.\n*   `/users/{userId}/cvs/{cvId}`: Stores CVs associated with a user. This structure enforces ownership by path and allows for easy retrieval of a user's CVs.\n*   `/users/{userId}/jobDescriptions/{jobDescriptionId}`: Stores job descriptions created by a user. Similar to CVs, this structure ensures ownership and simplifies data retrieval.\n*   `/users/{userId}/cvs/{cvId}/matchResults/{matchResultId}`: Stores match results for a specific CV. Nesting match results under CVs provides a clear hierarchy and ensures that match results are always associated with their corresponding CV.\n\nThis design achieves Authorization Independence by using path-based ownership, which avoids the need for `get()` calls in security rules. It supports QAPs (Rules are not Filters) by segregating data based on ownership, allowing for secure list operations within each user's data. For example, a user can only list CVs and job descriptions that they own."
+    "reasoning": "The proposed Firestore structure prioritizes Authorization Independence, Structural Segregation, and DBAC to ensure a secure, scalable, and debuggable system. The primary goal is to resolve the admin portal's 'list' permission error while maintaining robust security for regular users.\n\n**Authorization Independence:**\n1.  **User-Owned Data:** All user-specific data (UserCVs, JobDescriptions, CVJobMatches) are nested under `/users/{userId}/...`. This path-based ownership inherently denormalizes the `userId` into the document's path, allowing rules to directly check `request.auth.uid == userId` without relying on `get()` calls to parent documents. This makes rules atomic and easier to debug.\n2.  **CVJobMatch Denormalization:** For `CVJobMatch` documents, while they are nested under `users/{userId}`, the document itself **MUST** include a `userId` field. This denormalization is crucial for authorization independence, allowing security rules to validate `resource.data.userId == request.auth.uid` directly, especially during `create` or `update` operations where the document's content is being written.\n3.  **Admin Roles:** Admin authorization is handled by an `admins` collection (`/admins/{adminId}`). This utilizes **existence-based DBAC**, where a user's admin status is determined by the presence of their UID as a document ID in this collection. This is an atomic check (`exists(...)`) and does not rely on hierarchical data or `get()` calls.\n\n**Structural Segregation for QAPs (Queryable Access Patterns):**\n1.  **Private User Data:** Data specific to a user is strictly segregated into `/users/{userId}/subcollection`. This ensures that regular users can only perform `list` operations within their own data scope (e.g., `/users/{userId}/userCVs`), naturally supporting Queryable Access Patterns. They cannot query across all users' data, as that would be a security violation.\n2.  **Admin Access to All Data:** The `admins` collection, combined with a top-level security rule like `match /{path=**} { allow read, write: if isAdmin(); }` (where `isAdmin()` checks `exists(/databases/$(database)/documents/admins/$(request.auth.uid))`), directly addresses the admin portal's `list` permission error. This rule grants full read/write and **list** access across all collections for authenticated administrators. This allows the admin portal to query at the root level using `useCollection` as requested, without requiring refactoring, while being securely gated by the admin role. This segregation of roles and data allows for clear, debuggable rules: private data for users, global access for admins."
   }
 }
