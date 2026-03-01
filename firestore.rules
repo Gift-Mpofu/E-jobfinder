@@ -1,122 +1,56 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /**
-     * CORE PHILOSOPHY
-     * This ruleset enforces a strict user-ownership model for all application data while providing 
-     * elevated, global access for administrative users. It prioritizes Authorization Independence 
-     * by nesting user data under unique user IDs in the path and using existence-based 
-     * Database Access Control (DBAC) for administrative roles.
-     *
-     * DATA STRUCTURE
-     * - /admins/{adminId}: Contains documents identifying administrative users.
-     * - /users/{userId}/...: Hierarchical organization where all user-specific data (CVs, 
-     *   Job Descriptions, Matches) is siloed under the owner's UID.
-     *
-     * KEY SECURITY DECISIONS
-     * - Global Admin Override: A recursive match is used to grant administrative users full 
-     *   read and write permissions across the entire database, resolving root-level listing errors.
-     * - Ownership-Based Access: For non-admins, access to subcollections is strictly restricted 
-     *   to the user whose UID matches the `{userId}` path parameter.
-     * - Denormalization for Authorization: Critical relational fields (like userId) are 
-     *   validated against the path to ensure data integrity without cross-document lookups.
-     *
-     * STRUCTURAL SEGREGATION
-     * Private user data is kept in user-scoped subcollections. This naturally prevents 
-     * accidental data leakage during list operations, as users can only query within their own path.
-     */
-
     // --- HELPER FUNCTIONS ---
 
-    // Returns true if the user is authenticated.
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Returns true if the authenticated user's UID matches the provided userId.
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // Returns true if the user has an existing document in the /admins collection.
+    // Existence-based Admin check
     function isAdmin() {
       return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
-    // Returns true if the user is the owner and the document currently exists.
-    function isExistingOwner(userId) {
-      return resource != null && isOwner(userId);
-    }
-
-    // --- GLOBAL ADMIN RULE ---
-
-    /**
-     * @description Provides global read/write access to administrative users to support root-level queries and portal management.
-     * @path /{document=**}
-     * @allow (list) Auth user with UID 'xDMDtL06TxPpwswz5WuztWQ7EGO2' (if added to /admins).
-     * @deny (list) Standard authenticated user not in the /admins collection.
-     * @principle Role-Based Access Control (RBAC) with recursive matching.
-     */
+    // --- GLOBAL ADMIN BYPASS ---
+    // This allows root-level list queries (collectionGroup) for admins
     match /{document=**} {
       allow read, write: if isAdmin();
     }
 
-    // --- COLLECTIONS ---
-
-    /**
-     * @description Stores administrative user records. Read-access is allowed for the user themselves or admins.
-     * @path /admins/{adminId}
-     * @allow (get) Authenticated user checking their own admin status.
-     * @deny (create) Standard user attempting to grant themselves admin privileges.
-     * @principle Existence-based DBAC.
-     */
+    // --- ADMIN COLLECTION ---
     match /admins/{adminId} {
       allow get: if isSignedIn();
-      allow list: if isAdmin();
-      allow create, update, delete: if isAdmin();
+      allow list, write: if isAdmin();
     }
 
-    /**
-     * @description Stores individual CV documents. Restricted to the owner or admins.
-     * @path /users/{userId}/userCVs/{userCVId}
-     * @allow (create) Authenticated user creating a CV under their own UID path.
-     * @deny (list) Authenticated user trying to list another user's CVs.
-     * @principle Path-based ownership and relational integrity.
-     */
+    // --- USER COLLECTIONS ---
+    
     match /users/{userId}/userCVs/{userCVId} {
       allow get, list: if isOwner(userId);
       allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-      allow delete: if isExistingOwner(userId);
+      allow update: if isOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isOwner(userId);
     }
 
-    /**
-     * @description Stores job description texts. Restricted to the owner or admins.
-     * @path /users/{userId}/jobDescriptions/{jobDescriptionId}
-     * @allow (update) Owner updating their own job description text.
-     * @deny (get) Unauthenticated user attempting to read a private job description.
-     * @principle Authorization Independence via path-based scoping.
-     */
     match /users/{userId}/jobDescriptions/{jobDescriptionId} {
       allow get, list: if isOwner(userId);
       allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-      allow delete: if isExistingOwner(userId);
+      allow update: if isOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isOwner(userId);
     }
 
-    /**
-     * @description Stores analysis results between CVs and jobs. Requires internal userId validation.
-     * @path /users/{userId}/cvJobMatches/{cvJobMatchId}
-     * @allow (list) Owner listing their own match results.
-     * @deny (create) Owner creating a match record where the internal userId field doesn't match the path.
-     * @principle Immutable relational fields for robust authorization.
-     */
     match /users/{userId}/cvJobMatches/{cvJobMatchId} {
       allow get, list: if isOwner(userId);
       allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-      allow delete: if isExistingOwner(userId);
+      allow update: if isOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isOwner(userId);
     }
   }
 }

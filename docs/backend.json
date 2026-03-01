@@ -1,5 +1,18 @@
+
 {
   "entities": {
+    "Admin": {
+      "title": "Admin",
+      "description": "A document representing an administrative user. The presence of a document with the user's UID as the ID grants global permissions.",
+      "type": "object",
+      "properties": {
+        "isAdmin": {
+          "type": "boolean",
+          "description": "Flag indicating administrative status."
+        }
+      },
+      "required": ["isAdmin"]
+    },
     "UserCV": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "UserCV",
@@ -27,6 +40,10 @@
           "type": "string",
           "description": "The date and time when the CV was uploaded.",
           "format": "date-time"
+        },
+        "flagged": {
+          "type": "boolean",
+          "description": "Whether the CV has been flagged as suspicious by an admin."
         }
       },
       "required": [
@@ -137,84 +154,21 @@
     ]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/admins/{adminId}",
-        "definition": {
-          "entityName": "Admin",
-          "schema": {
-            "$ref": "#/backend/entities/Admin"
-          },
-          "description": "Dedicated collection for Database Access Control (DBAC). Each document's ID is the unique identifier (UID) of an administrative user. The presence of a document signifies admin status, granting elevated permissions across the entire database. Used solely for authorization checks within Firestore Security Rules. Each document will contain a simple field like `isAdmin: true`.",
-          "params": [
-            {
-              "name": "adminId",
-              "description": "The unique identifier (UID) of the administrative user."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/userCVs/{userCVId}",
-        "definition": {
-          "entityName": "UserCV",
-          "schema": {
-            "$ref": "#/backend/entities/UserCV"
-          },
-          "description": "Stores individual Curriculum Vitae (CV) documents uploaded by each user. Access is strictly restricted to the owner, identified by the `{userId}` in the path. This structure ensures Authorization Independence as the owner's ID is part of the document's full path.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier (UID) of the user who owns this CV."
-            },
-            {
-              "name": "userCVId",
-              "description": "The unique identifier for the specific UserCV document."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/jobDescriptions/{jobDescriptionId}",
-        "definition": {
-          "entityName": "JobDescription",
-          "schema": {
-            "$ref": "#/backend/entities/JobDescription"
-          },
-          "description": "Stores job description texts provided by each user. Access is strictly restricted to the owner, identified by the `{userId}` in the path. This structure ensures Authorization Independence as the owner's ID is part of the document's full path.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier (UID) of the user who owns this job description."
-            },
-            {
-              "name": "jobDescriptionId",
-              "description": "The unique identifier for the specific JobDescription document."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/cvJobMatches/{cvJobMatchId}",
-        "definition": {
-          "entityName": "CVJobMatch",
-          "schema": {
-            "$ref": "#/backend/entities/CVJobMatch"
-          },
-          "description": "Stores the results of compatibility analysis between a user's CV and a job description. Access is strictly restricted to the owner, identified by the `{userId}` in the path. For robust Authorization Independence, the document **MUST** contain a denormalized `userId` field that matches the `{userId}` in the path, allowing rules to check `resource.data.userId == request.auth.uid` directly.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier (UID) of the user who owns this CVJobMatch result."
-            },
-            {
-              "name": "cvJobMatchId",
-              "description": "The unique identifier for the specific CVJobMatch document."
-            }
-          ]
-        }
-      }
-    ],
-    "reasoning": "The proposed Firestore structure prioritizes Authorization Independence, Structural Segregation, and DBAC to ensure a secure, scalable, and debuggable system. The primary goal is to resolve the admin portal's 'list' permission error while maintaining robust security for regular users.\n\n**Authorization Independence:**\n1.  **User-Owned Data:** All user-specific data (UserCVs, JobDescriptions, CVJobMatches) are nested under `/users/{userId}/...`. This path-based ownership inherently denormalizes the `userId` into the document's path, allowing rules to directly check `request.auth.uid == userId` without relying on `get()` calls to parent documents. This makes rules atomic and easier to debug.\n2.  **CVJobMatch Denormalization:** For `CVJobMatch` documents, while they are nested under `users/{userId}`, the document itself **MUST** include a `userId` field. This denormalization is crucial for authorization independence, allowing security rules to validate `resource.data.userId == request.auth.uid` directly, especially during `create` or `update` operations where the document's content is being written.\n3.  **Admin Roles:** Admin authorization is handled by an `admins` collection (`/admins/{adminId}`). This utilizes **existence-based DBAC**, where a user's admin status is determined by the presence of their UID as a document ID in this collection. This is an atomic check (`exists(...)`) and does not rely on hierarchical data or `get()` calls.\n\n**Structural Segregation for QAPs (Queryable Access Patterns):**\n1.  **Private User Data:** Data specific to a user is strictly segregated into `/users/{userId}/subcollection`. This ensures that regular users can only perform `list` operations within their own data scope (e.g., `/users/{userId}/userCVs`), naturally supporting Queryable Access Patterns. They cannot query across all users' data, as that would be a security violation.\n2.  **Admin Access to All Data:** The `admins` collection, combined with a top-level security rule like `match /{path=**} { allow read, write: if isAdmin(); }` (where `isAdmin()` checks `exists(/databases/$(database)/documents/admins/$(request.auth.uid))`), directly addresses the admin portal's `list` permission error. This rule grants full read/write and **list** access across all collections for authenticated administrators. This allows the admin portal to query at the root level using `useCollection` as requested, without requiring refactoring, while being securely gated by the admin role. This segregation of roles and data allows for clear, debuggable rules: private data for users, global access for admins."
+    "/admins/{adminId}": {
+      "schema": "Admin",
+      "description": "Collection of administrative users identified by their UID."
+    },
+    "/users/{userId}/userCVs/{userCVId}": {
+      "schema": "UserCV",
+      "description": "User-specific CV documents."
+    },
+    "/users/{userId}/jobDescriptions/{jobDescriptionId}": {
+      "schema": "JobDescription",
+      "description": "User-specific job descriptions."
+    },
+    "/users/{userId}/cvJobMatches/{cvJobMatchId}": {
+      "schema": "CVJobMatch",
+      "description": "Compatibility analysis results."
+    }
   }
 }
