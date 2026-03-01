@@ -9,7 +9,8 @@ service cloud.firestore {
       );
     }
     
-    match /{document=**} {
+    // Global admin bypass
+    match /{allPaths=**} {
       allow read, write: if isAdmin();
     }
     
