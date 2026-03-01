@@ -1,62 +1,17 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // --- HELPER FUNCTIONS ---
-
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    // Existence-based Admin check
     function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+      return request.auth != null && 
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
-
-    // --- GLOBAL ADMIN BYPASS ---
-    // This allows root-level queries and collection group access for admins
-    match /{allPaths=**} {
+    
+    match /{document=**} {
       allow read, write: if isAdmin();
     }
-
-    // --- ADMIN COLLECTION ---
-    match /admins/{adminId} {
-      allow get: if isSignedIn();
-      allow list, write: if isAdmin();
-    }
-
-    // --- USER COLLECTIONS ---
     
     match /users/{userId} {
-      // Allow users to read/write their own profile document
-      allow read, write: if isOwner(userId);
-
-      // Support for collection group queries and specific user sub-collections
-      match /cvs/{cvId} {
-        allow read, write: if isOwner(userId);
-        
-        match /matchResults/{resultId} {
-          allow read, write: if isOwner(userId);
-        }
-      }
-
-      match /jobDescriptions/{jobDescriptionId} {
-        allow read, write: if isOwner(userId);
-      }
-
-      // Legacy support for backend.json defined paths
-      match /userCVs/{userCVId} {
-        allow read, write: if isOwner(userId);
-      }
-      
-      match /cvJobMatches/{cvJobMatchId} {
-        allow read, write: if isOwner(userId);
-      }
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
   }
 }
