@@ -19,8 +19,8 @@ service cloud.firestore {
     }
 
     // --- GLOBAL ADMIN BYPASS ---
-    // This allows root-level list queries (collectionGroup) for admins
-    match /{document=**} {
+    // This allows root-level queries and collection group access for admins
+    match /{allPaths=**} {
       allow read, write: if isAdmin();
     }
 
@@ -32,25 +32,31 @@ service cloud.firestore {
 
     // --- USER COLLECTIONS ---
     
-    match /users/{userId}/userCVs/{userCVId} {
-      allow get, list: if isOwner(userId);
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isOwner(userId) && request.resource.data.userId == resource.data.userId;
-      allow delete: if isOwner(userId);
-    }
+    match /users/{userId} {
+      // Allow users to read/write their own profile document
+      allow read, write: if isOwner(userId);
 
-    match /users/{userId}/jobDescriptions/{jobDescriptionId} {
-      allow get, list: if isOwner(userId);
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isOwner(userId) && request.resource.data.userId == resource.data.userId;
-      allow delete: if isOwner(userId);
-    }
+      // Support for collection group queries and specific user sub-collections
+      match /cvs/{cvId} {
+        allow read, write: if isOwner(userId);
+        
+        match /matchResults/{resultId} {
+          allow read, write: if isOwner(userId);
+        }
+      }
 
-    match /users/{userId}/cvJobMatches/{cvJobMatchId} {
-      allow get, list: if isOwner(userId);
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isOwner(userId) && request.resource.data.userId == resource.data.userId;
-      allow delete: if isOwner(userId);
+      match /jobDescriptions/{jobDescriptionId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Legacy support for backend.json defined paths
+      match /userCVs/{userCVId} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      match /cvJobMatches/{cvJobMatchId} {
+        allow read, write: if isOwner(userId);
+      }
     }
   }
 }
