@@ -1,0 +1,33 @@
+  VERCEL DEPLOYMENT STEPS:
+
+  1. Go to vercel.com and sign in with GitHub
+
+  2. Click "Add New Project"
+
+  3. Import the "e-jobfinder" repository from GitHub
+
+  4. Vercel auto-detects Next.js — leave all build
+     settings as default
+
+  5. BEFORE clicking Deploy, click "Environment Variables"
+     and add each variable from VERCEL_ENV_VARS.txt:
+
+     Variable name → paste value from your .env.local
+
+     For NEXT_PUBLIC_APP_URL set it to:
+     https://YOUR-PROJECT-NAME.vercel.app
+     (Vercel shows you the URL before you deploy)
+
+  6. Click Deploy
+
+  7. Wait 2–3 minutes for build to complete
+
+  8. Click the live URL Vercel provides — you should see
+     the E-Job Finder landing page
+
+  9. Test login works — if it redirects incorrectly,
+     follow SUPABASE_SETUP_INSTRUCTIONS.txt
+
+  10. Copy the live URL and update NEXT_PUBLIC_APP_URL
+      in Vercel dashboard → Settings → Environment Variables
+      Then trigger a redeployment.

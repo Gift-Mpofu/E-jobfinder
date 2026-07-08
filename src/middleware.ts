@@ -1,30 +1,19 @@
-import { NextResponse, type NextRequest } from 'next/server';
+import { type NextRequest } from 'next/server'
+import { updateSession } from '@/supabase/middleware'
 
-export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  const sessionToken = request.cookies.get('firebase-session');
-
-  const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/signup');
-
-  // The dashboard is publicly accessible for development purposes.
-  // To protect it, remove this if statement and uncomment the block below.
-  if (pathname.startsWith('/dashboard')) {
-    return NextResponse.next();
-  }
-
-  /*
-  if (!sessionToken && pathname.startsWith('/dashboard')) {
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
-  */
-
-  if (sessionToken && isAuthPage) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
-  }
-
-  return NextResponse.next();
+export async function middleware(request: NextRequest) {
+  return await updateSession(request)
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/login', '/signup'],
-};
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * Protects all application and dashboard routes.
+     */
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
+}

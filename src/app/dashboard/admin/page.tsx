@@ -2,9 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, doc, updateDoc, deleteDoc, query, orderBy, collectionGroup, type Timestamp } from 'firebase/firestore';
-import { sendPasswordResetEmail } from 'firebase/auth';
-import { useUser, useFirestore, useCollection, useMemoFirebase, useAuth } from '@/firebase';
+import { useSupabase, useUser } from '@/supabase/provider';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,6 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
 const ADMIN_EMAIL = 'giftmpofud@gmail.com';
 
@@ -32,7 +31,7 @@ type UserProfile = {
     targetRole?: string;
     scansUsed: number;
     photoURL?: string;
-    lastActive?: Timestamp;
+    lastActive?: string;
     role?: 'admin' | 'user';
     status?: 'active' | 'suspended';
     location?: string;
@@ -71,8 +70,7 @@ type FilterType = 'all' | 'active' | 'scans' | 'cvs' | 'jds' | 'errors';
 
 export default function AdminPage() {
     const { user, isUserLoading } = useUser();
-    const auth = useAuth();
-    const firestore = useFirestore();
+    const supabase = useSupabase();
     const router = useRouter();
     const { toast } = useToast();
     const [mounted, setMounted] = useState(false);
@@ -88,30 +86,89 @@ export default function AdminPage() {
 
     const isActualAdmin = mounted && !isUserLoading && user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
-    // Global Collections Queries - DEFER until we are sure user is Admin
-    const usersQuery = useMemoFirebase(() => {
-        if (!firestore || !isActualAdmin) return null;
-        return query(collection(firestore, 'users'), orderBy('email'));
-    }, [firestore, isActualAdmin]);
-    const { data: users, isLoading: isUsersLoading } = useCollection<UserProfile>(usersQuery);
+    const [users, setUsers] = useState<UserProfile[] | null>(null);
+    const [isUsersLoading, setIsUsersLoading] = useState(true);
+    const [allCvs, setAllCvs] = useState<CV[] | null>(null);
+    const [allJobs, setAllJobs] = useState<JobDescription[] | null>(null);
+    const [allMatches, setAllMatches] = useState<MatchResult[] | null>(null);
+    const [isAllCvsLoading, setIsAllCvsLoading] = useState(true);
+    const [isAllJobsLoading, setIsAllJobsLoading] = useState(true);
 
-    const cvsQuery = useMemoFirebase(() => {
-        if (!firestore || !isActualAdmin) return null;
-        return query(collectionGroup(firestore, 'cvs'), orderBy('uploadDate', 'desc'));
-    }, [firestore, isActualAdmin]);
-    const { data: allCvs, isLoading: isAllCvsLoading } = useCollection<CV>(cvsQuery);
+    useEffect(() => {
+        if (!isActualAdmin) return;
+        
+        let isMounted = true;
+        const fetchAllData = async () => {
+            try {
+                const [profilesRes, cvsRes, jobsRes, matchesRes] = await Promise.all([
+                    supabase.from('profiles').select('*').order('email'),
+                    supabase.from('cvs').select('*').order('upload_date', { ascending: false }),
+                    supabase.from('job_descriptions').select('*').order('creation_date', { ascending: false }),
+                    supabase.from('match_results').select('*').order('analysis_date', { ascending: false })
+                ]);
 
-    const jobsQuery = useMemoFirebase(() => {
-        if (!firestore || !isActualAdmin) return null;
-        return query(collectionGroup(firestore, 'jobDescriptions'), orderBy('creationDate', 'desc'));
-    }, [firestore, isActualAdmin]);
-    const { data: allJobs, isLoading: isAllJobsLoading } = useCollection<JobDescription>(jobsQuery);
+                if (!isMounted) return;
 
-    const matchResultsQuery = useMemoFirebase(() => {
-        if (!firestore || !isActualAdmin) return null;
-        return query(collectionGroup(firestore, 'matchResults'), orderBy('analysisDate', 'desc'));
-    }, [firestore, isActualAdmin]);
-    const { data: allMatches, isLoading: isAllMatchesLoading } = useCollection<MatchResult>(matchResultsQuery);
+                if (profilesRes.data) {
+                    setUsers(profilesRes.data.map((p: any) => ({
+                        id: p.id,
+                        email: p.email || 'unknown@example.com',
+                        targetRole: p.target_role,
+                        scansUsed: p.scans_used || 0,
+                        photoURL: p.photo_url,
+                        lastActive: p.last_active,
+                        role: p.role,
+                        status: p.status,
+                        location: p.location,
+                        experienceLevel: p.experience_level
+                    })));
+                } else setUsers([]);
+                setIsUsersLoading(false);
+
+                if (cvsRes.data) {
+                    setAllCvs(cvsRes.data.map((c: any) => ({
+                        id: c.id,
+                        userId: c.user_id,
+                        fileName: c.file_name,
+                        uploadDate: c.upload_date,
+                        fileContent: c.file_content,
+                        flagged: c.flagged
+                    })));
+                } else setAllCvs([]);
+                setIsAllCvsLoading(false);
+
+                if (jobsRes.data) {
+                    setAllJobs(jobsRes.data.map((j: any) => ({
+                        id: j.id,
+                        userId: j.user_id,
+                        descriptionText: j.description_text,
+                        creationDate: j.creation_date
+                    })));
+                } else setAllJobs([]);
+                setIsAllJobsLoading(false);
+
+                if (matchesRes.data) {
+                    setAllMatches(matchesRes.data.map((m: any) => ({
+                        id: m.id,
+                        jobTitle: m.job_title,
+                        matchScore: m.match_score,
+                        analysisDate: m.analysis_date,
+                        userId: m.user_id,
+                        cvId: m.cv_id,
+                        jobDescriptionId: m.job_description_id,
+                        missingKeywords: m.missing_keywords,
+                        reasoning: m.reasoning
+                    })));
+                } else setAllMatches([]);
+            } catch (err) {
+                console.error("Failed to fetch admin data via Supabase:", err);
+            }
+        };
+
+        fetchAllData();
+
+        return () => { isMounted = false; };
+    }, [isActualAdmin, supabase]);
 
     const metrics = useMemo(() => {
         if (!users || !mounted) return { total: 0, active: 0, totalScans: 0, totalCvs: 0, totalJobs: 0 };
@@ -120,7 +177,7 @@ export default function AdminPage() {
         
         return {
             total: users.length,
-            active: users.filter(u => u.lastActive && u.lastActive.toDate() > sevenDaysAgo).length,
+            active: users.filter(u => u.lastActive && new Date(u.lastActive) > sevenDaysAgo).length,
             totalScans: users.reduce((acc, u) => acc + (u.scansUsed || 0), 0),
             totalCvs: allCvs?.length || 0,
             totalJobs: allJobs?.length || 0
@@ -134,11 +191,11 @@ export default function AdminPage() {
     }, [mounted, isUserLoading, isActualAdmin, router]);
 
     const handleUpdateUserField = async (userId: string, field: string, value: any) => {
-        if (!firestore) return;
         setIsUpdating(userId);
         try {
-            const userRef = doc(firestore, 'users', userId);
-            await updateDoc(userRef, { [field]: value });
+            const mappedField = field === 'targetRole' ? 'target_role' : field === 'scansUsed' ? 'scans_used' : field === 'photoURL' ? 'photo_url' : field === 'lastActive' ? 'last_active' : field === 'experienceLevel' ? 'experience_level' : field;
+            await supabase.from('profiles').update({ [mappedField]: value }).eq('id', userId);
+            setUsers(prev => prev?.map(u => u.id === userId ? { ...u, [field]: value } : u) || null);
             toast({ title: "Updated", description: "Property changed successfully." });
         } catch (error: any) {
             toast({ variant: "destructive", title: "Error", description: error.message });
@@ -147,25 +204,44 @@ export default function AdminPage() {
         }
     };
 
-    const handleDeleteDocument = async (path: string) => {
-        if (!firestore || !window.confirm("Delete this document forever?")) return;
+    
+    const handleDeleteMatch = async (matchId: string) => {
+        if (!window.confirm("Delete this document forever?")) return;
         try {
-            await deleteDoc(doc(firestore, path));
+            const { error: delError } = await supabase.from('match_results').delete().eq('id', matchId);
+            if(delError) throw delError;
+            setAllMatches(prev => prev?.filter(m => m.id !== matchId) || null);
             toast({ title: "Removed", description: "Entry purged from database." });
         } catch (error: any) {
             toast({ variant: "destructive", title: "Failed", description: error.message });
         }
     };
 
-    const handleFlagDocument = async (path: string, currentlyFlagged: boolean) => {
-        if (!firestore) return;
+    const handleDeleteCv = async (cvId: string) => {
+        if (!window.confirm("Delete this document forever?")) return;
         try {
-            await updateDoc(doc(firestore, path), { flagged: !currentlyFlagged });
+            const { error: delError } = await supabase.from('cvs').delete().eq('id', cvId);
+            if(delError) throw delError;
+            setAllCvs(prev => prev?.filter(c => c.id !== cvId) || null);
+            toast({ title: "Removed", description: "Entry purged from database." });
+        } catch (error: any) {
+            toast({ variant: "destructive", title: "Failed", description: error.message });
+        }
+    };
+
+
+    
+    const handleFlagCv = async (cvId: string, currentlyFlagged: boolean) => {
+        try {
+            const { error: updError } = await supabase.from('cvs').update({ flagged: !currentlyFlagged }).eq('id', cvId);
+            if(updError) throw updError;
+            setAllCvs(prev => prev?.map(c => c.id === cvId ? { ...c, flagged: !currentlyFlagged } : c) || null);
             toast({ title: currentlyFlagged ? "Unflagged" : "Flagged" });
         } catch (error: any) {
             toast({ variant: "destructive", title: "Error", description: error.message });
         }
     };
+
 
     const handleDownloadContent = (content: string, filename: string) => {
         const blob = new Blob([content], { type: 'text/plain' });
@@ -177,14 +253,21 @@ export default function AdminPage() {
         window.URL.revokeObjectURL(url);
     };
 
+    
+    
+    
     const handleResetPassword = async (email: string) => {
         try {
-            await sendPasswordResetEmail(auth, email);
+            const { error: rsaError } = await supabase.auth.resetPasswordForEmail(email);
+            if(rsaError) throw rsaError;
             toast({ title: "Email Sent", description: "Password reset instructions delivered." });
         } catch (error: any) {
             toast({ variant: "destructive", title: "Failed", description: error.message });
         }
     };
+
+
+
 
     const filteredUsers = useMemo(() => {
         if (!users || !mounted) return [];
@@ -195,11 +278,60 @@ export default function AdminPage() {
         const now = new Date();
         const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         switch (activeFilter) {
-            case 'active': result = result.filter(u => u.lastActive && u.lastActive.toDate() > sevenDaysAgo); break;
+            case 'active': result = result.filter(u => u.lastActive && new Date(u.lastActive) > sevenDaysAgo); break;
             case 'scans': result = result.filter(u => u.scansUsed > 0); break;
         }
         return result;
     }, [users, searchTerm, activeFilter, mounted]);
+
+    const userChartData = useMemo(() => {
+        return [
+          { name: 'Active (7d)', value: metrics.active, fill: 'hsl(var(--primary))' },
+          { name: 'Inactive', value: metrics.total - metrics.active, fill: 'hsl(var(--muted))' }
+        ];
+    }, [metrics]);
+
+    const cvsByDate = useMemo(() => {
+        if (!allCvs || !mounted) return [];
+        const dates: Record<string, number> = {};
+        const last14Days = Array.from({length: 14}).map((_, i) => {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            return d.toLocaleDateString();
+        }).reverse();
+        
+        last14Days.forEach(d => dates[d] = 0);
+        allCvs.forEach(cv => {
+            const dateStr = new Date(cv.uploadDate).toLocaleDateString();
+            if (dates[dateStr] !== undefined) dates[dateStr]++;
+        });
+        
+        return last14Days.map(date => ({ date: date.split('/')[0] + '/' + date.split('/')[1], uploads: dates[date] }));
+    }, [allCvs, mounted]);
+
+    const matchesByDate = useMemo(() => {
+        if (!allMatches || !mounted) return [];
+        const dates: Record<string, { total: number, count: number }> = {};
+        const last14Days = Array.from({length: 14}).map((_, i) => {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            return d.toLocaleDateString();
+        }).reverse();
+        
+        last14Days.forEach(d => dates[d] = { total: 0, count: 0 });
+        allMatches.forEach(m => {
+            const dateStr = new Date(m.analysisDate).toLocaleDateString();
+            if (dates[dateStr] !== undefined) {
+                 dates[dateStr].total += m.matchScore;
+                 dates[dateStr].count++;
+            }
+        });
+        
+        return last14Days.map(date => ({ 
+            date: date.split('/')[0] + '/' + date.split('/')[1], 
+            avgScore: dates[date].count > 0 ? Math.round(dates[date].total / dates[date].count) : 0 
+        }));
+    }, [allMatches, mounted]);
 
     if (!mounted || isUserLoading) {
         return (
@@ -282,7 +414,33 @@ export default function AdminPage() {
                                     {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-14 w-full" />)}
                                 </div>
                             ) : (
-                                <Table>
+                                <>
+                                    <div className="p-6 border-b border-primary/10 flex flex-col md:flex-row gap-8 items-center justify-center bg-muted/5">
+                                        <div className="w-full md:w-1/2 h-48">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <PieChart>
+                                                    <Pie data={userChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5}>
+                                                        {userChartData.map((entry, index) => (
+                                                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                                                        ))}
+                                                    </Pie>
+                                                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                                                </PieChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                        <div className="w-full md:w-1/2 space-y-4 font-mono uppercase">
+                                            <h3 className="text-sm font-bold text-primary">Audience Engagement</h3>
+                                            <div className="flex justify-between items-center text-xs">
+                                                <span className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-primary" /> Active Nodes</span>
+                                                <span className="font-bold text-lg">{metrics.active}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center text-xs text-muted-foreground">
+                                                <span className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-muted" /> Dormant Nodes</span>
+                                                <span className="font-bold">{metrics.total - metrics.active}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <Table>
                                     <TableHeader>
                                         <TableRow className="bg-muted/10">
                                             <TableHead className="text-[10px] font-black uppercase">Identifier</TableHead>
@@ -313,7 +471,7 @@ export default function AdminPage() {
                                                 </TableCell>
                                                 <TableCell>
                                                     <span className="text-[10px] font-mono text-muted-foreground">
-                                                        {u.lastActive ? formatDistanceToNow(u.lastActive.toDate(), { addSuffix: true }) : 'OFFLINE'}
+                                                        {u.lastActive ? formatDistanceToNow(new Date(u.lastActive), { addSuffix: true }) : 'OFFLINE'}
                                                     </span>
                                                 </TableCell>
                                                 <TableCell>
@@ -330,6 +488,7 @@ export default function AdminPage() {
                                         ))}
                                     </TableBody>
                                 </Table>
+                                </>
                             )}
                         </CardContent>
                     </Card>
@@ -346,7 +505,20 @@ export default function AdminPage() {
                                     {[1, 2, 3].map(i => <Skeleton key={i} className="h-14 w-full" />)}
                                 </div>
                             ) : (
-                                <Table>
+                                <>
+                                    <div className="p-6 border-b border-primary/10 bg-muted/5 h-64">
+                                        <h3 className="text-sm font-bold text-primary uppercase mb-4 text-center tracking-widest">Global Upload Volume (Last 14 Days)</h3>
+                                        <ResponsiveContainer width="100%" height="80%">
+                                            <LineChart data={cvsByDate} margin={{ top: 0, right: 10, left: -20, bottom: 0 }}>
+                                                <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="hsl(var(--muted-foreground)/0.2)" />
+                                                <XAxis dataKey="date" fontSize={10} axisLine={false} tickLine={false} tick={{fill: 'hsl(var(--muted-foreground))'}} />
+                                                <YAxis fontSize={10} axisLine={false} tickLine={false} tick={{fill: 'hsl(var(--muted-foreground))'}} allowDecimals={false} />
+                                                <Tooltip cursor={{fill: 'hsl(var(--muted)/0.5)'}} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                                                <Line type="monotone" dataKey="uploads" stroke="hsl(var(--primary))" strokeWidth={3} dot={{ r: 4, fill: 'hsl(var(--background))', strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                                            </LineChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                    <Table>
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead className="text-[10px] font-black uppercase">Filename</TableHead>
@@ -388,10 +560,10 @@ export default function AdminPage() {
                                                                     </DialogFooter>
                                                                 </DialogContent>
                                                             </Dialog>
-                                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleFlagDocument(`users/${cv.userId}/cvs/${cv.id}`, !!cv.flagged)}>
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleFlagCv(cv.id, !!cv.flagged)}>
                                                                 <Flag className={cn("h-3 w-3", cv.flagged ? "text-destructive fill-destructive" : "")} />
                                                             </Button>
-                                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteDocument(`users/${cv.userId}/cvs/${cv.id}`)}>
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteCv(cv.id)}>
                                                                 <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
                                                             </Button>
                                                         </div>
@@ -401,6 +573,7 @@ export default function AdminPage() {
                                         })}
                                     </TableBody>
                                 </Table>
+                                </>
                             )}
                         </CardContent>
                     </Card>
@@ -417,7 +590,20 @@ export default function AdminPage() {
                                     {[1, 2, 3].map(i => <Skeleton key={i} className="h-14 w-full" />)}
                                 </div>
                             ) : (
-                                <Table>
+                                <>
+                                    <div className="p-6 border-b border-primary/10 bg-muted/5 h-64">
+                                        <h3 className="text-sm font-bold text-primary uppercase mb-4 text-center tracking-widest">AI Match Score Aggregates (Last 14 Days)</h3>
+                                        <ResponsiveContainer width="100%" height="80%">
+                                            <LineChart data={matchesByDate} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                                <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="hsl(var(--muted-foreground)/0.2)" />
+                                                <XAxis dataKey="date" fontSize={10} axisLine={false} tickLine={false} tick={{fill: 'hsl(var(--muted-foreground))'}} />
+                                                <YAxis fontSize={10} axisLine={false} tickLine={false} domain={[0, 100]} tick={{fill: 'hsl(var(--muted-foreground))'}} />
+                                                <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                                                <Line type="monotone" dataKey="avgScore" stroke="hsl(var(--primary))" strokeWidth={3} dot={{r: 4, fill: 'hsl(var(--background))', strokeWidth: 2}} activeDot={{r: 6}} />
+                                            </LineChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                    <Table>
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead className="text-[10px] font-black uppercase">Role Identified</TableHead>
@@ -462,7 +648,7 @@ export default function AdminPage() {
                                                                     </div>
                                                                 </div>
                                                                 <DialogFooter>
-                                                                    <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10" onClick={() => handleDeleteDocument(`users/${match.userId}/cvs/${match.cvId}/matchResults/${match.id}`)}>
+                                                                    <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10" onClick={() => handleDeleteMatch(match.id)}>
                                                                         <Trash2 className="h-3 w-3 mr-2" /> Delete Log
                                                                     </Button>
                                                                 </DialogFooter>
@@ -474,6 +660,7 @@ export default function AdminPage() {
                                         })}
                                     </TableBody>
                                 </Table>
+                                </>
                             )}
                         </CardContent>
                     </Card>

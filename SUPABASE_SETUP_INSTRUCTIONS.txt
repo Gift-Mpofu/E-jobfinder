@@ -1,0 +1,18 @@
+  1. Go to supabase.com → your project → Authentication →
+     URL Configuration
+
+  2. Set Site URL to:
+     https://e-jobfinder.vercel.app
+     (replace with actual Vercel URL once known)
+
+  3. Add to Redirect URLs:
+     https://e-jobfinder.vercel.app/**
+     https://e-jobfinder.vercel.app/auth/callback
+     http://localhost:3000/**
+     http://localhost:3000/auth/callback
+
+  4. Save changes
+
+  Without this step, Google OAuth and email confirmation
+  links will redirect to the wrong URL and users cannot
+  log in on the live site.

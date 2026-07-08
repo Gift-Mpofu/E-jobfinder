@@ -1,0 +1,62 @@
+E-JOB FINDER: FULL APPLICATION BRIEF & HANDOFF DOCUMENT
+
+=========================================
+1. THE END GOAL (THE PIVOT)
+=========================================
+The initial prototype was an "E-Job Scanner"—a manual utility where a user uploaded their CV, pasted a single Job Description, and an AI would compare the two, granting a score and missing keywords.
+THE END GOAL is to pivot into an active "E-Job Finder," an automated recruitment platform where:
+- A user uploads their CV once.
+- The AI extracts their structural skills, seniority, and preferences into a standardized database format.
+- The app automatically surfaces, ranks, and alerts the user to active, live job openings (`live_jobs`) that have a high "Match Score" with their profile.
+
+=========================================
+2. THE TECHNOLOGY STACK
+=========================================
+- Frontend: Next.js 15 (App Router, Turbopack, React 19)
+- Styling: Tailwind CSS, `shadcn/ui` (Radix UI components)
+- Backend & Auth: Supabase
+- Edge Functions: Deno / TypeScript via Supabase Functions
+- AI Engine: Google Genkit (`@genkit-ai/google-genai`)
+
+=========================================
+3. RECENT PROGRESS & COMPLETED MILESTONES (WHERE WE ARE)
+=========================================
+We have successfully completed the primary infrastructure for the Pivot to "Find Jobs":
+1. **Live Job Database & Schema Changes**:
+   - `live_jobs` table is live with columns: `external_id`, `url`, `salary_min`, `salary_max`, `posted_at`.
+   - `user_job_actions` table was introduced to handle Bookmarking / Saving jobs natively under RLS.
+2. **Strict Error Handling & RLS**:
+   - Upgraded all `try/catch` wrapper blocks in `find-jobs/page.tsx` to handle destructured native Supabase `{ error }` objects preventing silent console crashing.
+   - Enforced strict Row Level Security (Migration: `20260519000001_live_jobs_rls.sql`) to cleanly gate `user_job_actions` insertion bounds and `live_jobs` read-access to authenticated users.
+   - Project currently compiles perfectly under strict TS typecheck.
+3. **Deno Edge Functions for Data Ingestion**:
+   - Created `ingest-adzuna/index.ts` connecting to Adzuna API (South African endpoints).
+   - Created `ingest-jsearch/index.ts` connecting to JSearch (RapidAPI).
+   - *Status*: The edge functions have their internal normalization, loop through query categories, and bulk upsert logic written beautifully via Service Roles.
+4. **Database Scheduling**:
+   - Written `pg_cron` / `pg_net` migrations (`20260516000002_cron_jobs.sql`) to automatically trigger those two edge functions every 6 hours inside the database itself.
+5. **The Find Jobs Product UI (`src/app/dashboard/find-jobs/page.tsx`)**:
+   - Implemented a 4-tab dashboard using shadcn: "All Jobs", "Best Matches", "Remote", and "Saved".
+   - The UI includes Date-Fns relative times, Bookmark toggles (connecting to `user_job_actions`), external "View" URL links out to the boards, and Match Score badges (Green/Amber/Grey).
+
+=========================================
+4. DATABASE SCHEMA SUMMARY (SUPABASE POSTGRESQL)
+=========================================
+TABLE: profiles
+- id, email, target_role, scans_used, photo_url, last_active, role, status, location, experience_level, career_goals, skills (text[]), last_scan_reset
+
+TABLE: live_jobs (The New Feature Table)
+- id, external_id (UNIQUE), title, company, location, description_text, url, skills_required[], seniority, salary_max/min, posted_at, status ('open'), source, creation_date
+
+TABLE: user_job_actions
+- id, user_id (ref: profiles), job_id (ref: live_jobs), action_type ('saved'), created_at
+
+TABLE: cvs / job_descriptions / match_results
+- Used primarily for the legacy 1-to-1 CV scanner.
+
+=========================================
+5. BLOCKED ON / NEXT STEPS FOR CLAUDE
+=========================================
+1. **Execute Edge Functions Live**: We hit a slight local collision running `supabase db push` so the `pg_cron` scripts and RLS scripts were run manually in the dashboard UI editor. We still need to configure the Deno `.env` variables into the remote Supabase console and force the `ingest-adzuna` and `ingest-jsearch` endpoints to trigger to guarantee real job listings populate the UI instead of local dummy data.
+2. **AI Skill Derivation on Ingestion**: The edge workers pull jobs, but right now the `skills_required` and `seniority` arrays are pushed as empty arrays or blanks. We need a workflow where the Edge Function passes the raw `description_text` through the Genkit AI to extract the structural JSON traits *before* storing it into the DB, allowing true structural matching matching with user CVs!
+3. **Backend Match Scoring Hookup**: The 4-tab UI currently relies on a temporary *client-side* string-matching algorithm to generate the "Match Score". We need to transition this to either a backend Supabase Postgres RPC (vector similarity or extensive JSONB array logic) so we can scale beyond fetching thousands of rows to the client browser.

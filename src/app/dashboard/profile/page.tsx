@@ -1,389 +1,298 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser, useAuth, useFirestore, useCollection, useMemoFirebase, useFirebaseApp } from '@/firebase';
-import { doc, collection, query, orderBy, limit, updateDoc } from 'firebase/firestore';
-import { signOut, updateProfile } from 'firebase/auth';
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { useSupabase, useUser } from '@/supabase/provider';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { User as UserIcon, Award, Briefcase, BarChart3, MapPin, Gauge, FileText, Clock, Star, Eye, FileUp, LogOut, Settings2, Lock, ChevronRight, Pencil, Loader2 } from 'lucide-react';
-import { Progress } from '@/components/ui/progress';
+import { Briefcase, BarChart3, MapPin, FileText, Clock, Eye, FileUp, LogOut, Settings2, Lock, ChevronRight, Pencil, Loader2, Trash2, Award, Gauge, Star } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useDashboard } from '../layout';
 
-// Define types for our Firestore data to use with hooks
-type UserProfile = {
-    targetRole?: string;
-    experienceLevel?: string;
-    location?: string;
-    skills?: string[];
-    careerGoals?: string;
-    photoURL?: string;
-    scansUsed?: number;
+type CV = { id: string; fileName: string; uploadDate: string; fileContent: string; };
+type MatchResult = { id: string; jobTitle: string; matchScore: number; analysisDate: string; };
+
+function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={`bg-white rounded-2xl border border-[#E5E5EA] ${className}`}>
+      {children}
+    </div>
+  );
 }
 
-type CV = {
-    id: string;
-    fileName: string;
-    uploadDate: string;
-    fileContent: string;
-}
-
-type MatchResult = {
-    id: string;
-    jobTitle: string;
-    matchScore: number;
-    analysisDate: string;
+function SectionTitle({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between mb-4">
+      <h2 className="text-[16px] font-semibold text-[#1D1D1F]">{children}</h2>
+      {action}
+    </div>
+  );
 }
 
 export default function ProfilePage() {
   const { user, isUserLoading: authLoading } = useUser();
-  const auth = useAuth();
-  const firestore = useFirestore();
-  const firebaseApp = useFirebaseApp();
+  const supabase = useSupabase();
   const router = useRouter();
   const { toast } = useToast();
   const { scansUsed, usageLimit, userProfile, isProfileLoading } = useDashboard();
-  
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
-  
+  const [cvs, setCvs] = useState<CV[] | null>(null);
+  const [isCvsLoading, setIsCvsLoading] = useState(true);
+  const [scanHistory, setScanHistory] = useState<MatchResult[] | null>(null);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(true);
+
   const loading = authLoading || isProfileLoading;
 
-  // Fetch User CVs
-  const cvsRef = useMemoFirebase(() => {
-    if (!user) return null;
-    return query(collection(firestore, 'users', user.uid, 'cvs'), orderBy('uploadDate', 'desc'));
-  }, [user, firestore]);
-  const { data: cvs, isLoading: isCvsLoading } = useCollection<CV>(cvsRef);
+  useEffect(() => {
+    if (!user) { if (!authLoading) setIsCvsLoading(false); return; }
+    let mounted = true;
+    supabase.from('cvs').select('*').eq('user_id', user.id).order('upload_date', { ascending: false })
+      .then(({ data }) => {
+        if (mounted) { if (data) setCvs(data.map(d => ({ id: d.id, fileName: d.file_name, uploadDate: d.upload_date, fileContent: d.file_content }))); setIsCvsLoading(false); }
+      });
+    return () => { mounted = false; };
+  }, [user, supabase, authLoading]);
 
-  // Fetch Scan History for the most recent CV
-  const recentCvId = cvs && cvs.length > 0 ? cvs[0].id : null;
-  const matchResultsRef = useMemoFirebase(() => {
-    if (!user || !recentCvId) return null;
-    return query(collection(firestore, 'users', user.uid, 'cvs', recentCvId, 'matchResults'), orderBy('analysisDate', 'desc'), limit(5));
-  }, [user, firestore, recentCvId]);
-  const { data: scanHistory, isLoading: isHistoryLoading } = useCollection<MatchResult>(matchResultsRef);
+  useEffect(() => {
+    if (!user || !cvs || cvs.length === 0) { if (!isCvsLoading) setIsHistoryLoading(false); return; }
+    let mounted = true;
+    supabase.from('match_results').select('*').eq('user_id', user.id).eq('cv_id', cvs[0].id).order('analysis_date', { ascending: false }).limit(5)
+      .then(({ data }) => {
+        if (mounted) { if (data) setScanHistory(data.map(d => ({ id: d.id, jobTitle: d.job_title, matchScore: d.match_score, analysisDate: d.analysis_date }))); setIsHistoryLoading(false); }
+      });
+    return () => { mounted = false; };
+  }, [user, cvs, supabase, isCvsLoading]);
 
-  const displayName = user?.displayName || (user?.email ? user.email.split('@')[0] : 'Anonymous User');
-  const photoURL = userProfile?.photoURL || user?.photoURL;
+  // Safe avatar — no Japanese characters from OAuth
+  const avatarSrc = userProfile?.photo_url && userProfile.photo_url.trim() !== '' ? userProfile.photo_url : null;
+  const emailInitials = user?.email?.slice(0, 2).toUpperCase() ?? 'U';
+  const displayName = user?.user_metadata?.full_name || (user?.email ? user.email.split('@')[0] : 'Anonymous User');
 
   const onSignOut = async () => {
-    try {
-      if (auth) {
-        await signOut(auth);
-      }
-      router.push('/login');
-    } catch (error) {
-      console.error("Sign out failed", error);
-      toast({
-        variant: "destructive",
-        title: "Sign Out Failed",
-        description: "An error occurred while signing out.",
-      });
-    }
+    try { await supabase.auth.signOut(); router.push('/login'); }
+    catch { toast({ variant: "destructive", title: "Sign Out Failed" }); }
   };
 
-  const handleAvatarClick = () => {
-    if (isUploading) return;
-    fileInputRef.current?.click();
-  };
-
+  const handleAvatarClick = () => { if (!isUploading) fileInputRef.current?.click(); };
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!user || !firebaseApp || !firestore) return;
+    if (!user) return;
     const file = event.target.files?.[0];
     if (!file) return;
-
     setIsUploading(true);
-    toast({ title: 'Uploading...', description: 'Your new profile picture is being uploaded.' });
-
+    toast({ title: 'Uploading...', description: 'Your profile picture is being uploaded.' });
     try {
-        const storage = getStorage(firebaseApp);
-        // Create a storage reference
-        const filePath = `avatars/${user.uid}/${new Date().getTime()}-${file.name}`;
-        const fileRef = storageRef(storage, filePath);
-
-        // Upload the file
-        await uploadBytes(fileRef, file);
-
-        // Get the download URL
-        const newPhotoURL = await getDownloadURL(fileRef);
-
-        // Update Firebase Auth user profile
-        if (auth.currentUser) {
-            await updateProfile(auth.currentUser, { photoURL: newPhotoURL });
-        }
-
-        // Update the user document in Firestore
-        const userDocRef = doc(firestore, 'users', user.uid);
-        await updateDoc(userDocRef, { photoURL: newPhotoURL });
-
-        toast({ title: 'Success!', description: 'Your profile picture has been updated.' });
-
+      const filePath = `${user.id}/${Date.now()}.${file.name.split('.').pop() || 'png'}`;
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file);
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      await supabase.auth.updateUser({ data: { avatar_url: publicUrl } });
+      await supabase.from('profiles').update({ photo_url: publicUrl }).eq('id', user.id);
+      toast({ title: 'Success!', description: 'Profile picture updated.' });
     } catch (error: any) {
-        console.error("Profile picture upload failed:", error);
-        toast({
-            variant: "destructive",
-            title: "Upload Failed",
-            description: error.message || "Could not upload your profile picture. Please try again.",
-        });
+      toast({ variant: "destructive", title: "Upload Failed", description: error.message });
     } finally {
-        setIsUploading(false);
-        if(fileInputRef.current) fileInputRef.current.value = "";
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
-  const getInitials = (name: string | null | undefined) => {
-    if (!name) return 'U';
-    const names = name.split(' ');
-    if (names.length > 1) {
-      return names[0][0] + names[names.length - 1][0];
-    }
-    return name[0];
-  };
+  const usagePct = Math.min((scansUsed / usageLimit) * 100, 100);
 
-  const getScoreBadgeVariant = (score: number) => {
-    if (score > 75) return 'default';
-    if (score > 50) return 'secondary';
-    return 'destructive';
-  }
-
-  const InfoRow = ({ icon: Icon, label, value, onEdit, isLoading }: { icon: React.ElementType, label: string, value?: string, onEdit?: () => void, isLoading: boolean }) => (
-    <div className="flex items-start gap-4 p-3 border rounded-md">
-        <Icon className="h-5 w-5 text-muted-foreground mt-1 flex-shrink-0" />
-        <div className="flex-grow">
-            <p className="text-xs text-muted-foreground">{label}</p>
-            {isLoading ? <Skeleton className="h-5 w-3/4 mt-1" /> : <p className="text-sm font-medium">{value || 'Not set'}</p>}
-        </div>
-        {onEdit && <Button asChild variant="outline" size="sm" className="ml-auto"><Link href="/dashboard/onboarding"><Settings2 className="h-4 w-4" /></Link></Button>}
-    </div>
-  );
+  const getScoreColour = (score: number) => score > 75 ? '#34C759' : score > 50 ? '#FF9F0A' : '#FF3B30';
 
   return (
-    <div className="max-w-4xl mx-auto">
-       <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            accept="image/png, image/jpeg, image/gif"
-            className="hidden"
-        />
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <UserIcon className="text-primary" />
-            <span>User Profile</span>
-          </CardTitle>
-          <CardDescription>View and manage your profile and career details.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-8">
-          {loading ? (
-            <div className="space-y-6">
-              <div className="flex items-center space-x-4">
-                <Skeleton className="h-24 w-24 rounded-full" />
-                <div className="space-y-2">
-                  <Skeleton className="h-6 w-[250px]" />
-                  <Skeleton className="h-4 w-[200px]" />
-                </div>
-              </div>
-              <div className="space-y-4">
-                  <Skeleton className="h-10 w-full" />
-                  <Skeleton className="h-10 w-full" />
-                  <Skeleton className="h-20 w-full" />
+    <div className="max-w-[720px] mx-auto space-y-4">
+      <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/png,image/jpeg,image/gif" className="hidden" />
+
+      {/* ── Profile Header ── */}
+      <Card className="p-6">
+        {loading ? (
+          <div className="flex items-center gap-4">
+            <Skeleton className="h-16 w-16 rounded-full" />
+            <div className="space-y-2"><Skeleton className="h-5 w-40" /><Skeleton className="h-4 w-32" /></div>
+          </div>
+        ) : user ? (
+          <div className="flex items-center gap-4">
+            <div className="relative group cursor-pointer" onClick={handleAvatarClick}>
+              <Avatar className="h-16 w-16">
+                {avatarSrc && <AvatarImage src={avatarSrc} alt="Profile" />}
+                <AvatarFallback className="bg-[#FF6B00] text-white text-xl font-semibold">{emailInitials}</AvatarFallback>
+              </Avatar>
+              <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                {isUploading ? <Loader2 className="h-5 w-5 text-white animate-spin" /> : <Pencil className="h-5 w-5 text-white" />}
               </div>
             </div>
-          ) : user ? (
-            <>
-              <div className="flex items-center space-x-4">
-                <div className="relative group">
-                    <Avatar className="h-24 w-24">
-                        <AvatarImage src={photoURL || ''} alt={displayName} />
-                        <AvatarFallback className="text-3xl">
-                        {getInitials(displayName)}
-                        </AvatarFallback>
-                    </Avatar>
-                    <button onClick={handleAvatarClick} disabled={isUploading} className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
-                       {isUploading ? <Loader2 className="h-8 w-8 animate-spin" /> : <Pencil className="h-8 w-8" />}
-                    </button>
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold">{displayName}</h2>
-                  <p className="text-muted-foreground">{user.email}</p>
-                </div>
-              </div>
-              
-              <Separator />
-
-              <div>
-                  <h3 className="text-lg font-semibold mb-4">Account Details</h3>
-                  <div className="space-y-6">
-                      <div className="flex items-center gap-4 p-3 border rounded-md">
-                          <Award className="h-5 w-5 text-muted-foreground" />
-                          <span className="text-sm font-medium">Account Type</span>
-                          <span className="text-sm text-primary font-semibold ml-auto bg-primary/10 px-2 py-1 rounded-full">Free</span>
-                      </div>
-
-                      <div className="p-3 border rounded-md">
-                          <div className="flex items-center gap-4">
-                              <Gauge className="h-5 w-5 text-muted-foreground" />
-                              <div className="w-full">
-                                  <div className="flex justify-between items-center mb-1">
-                                      <span className="text-sm font-medium">Usage Meter</span>
-                                      <span className="text-xs text-muted-foreground">{scansUsed} / {usageLimit} scans used</span>
-                                  </div>
-                                  <Progress value={(scansUsed / usageLimit) * 100} />
-                                  <p className="text-xs text-muted-foreground mt-2">Your free scans reset weekly. <Button asChild variant="link" className="p-0 h-auto text-xs"><Link href="/dashboard/upgrade">Upgrade for unlimited scans.</Link></Button></p>
-                              </div>
-                          </div>
-                      </div>
-                  </div>
-              </div>
-
-              <Separator />
-
-              <div>
-                  <h3 className="text-lg font-semibold mb-4 flex justify-between items-center">
-                      <span>Career Snapshot</span>
-                      <Button asChild variant="outline" size="sm"><Link href="/dashboard/onboarding"><Settings2 className="h-4 w-4 mr-2" />Edit Snapshot</Link></Button>
-                  </h3>
-                   <div className="space-y-4">
-                      <InfoRow isLoading={isProfileLoading} icon={Briefcase} label="Current / Target Role" value={userProfile?.targetRole} />
-                      <InfoRow isLoading={isProfileLoading} icon={BarChart3} label="Experience Level" value={userProfile?.experienceLevel} />
-                      <InfoRow isLoading={isProfileLoading} icon={MapPin} label="Location" value={userProfile?.location} />
-                  </div>
-              </div>
-
-              <Separator />
-              
-              <div>
-                  <h3 className="text-lg font-semibold mb-4">CV Manager</h3>
-                  <Card>
-                      <CardContent className="p-4 space-y-1">
-                          {isCvsLoading && <Skeleton className="h-20 w-full" />}
-                          {cvs && cvs.length > 0 ? (
-                              cvs.map((cv) => (
-                                  <Dialog key={cv.id}>
-                                      <DialogTrigger asChild>
-                                          <div className="flex items-center justify-between p-3 rounded-md hover:bg-muted/50 cursor-pointer">
-                                              <div className="flex items-center gap-4 overflow-hidden">
-                                                  <FileText className="h-6 w-6 text-muted-foreground flex-shrink-0" />
-                                                  <div className="overflow-hidden">
-                                                      <p className="font-semibold truncate">{cv.fileName}</p>
-                                                      <span className="text-xs text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" /> {formatDistanceToNow(new Date(cv.uploadDate), { addSuffix: true })}</span>
-                                                  </div>
-                                              </div>
-                                              <Button variant="ghost" size="sm" className="flex-shrink-0"><Eye className="h-4 w-4 mr-2" />View</Button>
-                                          </div>
-                                      </DialogTrigger>
-                                      <DialogContent className="max-w-3xl">
-                                          <DialogHeader>
-                                              <DialogTitle>{cv.fileName}</DialogTitle>
-                                              <DialogDescription>
-                                                  Uploaded {formatDistanceToNow(new Date(cv.uploadDate), { addSuffix: true })}
-                                              </DialogDescription>
-                                          </DialogHeader>
-                                          <ScrollArea className="h-96">
-                                              <pre className="text-sm whitespace-pre-wrap p-4 bg-muted rounded-md font-sans">{cv.fileContent}</pre>
-                                          </ScrollArea>
-                                      </DialogContent>
-                                  </Dialog>
-                              ))
-                          ) : !isCvsLoading && (
-                              <p className="text-sm text-muted-foreground text-center p-4">You haven't uploaded any CVs yet.</p>
-                          )}
-                      </CardContent>
-                      <CardFooter>
-                          <Button asChild variant="outline" className="w-full"><Link href="/dashboard"><FileUp className="h-4 w-4 mr-2" /> Upload & Analyze New CV</Link></Button>
-                      </CardFooter>
-                  </Card>
-              </div>
-
-               <Separator />
-
-              <div>
-                  <h3 className="text-lg font-semibold mb-4 flex justify-between items-center">
-                      <span>Job Preferences</span>
-                      <Button asChild variant="outline" size="sm"><Link href="/dashboard/onboarding"><Settings2 className="h-4 w-4 mr-2" />Edit Preferences</Link></Button>
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Card className="p-4">
-                          <CardTitle className="text-sm font-semibold flex items-center gap-2 mb-2"><Briefcase className="h-4 w-4 text-primary" /> Preferred Roles</CardTitle>
-                          {isProfileLoading ? <Skeleton className="h-5 w-full" /> : (
-                              <p className="text-sm font-medium">{userProfile?.targetRole || 'Not set'}</p>
-                          )}
-                      </Card>
-                      <Card className="p-4">
-                         <CardTitle className="text-sm font-semibold flex items-center gap-2 mb-2"><Star className="h-4 w-4 text-primary" /> Key Skills</CardTitle>
-                         {isProfileLoading ? <Skeleton className="h-5 w-full" /> : (
-                              <div className="flex flex-wrap gap-2">
-                                  {userProfile?.skills && userProfile.skills.length > 0 ? userProfile.skills.map(skill => <Badge key={skill} variant="secondary">{skill}</Badge>) : <p className="text-sm text-muted-foreground">Not set</p>}
-                              </div>
-                          )}
-                      </Card>
-                  </div>
-              </div>
-
-              <Separator />
-              
-              <div>
-                  <h3 className="text-lg font-semibold mb-4">Recent Scan History</h3>
-                  <Card>
-                      <CardContent className="p-2">
-                         {isHistoryLoading && <div className="space-y-1 p-2"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>}
-                         {scanHistory && scanHistory.length > 0 ? (
-                             <ul className="space-y-1">
-                                 {scanHistory.map((scan) => (
-                                     <li key={scan.id} className="flex items-center justify-between p-3 rounded-md hover:bg-muted/50">
-                                         <div className="flex-1 overflow-hidden">
-                                             <p className="font-semibold truncate">{scan.jobTitle}</p>
-                                             <p className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(scan.analysisDate), { addSuffix: true })}</p>
-                                         </div>
-                                         <div className="flex items-center gap-4 ml-4">
-                                           <Badge variant={getScoreBadgeVariant(scan.matchScore)} className="w-[50px] justify-center">{scan.matchScore}%</Badge>
-                                           <Button variant="ghost" size="icon" className="h-8 w-8"><ChevronRight className="h-4 w-4" /></Button>
-                                         </div>
-                                     </li>
-                                 ))}
-                             </ul>
-                         ) : !isHistoryLoading && (
-                              <div className="text-center text-sm text-muted-foreground p-4">
-                                 No scan history found. Analyze a CV on the dashboard to get started.
-                              </div>
-                         )}
-                         {scanHistory && scanHistory.length > 0 && (
-                           <div className="text-center text-sm text-muted-foreground p-4 mt-2 border-t">
-                              <Lock className="inline-block h-4 w-4 mr-1" />
-                              Showing results for most recent CV only. 
-                              <Button asChild variant="link" className="p-0 h-auto text-sm ml-1"><Link href="/dashboard/upgrade">Upgrade to Pro to view all results.</Link></Button>
-                          </div>
-                         )}
-                      </CardContent>
-                  </Card>
-              </div>
-            </>
-          ) : (
-            !loading && <p>No user is signed in.</p>
-          )}
-        </CardContent>
-        {user && (
-          <CardFooter className="border-t pt-6">
-            <Button variant="outline" onClick={onSignOut}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Log out
-            </Button>
-          </CardFooter>
+            <div>
+              <h1 className="text-[20px] font-bold text-[#1D1D1F]">{displayName}</h1>
+              <p className="text-[14px] text-[#6E6E73]">{user.email}</p>
+              <span className="inline-block mt-1.5 text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-[#F5F5F7] text-[#6E6E73]">Free Plan</span>
+            </div>
+          </div>
+        ) : (
+          <p className="text-[#6E6E73] text-sm">No user signed in.</p>
         )}
       </Card>
+
+      {/* ── Account Details ── */}
+      <Card className="p-6">
+        <SectionTitle>Account Details</SectionTitle>
+        <div className="space-y-3">
+          {/* Account type row */}
+          <div className="flex items-center gap-3 bg-[#F5F5F7] rounded-xl px-4 py-3">
+            <Lock className="h-4 w-4 text-[#AEAEB2] flex-shrink-0" />
+            <span className="text-sm text-[#6E6E73] flex-1">Account Type</span>
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-[#F5F5F7] text-[#6E6E73] border border-[#D2D2D7]">Free</span>
+          </div>
+
+          {/* Usage meter */}
+          <div className="bg-[#F5F5F7] rounded-xl px-4 py-3">
+            <div className="flex items-center gap-3 mb-2">
+              <Gauge className="h-4 w-4 text-[#AEAEB2] flex-shrink-0" />
+              <span className="text-sm text-[#6E6E73] flex-1">Weekly scans</span>
+              <span className="text-sm font-medium text-[#1D1D1F]">{scansUsed} / {usageLimit} used</span>
+            </div>
+            <div className="h-1.5 bg-white rounded-full overflow-hidden">
+              <div className="h-full bg-[#FF6B00] rounded-full transition-all duration-500" style={{ width: `${usagePct}%` }} />
+            </div>
+            <p className="text-xs text-[#6E6E73] mt-2">
+              Resets every Monday ·{' '}
+              <Link href="/dashboard/upgrade" className="text-[#FF6B00] hover:underline">Upgrade for unlimited</Link>
+            </p>
+          </div>
+        </div>
+      </Card>
+
+      {/* ── Career Snapshot ── */}
+      <Card className="p-6">
+        <SectionTitle action={
+          <Link href="/dashboard/onboarding" className="text-sm text-[#FF6B00] font-medium hover:underline">Edit Snapshot</Link>
+        }>Career Snapshot</SectionTitle>
+        <div className="space-y-2">
+          {[
+            { icon: Briefcase, label: 'CURRENT / TARGET ROLE', value: userProfile?.target_role },
+            { icon: BarChart3, label: 'EXPERIENCE LEVEL', value: userProfile?.experience_level },
+            { icon: MapPin, label: 'LOCATION', value: userProfile?.location },
+          ].map(({ icon: Icon, label, value }) => (
+            <div key={label} className="bg-[#F5F5F7] rounded-xl px-4 py-3">
+              <p className="text-[11px] font-medium text-[#AEAEB2] uppercase tracking-wider mb-0.5">{label}</p>
+              {isProfileLoading ? <Skeleton className="h-4 w-3/4 mt-1" /> : (
+                <p className="text-[14px] font-medium text-[#1D1D1F]">{value || 'Not set'}</p>
+              )}
+            </div>
+          ))}
+
+          {/* Skills */}
+          <div className="bg-[#F5F5F7] rounded-xl px-4 py-3">
+            <p className="text-[11px] font-medium text-[#AEAEB2] uppercase tracking-wider mb-2">KEY SKILLS</p>
+            {isProfileLoading ? <Skeleton className="h-6 w-full" /> : (
+              <div className="flex flex-wrap gap-1.5">
+                {userProfile?.skills && userProfile.skills.length > 0
+                  ? userProfile.skills.map((s: string) => (
+                    <span key={s} className="text-xs font-medium px-2.5 py-1 rounded-full bg-[#FFF3EB] text-[#FF6B00]">{s}</span>
+                  ))
+                  : <p className="text-sm text-[#AEAEB2]">Not set</p>
+                }
+              </div>
+            )}
+          </div>
+        </div>
+      </Card>
+
+      {/* ── CV Manager ── */}
+      <Card className="p-6">
+        <SectionTitle>CV Manager</SectionTitle>
+        <div className="space-y-1">
+          {isCvsLoading && <Skeleton className="h-16 w-full rounded-xl" />}
+          {cvs && cvs.length > 0 ? cvs.map(cv => (
+            <Dialog key={cv.id}>
+              <DialogTrigger asChild>
+                <div className="flex items-center justify-between p-3 rounded-xl hover:bg-[#F5F5F7] cursor-pointer transition-colors">
+                  <div className="flex items-center gap-3 overflow-hidden">
+                    <FileText className="h-5 w-5 text-[#AEAEB2] flex-shrink-0" />
+                    <div className="overflow-hidden">
+                      <p className="text-sm font-medium text-[#1D1D1F] truncate">{cv.fileName}</p>
+                      <p className="text-xs text-[#6E6E73] flex items-center gap-1">
+                        <Clock className="h-3 w-3" />{formatDistanceToNow(new Date(cv.uploadDate), { addSuffix: true })}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-xs font-medium text-[#6E6E73] flex items-center gap-1 flex-shrink-0 ml-2">
+                    <Eye className="h-3.5 w-3.5" />View
+                  </span>
+                </div>
+              </DialogTrigger>
+              <DialogContent className="max-w-3xl bg-white">
+                <DialogHeader>
+                  <DialogTitle>{cv.fileName}</DialogTitle>
+                  <DialogDescription>Uploaded {formatDistanceToNow(new Date(cv.uploadDate), { addSuffix: true })}</DialogDescription>
+                </DialogHeader>
+                <ScrollArea className="h-96">
+                  <pre className="text-sm whitespace-pre-wrap p-4 bg-[#F5F5F7] rounded-xl font-sans">{cv.fileContent}</pre>
+                </ScrollArea>
+              </DialogContent>
+            </Dialog>
+          )) : !isCvsLoading && (
+            <p className="text-sm text-[#6E6E73] text-center py-4">No CVs uploaded yet.</p>
+          )}
+        </div>
+        <div className="mt-4 pt-4 border-t border-[#E5E5EA]">
+          <Link href="/dashboard" className="flex items-center justify-center gap-2 w-full py-3 border border-[#D2D2D7] rounded-full text-sm font-medium text-[#1D1D1F] hover:bg-[#F5F5F7] transition-colors">
+            <FileUp className="h-4 w-4" />Upload &amp; Analyse New CV
+          </Link>
+        </div>
+      </Card>
+
+      {/* ── Scan History ── */}
+      <Card className="p-6">
+        <SectionTitle>Recent Scan History</SectionTitle>
+        {isHistoryLoading && <div className="space-y-2"><Skeleton className="h-12 w-full rounded-xl" /><Skeleton className="h-12 w-full rounded-xl" /></div>}
+        {scanHistory && scanHistory.length > 0 ? (
+          <>
+            <ul className="space-y-1">
+              {scanHistory.map(scan => (
+                <li key={scan.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-[#F5F5F7] transition-colors">
+                  <div className="flex-1 overflow-hidden">
+                    <p className="text-sm font-medium text-[#1D1D1F] truncate">{scan.jobTitle}</p>
+                    <p className="text-xs text-[#6E6E73]">{formatDistanceToNow(new Date(scan.analysisDate), { addSuffix: true })}</p>
+                  </div>
+                  <div className="flex items-center gap-3 ml-4">
+                    <span className="text-sm font-bold" style={{ color: getScoreColour(scan.matchScore) }}>{scan.matchScore}%</span>
+                    <ChevronRight className="h-4 w-4 text-[#AEAEB2]" />
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <p className="text-xs text-center text-[#AEAEB2] mt-4 pt-4 border-t border-[#E5E5EA]">
+              <Lock className="inline h-3 w-3 mr-1" />Showing most recent CV only.{' '}
+              <Link href="/dashboard/upgrade" className="text-[#FF6B00]">Upgrade for full history.</Link>
+            </p>
+          </>
+        ) : !isHistoryLoading && (
+          <p className="text-sm text-[#6E6E73] text-center py-4">
+            No scan history yet. Analyse a CV on the dashboard to get started.
+          </p>
+        )}
+      </Card>
+
+      {/* ── Sign out ── */}
+      {user && (
+        <div className="pb-8">
+          <button
+            onClick={onSignOut}
+            className="flex items-center gap-2 text-sm text-[#6E6E73] hover:text-[#FF3B30] transition-colors"
+          >
+            <LogOut className="h-4 w-4" />Log out
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,0 +1,12 @@
+  □ Landing page loads at root URL
+  □ "Get matched free" button opens /signup
+  □ Sign up with email works — confirmation email arrives
+  □ Sign in with Google works — redirects to /dashboard
+  □ Dashboard home page loads with greeting
+  □ Find Jobs tab shows live job listings
+  □ Scanner page loads at /dashboard/scanner
+  □ Profile page shows user email and career snapshot
+  □ Bookmarking a job works without error
+  □ Bubbl chatbot responds to a message
+  □ No console errors on any page (open DevTools → Console)
+  □ Mobile layout looks correct (resize browser to 390px)
