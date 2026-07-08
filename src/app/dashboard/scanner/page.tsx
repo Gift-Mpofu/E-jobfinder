@@ -490,7 +490,7 @@ export default function ScannerPage() {
               <Textarea
                 id="cv-text"
                 placeholder="Paste your CV content here (you can also paste text from a PDF)..."
-                className="min-h-[200px] text-base"
+                className="bg-white text-[#1D1D1F] border border-[#E5E5EA] rounded-xl p-5 text-sm leading-relaxed whitespace-pre-wrap overflow-y-auto max-h-[500px]"
                 value={cvText}
                 onChange={handleCvTextAreaChange}
               />

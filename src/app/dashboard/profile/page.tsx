@@ -196,7 +196,7 @@ export default function ProfilePage() {
               <div className="flex flex-wrap gap-1.5">
                 {userProfile?.skills && userProfile.skills.length > 0
                   ? userProfile.skills.map((s: string) => (
-                    <span key={s} className="text-xs font-medium px-2.5 py-1 rounded-full bg-[#FFF3EB] text-[#FF6B00]">{s}</span>
+                    <span key={s} className="bg-[#FFF3EB] text-[#CC5200] rounded-full px-3 py-1 text-xs font-medium">{s}</span>
                   ))
                   : <p className="text-sm text-[#AEAEB2]">Not set</p>
                 }
@@ -218,7 +218,7 @@ export default function ProfilePage() {
                   <div className="flex items-center gap-3 overflow-hidden">
                     <FileText className="h-5 w-5 text-[#AEAEB2] flex-shrink-0" />
                     <div className="overflow-hidden">
-                      <p className="text-sm font-medium text-[#1D1D1F] truncate">{cv.fileName}</p>
+                      <p className="text-sm font-semibold text-[#1D1D1F] truncate">{cv.fileName}</p>
                       <p className="text-xs text-[#6E6E73] flex items-center gap-1">
                         <Clock className="h-3 w-3" />{formatDistanceToNow(new Date(cv.uploadDate), { addSuffix: true })}
                       </p>
@@ -235,7 +235,7 @@ export default function ProfilePage() {
                   <DialogDescription>Uploaded {formatDistanceToNow(new Date(cv.uploadDate), { addSuffix: true })}</DialogDescription>
                 </DialogHeader>
                 <ScrollArea className="h-96">
-                  <pre className="text-sm whitespace-pre-wrap p-4 bg-[#F5F5F7] rounded-xl font-sans">{cv.fileContent}</pre>
+                  <pre className="bg-white text-[#1D1D1F] border border-[#E5E5EA] rounded-xl p-5 text-sm leading-relaxed whitespace-pre-wrap overflow-y-auto max-h-[500px] font-sans">{cv.fileContent}</pre>
                 </ScrollArea>
               </DialogContent>
             </Dialog>
