@@ -1,6 +1,7 @@
 error.log
 errors.txt
 
+.env.local
 .env*.local
 VERCEL_ENV_VARS.txt
 node_modules/
