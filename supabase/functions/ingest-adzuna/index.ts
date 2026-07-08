@@ -8,7 +8,7 @@ const ADZUNA_CATEGORIES = [
   "sales-jobs",
 ];
 
-interface AdzunaResult {
+interface AdzunaJob {
   id: string;
   title: string;
   company: { display_name: string };
@@ -28,39 +28,52 @@ interface GeminiResponse {
   }>;
 }
 
-Deno.serve(async () => {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const adzunaAppId = Deno.env.get("ADZUNA_APP_ID")!;
-  const adzunaAppKey = Deno.env.get("ADZUNA_APP_KEY")!;
-  const googleAiKey = Deno.env.get("GOOGLE_AI_KEY")!;
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
-  const supabase = createClient(supabaseUrl, serviceKey);
+Deno.serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: CORS_HEADERS });
+  }
 
-  // ── PHASE 1: Ingest jobs from Adzuna ─────────────────────────────
-  const jobs: Record<string, unknown>[] = [];
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const adzunaAppId = Deno.env.get("ADZUNA_APP_ID");
+    const adzunaAppKey = Deno.env.get("ADZUNA_APP_KEY");
+    const googleAiKey = Deno.env.get("GOOGLE_AI_KEY");
 
-  for (const category of ADZUNA_CATEGORIES) {
-    try {
-      const url = new URL(
-        `https://api.adzuna.com/v1/api/jobs/za/search/1`
-      );
-      url.searchParams.set("app_id", adzunaAppId);
-      url.searchParams.set("app_key", adzunaAppKey);
-      url.searchParams.set("category", category);
-      url.searchParams.set("results_per_page", "40");
+    if (!supabaseUrl || !serviceKey || !adzunaAppId || !adzunaAppKey || !googleAiKey) {
+      throw new Error("Missing required environment variables.");
+    }
 
-      const res = await fetch(url.toString());
-      if (!res.ok) {
-        console.error(`Adzuna ${category} failed: ${res.status}`);
-        continue;
-      }
+    const supabase = createClient(supabaseUrl, serviceKey);
 
-      const json = await res.json();
-      const results: AdzunaResult[] = json.results ?? [];
+    // ── PHASE 1: Fetch and Ingest Jobs from Adzuna ──
+    const jobsToUpsert = [];
 
-      for (const r of results) {
-        jobs.push({
+    // Fetch concurrently using Promise.all
+    const fetchPromises = ADZUNA_CATEGORIES.map(async (category) => {
+      try {
+        const url = new URL(`https://api.adzuna.com/v1/api/jobs/za/search/1`);
+        url.searchParams.set("app_id", adzunaAppId);
+        url.searchParams.set("app_key", adzunaAppKey);
+        url.searchParams.set("category", category);
+        url.searchParams.set("results_per_page", "40");
+
+        const res = await fetch(url.toString());
+        if (!res.ok) {
+          console.error(`Failed to fetch Adzuna category ${category}: ${res.status} ${res.statusText}`);
+          return [];
+        }
+
+        const data = await res.json();
+        const results: AdzunaJob[] = data.results ?? [];
+
+        return results.map(r => ({
           external_id: `adzuna_${r.id}`,
           title: r.title ?? "Untitled",
           company: r.company?.display_name ?? "Unknown Company",
@@ -74,121 +87,136 @@ Deno.serve(async () => {
           status: "open",
           skills_required: [],
           seniority: "",
-        });
+        }));
+      } catch (err) {
+        console.error(`Error fetching category ${category}:`, err);
+        return [];
       }
-    } catch (e) {
-      console.error(`Error fetching category ${category}:`, e);
-    }
-  }
+    });
 
-  let ingestedCount = 0;
-  if (jobs.length > 0) {
-    const { error: upsertError } = await supabase
+    const categoryResults = await Promise.all(fetchPromises);
+    jobsToUpsert.push(...categoryResults.flat());
+
+    let ingestedCount = 0;
+    if (jobsToUpsert.length > 0) {
+      const { error: upsertError } = await supabase
+        .from("live_jobs")
+        .upsert(jobsToUpsert, { onConflict: "external_id" });
+
+      if (upsertError) {
+        console.error("Upsert failed:", upsertError.message);
+      } else {
+        ingestedCount = jobsToUpsert.length;
+      }
+    }
+
+    // ── PHASE 2: Extract Skills & Seniority via Gemini ──
+    let extractedCount = 0;
+    let failedCount = 0;
+
+    const { data: unprocessedJobs, error: fetchError } = await supabase
       .from("live_jobs")
-      .upsert(jobs, { onConflict: "external_id" });
+      .select("id, description_text")
+      .eq("status", "open")
+      .eq("seniority", "")
+      .limit(8);
 
-    if (upsertError) {
-      console.error("Upsert error:", upsertError.message);
-    } else {
-      ingestedCount = jobs.length;
-    }
-  }
+    if (fetchError) {
+      console.error("Failed to fetch jobs for processing:", fetchError.message);
+    } else if (unprocessedJobs && unprocessedJobs.length > 0) {
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`;
 
-  // ── PHASE 2: Extract skills with Gemini ──────────────────────────
-  let extractedCount = 0;
-  let failedCount = 0;
+      for (const job of unprocessedJobs) {
+        // Added brief delay to respect basic rate limits where needed
+        await new Promise((r) => setTimeout(r, 2000));
 
-  const { data: unprocessed, error: fetchError } = await supabase
-    .from("live_jobs")
-    .select("id, description_text")
-    .eq("status", "open")
-    .eq("seniority", "")
-    .limit(8);
+        const prompt = `You are a technical recruitment AI. Analyze the job description below.
+Extract the required skills and the seniority level.
+The final response must be a valid JSON object matching this schema:
+{"skills": ["Skill1", "Skill2", "Skill3"], "seniority": "junior" | "mid" | "senior" | "lead"}
 
-  if (fetchError) {
-    console.error("Failed to fetch unprocessed jobs:", fetchError.message);
-  } else if (unprocessed && unprocessed.length > 0) {
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`;
+Rules:
+- skills: array of strings.
+- seniority: pick exactly one string from "junior", "mid", "senior", "lead". If unspecified, default to "mid".
 
-    for (const row of unprocessed) {
-      await new Promise((r) => setTimeout(r, 5000));
+Job Description:
+${(job.description_text ?? "").slice(0, 1500)}`;
 
-      const prompt = `Return ONLY a JSON object with no markdown, no code fences, no explanation.
-Format: {"skills":["Skill1","Skill2"],"seniority":"junior"}
-Seniority must be exactly one of: junior, mid, senior, lead
-Extract from this job description:
-${(row.description_text ?? "").slice(0, 800)}`;
+        let rawText = "";
 
-      let rawText = "";
-      try {
-        const geminiRes = await fetch(geminiUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-goog-api-key": googleAiKey,
-          },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.1, maxOutputTokens: 200 },
-          }),
-        });
+        try {
+          const geminiRes = await fetch(geminiUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-goog-api-key": googleAiKey,
+            },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: {
+                temperature: 0.1,
+                maxOutputTokens: 250,
+                responseMimeType: "application/json",
+              },
+            }),
+          });
 
-        if (geminiRes.status === 429) {
-          console.log("Rate limited — skipping row", row.id);
+          if (geminiRes.status === 429) {
+            console.warn(`Rate limit hit on job ${job.id}`);
+            failedCount++;
+            continue; // Skip the rest, it will retry this job on the next run
+          }
+
+          if (!geminiRes.ok) {
+            console.error(`Gemini API error (Status ${geminiRes.status}) on job ${job.id}`);
+            failedCount++;
+            continue;
+          }
+
+          const geminiJson: GeminiResponse = await geminiRes.json();
+          rawText = geminiJson?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+
+          if (!rawText) {
+             throw new Error("Empty text received from Gemini");
+          }
+
+          const parsed = JSON.parse(rawText.trim());
+          const skills = Array.isArray(parsed.skills) ? parsed.skills : [];
+          const seniority = typeof parsed.seniority === "string" ? parsed.seniority : "mid";
+
+          const { error: updateError } = await supabase
+            .from("live_jobs")
+            .update({ skills_required: skills, seniority })
+            .eq("id", job.id);
+
+          if (updateError) {
+            console.error(`Failed to update job ${job.id} in DB:`, updateError.message);
+            failedCount++;
+          } else {
+            extractedCount++;
+          }
+        } catch (err) {
+          console.error(`Failed to process job ${job.id}. RawText: ${rawText}`, err);
           failedCount++;
-          continue;
         }
-
-        if (!geminiRes.ok) {
-          console.error(`Gemini ${geminiRes.status} for row ${row.id}`);
-          failedCount++;
-          continue;
-        }
-
-        const geminiJson: GeminiResponse = await geminiRes.json();
-        rawText =
-          geminiJson?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-
-        const clean = rawText
-          .replace(/```json/gi, "")
-          .replace(/```/g, "")
-          .trim();
-
-        const parsed = JSON.parse(clean);
-        const skills: string[] = Array.isArray(parsed.skills)
-          ? parsed.skills
-          : [];
-        const seniority: string =
-          typeof parsed.seniority === "string" ? parsed.seniority : "mid";
-
-        const { error: updateError } = await supabase
-          .from("live_jobs")
-          .update({ skills_required: skills, seniority })
-          .eq("id", row.id);
-
-        if (updateError) {
-          console.error("Update failed for row", row.id, updateError.message);
-          failedCount++;
-        } else {
-          extractedCount++;
-        }
-      } catch (e) {
-        console.error(
-          "Parse error for row",
-          row.id,
-          "| raw:",
-          rawText.slice(0, 150),
-          e
-        );
-        failedCount++;
       }
     }
-  }
 
-  return Response.json({
-    ingested: ingestedCount,
-    skills_extracted: extractedCount,
-    failed: failedCount,
-    timestamp: new Date().toISOString(),
-  });
+    return new Response(
+      JSON.stringify({
+        ingested: ingestedCount,
+        skills_extracted: extractedCount,
+        failed: failedCount,
+        timestamp: new Date().toISOString(),
+      }),
+      { headers: { ...CORS_HEADERS, "Content-Type": "application/json" } }
+    );
+
+  } catch (error: any) {
+    console.error("Function execution error:", error.message);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+    });
+  }
 });
