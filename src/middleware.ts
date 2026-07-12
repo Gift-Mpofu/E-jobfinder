@@ -14,6 +14,6 @@ export const config = {
      * - favicon.ico (favicon file)
      * Protects all application and dashboard routes.
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|privacy|terms|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
