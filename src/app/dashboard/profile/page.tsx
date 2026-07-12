@@ -244,7 +244,7 @@ export default function ProfilePage() {
           )}
         </div>
         <div className="mt-4 pt-4 border-t border-[#E5E5EA]">
-          <Link href="/dashboard" className="flex items-center justify-center gap-2 w-full py-3 border border-[#D2D2D7] rounded-full text-sm font-medium text-[#1D1D1F] hover:bg-[#F5F5F7] transition-colors">
+          <Link href="/dashboard/scanner" className="flex items-center justify-center gap-2 w-full py-3 border border-[#D2D2D7] rounded-full text-sm font-medium text-[#1D1D1F] hover:bg-[#F5F5F7] transition-colors">
             <FileUp className="h-4 w-4" />Upload &amp; Analyse New CV
           </Link>
         </div>

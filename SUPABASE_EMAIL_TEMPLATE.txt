@@ -1,0 +1,6 @@
+1. Go to Supabase dashboard
+2. Authentication -> Email Templates
+3. Click "Confirm signup"
+4. Find the confirmation URL and replace it with:
+   {{ .SiteURL }}/auth/callback?code={{ .TokenHash }}&next=/dashboard
+5. Save the template

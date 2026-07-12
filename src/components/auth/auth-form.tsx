@@ -41,6 +41,7 @@ export default function AuthForm({ mode }: { mode: Mode }) {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
         toast({ title: 'Account created!', description: 'Welcome to E-Job Finder. Check your email to verify your account.' });
+        router.push(`/auth/verify-email?email=${encodeURIComponent(email)}`);
       }
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });

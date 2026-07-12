@@ -110,6 +110,22 @@ Deno.serve(async (req) => {
       }
     }
 
+    try {
+      await fetch(
+        Deno.env.get('SUPABASE_URL') + '/functions/v1/categorise-jobs',
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + Deno.env.get('SUPABASE_ANON_KEY'),
+            'Content-Type': 'application/json'
+          },
+          body: '{}'
+        }
+      );
+    } catch (err) {
+      console.error("Failed to trigger categorise-jobs function:", err);
+    }
+
     // ── PHASE 2: Extract Skills & Seniority via Gemini ──
     let extractedCount = 0;
     let failedCount = 0;
