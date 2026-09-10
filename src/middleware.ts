@@ -1,25 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
-// Routes that should never be slowed by session refresh
-const PUBLIC_ROUTES = [
-  '/auth/callback',
-  '/auth/verify-email',
-  '/login',
-  '/signup',
-  '/privacy',
-  '/terms',
-]
-
 export async function middleware(request: NextRequest) {
-  const pathname = request.nextUrl.pathname
-
-  // Skip session refresh entirely for public/auth routes
-  // This is what makes Google OAuth fast
-  if (PUBLIC_ROUTES.some(route => pathname.startsWith(route))) {
-    return NextResponse.next()
-  }
-
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -43,8 +25,6 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Hard 800ms timeout — Vercel limit is 1500ms
-  // If Supabase is slow we still respond in time
   try {
     await Promise.race([
       supabase.auth.getUser(),
@@ -53,14 +33,12 @@ export async function middleware(request: NextRequest) {
       ),
     ])
   } catch {
-    // Continue regardless — client handles auth state
+    // Continue regardless
   }
 
   return supabaseResponse
 }
 
 export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|privacy|terms|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
+  matcher: ['/dashboard/:path*'],
 }
