@@ -8,7 +8,7 @@ import { useProfile, type UserProfile } from "@/supabase/hooks";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bell, User, LogOut, CheckCircle, BrainCircuit, Timer, LayoutDashboard, CreditCard, Menu, ShieldCheck, ScanLine, Settings, Heart } from "lucide-react";
+import { Bell, User, LogOut, CheckCircle, BrainCircuit, Timer, LayoutDashboard, CreditCard, Menu, ShieldCheck, ScanLine, Settings, Heart, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { AiCompanion } from '@/components/ui/ai-companion';
@@ -54,10 +54,10 @@ const NavItems = ({ isAdmin }: { isAdmin: boolean }) => {
     ...(!isAdminPage ? [
       { href: '/dashboard', label: 'Dashboard' },
       { href: '/dashboard/scanner', label: 'Scanner', icon: ScanLine },
+      { href: '/dashboard/cv-builder', label: 'CV Builder', icon: FileText },
       { href: '/dashboard/find-jobs', label: 'Find Jobs' },
       { href: '/dashboard/swipe', label: 'Swipe', icon: Heart },
       { href: '/dashboard/profile', label: 'Profile' },
-      { href: '/dashboard/settings', label: 'Settings', icon: Settings },
     ] : []),
     ...(isAdmin ? [{ href: '/dashboard/admin', label: 'Admin Panel', icon: ShieldCheck }] : []),
   ];
@@ -92,7 +92,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [usageLimit] = useState(3);
+  const [usageLimit] = useState(20);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [resetTimeLeft, setResetTimeLeft] = useState('');
   const [isLimitActive, setIsLimitActive] = useState(false);
@@ -123,8 +123,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const addScan = useCallback(async () => {
     if (!user) return;
+    const isUserAdmin = user.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
     const newScansUsed = (userProfile?.scans_used ?? 0) + 1;
-    if (newScansUsed >= usageLimit) {
+    if (!isUserAdmin && newScansUsed >= usageLimit) {
       addNotification({ type: 'limit_reached', title: 'Usage Limit Reached', description: 'Your free scans will reset next Monday.' });
     }
     try {
@@ -134,6 +135,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     if (!user) return;
+    const isUserAdmin = user.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+    if (isUserAdmin) {
+      setIsLimitActive(false);
+      setResetTimeLeft('');
+      return;
+    }
     const now = new Date();
     const lastResetDate = userProfile?.last_scan_reset ? new Date(userProfile.last_scan_reset) : null;
     if (!lastResetDate || !isSameWeek(now, lastResetDate, { weekStartsOn: 1 })) {
@@ -157,7 +164,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       }, 1000);
       return () => clearInterval(interval);
     } else { setIsLimitActive(false); setResetTimeLeft(''); }
-  }, [userProfile?.last_scan_reset, userProfile?.scans_used, usageLimit, supabase]);
+  }, [user, userProfile?.last_scan_reset, userProfile?.scans_used, usageLimit, supabase]);
 
   useEffect(() => {
     if (mounted && !isUserLoading && user && !isAdminUser) {

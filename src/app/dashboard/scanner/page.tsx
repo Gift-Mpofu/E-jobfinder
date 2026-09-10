@@ -40,6 +40,85 @@ import { useToast } from "@/hooks/use-toast";
 import { analyzeCv, type CvAnalysisOutput } from "@/ai/flows/cv-analyzer-flow";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
+import ReactMarkdown from 'react-markdown';
+
+type ParsedSuggestion = {
+  title: string;
+  body: string;
+};
+
+function parseSuggestions(text: string): ParsedSuggestion[] {
+  if (!text || !text.trim()) return [];
+
+  const items = text
+    .split(/(?=\d+[\.\)]\s+)/)
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  const list = items.length > 0 ? items : text.split(/\n\s*\n/).map(s => s.trim()).filter(Boolean);
+
+  return list.map(item => {
+    const cleaned = item.replace(/^\d+[\.\)]\s*/, '').trim();
+    const boldMatch = cleaned.match(/^\*\*(.*?)\*\*:?\s*([\s\S]*)/);
+    if (boldMatch) {
+      return {
+        title: boldMatch[1].trim(),
+        body: boldMatch[2].trim(),
+      };
+    }
+
+    const colonMatch = cleaned.match(/^([^:\n]+):\s*([\s\S]*)/);
+    if (colonMatch && colonMatch[1].length < 45) {
+      return {
+        title: colonMatch[1].replace(/\*\*/g, '').trim(),
+        body: colonMatch[2].trim(),
+      };
+    }
+
+    const words = cleaned.replace(/\*\*/g, '').split(/\s+/);
+    if (words.length > 6) {
+      return {
+        title: words.slice(0, 6).join(' ') + '...',
+        body: words.slice(6).join(' '),
+      };
+    }
+
+    return {
+      title: cleaned.replace(/\*\*/g, ''),
+      body: '',
+    };
+  });
+}
+
+function NumberedSuggestionsList({ text }: { text: string }) {
+  const suggestions = parseSuggestions(text);
+
+  if (suggestions.length === 0) return null;
+
+  return (
+    <div className="space-y-3 mt-2">
+      {suggestions.map((item, index) => (
+        <div key={index} className="bg-[#F5F5F7] rounded-xl p-4 border border-[#E5E5EA]">
+          <div className="flex gap-3 items-start">
+            <span className="bg-[#FF6B00] text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 mt-0.5">
+              {index + 1}
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="text-[13px] font-semibold text-[#1D1D1F] mb-1">
+                {item.title}
+              </p>
+              {item.body ? (
+                <div className="text-[12px] text-[#6E6E73] leading-relaxed">
+                  <ReactMarkdown>{item.body}</ReactMarkdown>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 import {
   Dialog,
   DialogContent,
@@ -246,7 +325,9 @@ export default function ScannerPage() {
       return;
     }
 
-    if (scansUsed >= usageLimit && isLimitActive) {
+    const isAdminUser = user?.email?.toLowerCase() === 'giftmpofud@gmail.com';
+
+    if (!isAdminUser && scansUsed >= usageLimit && isLimitActive) {
       toast({
         variant: "destructive",
         title: "Usage Limit Reached",
@@ -629,9 +710,7 @@ export default function ScannerPage() {
                   icon={<Lightbulb />}
                   title="Improvement Suggestions"
                 >
-                  <p className="whitespace-pre-wrap">
-                    {analysisResult.improvementSuggestions}
-                  </p>
+                  <NumberedSuggestionsList text={analysisResult.improvementSuggestions} />
                 </ResultItem>
 
                 {analysisResult.hireRateData &&
@@ -683,9 +762,9 @@ export default function ScannerPage() {
                   )}
 
                 <ResultItem icon={<BrainCircuit />} title="Expert Reasoning">
-                  <p className="whitespace-pre-wrap">
-                    {analysisResult.reasoning}
-                  </p>
+                  <div className="text-sm text-muted-foreground leading-relaxed">
+                    <ReactMarkdown>{analysisResult.reasoning}</ReactMarkdown>
+                  </div>
                 </ResultItem>
 
                 <div className="mt-8 pt-8 border-t text-center">

@@ -22,7 +22,7 @@ export default function UpgradePage() {
             E-Job Finder is currently in a public beta. We're working hard to bring you powerful new features, including unlimited CV scans, advanced analytics, and more.
           </p>
           <p className="text-muted-foreground">
-            For now, all users can enjoy 3 free scans per week. We appreciate your feedback as we continue to build and improve the platform.
+            For now, all users can enjoy 20 free scans per week. We appreciate your feedback as we continue to build and improve the platform.
           </p>
         </CardContent>
         <CardFooter>

@@ -7,16 +7,106 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Briefcase, BarChart3, MapPin, FileText, Clock, Eye, FileUp, LogOut, Settings2, Lock, ChevronRight, Pencil, Loader2, Trash2, Award, Gauge, Star } from 'lucide-react';
+import { Briefcase, BarChart3, MapPin, FileText, Clock, Eye, FileUp, LogOut, Settings2, Lock, ChevronRight, ChevronDown, ChevronUp, Pencil, Loader2, Trash2, Award, Gauge, Star, FileSearch, Settings, Bell, Mail } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, isSameWeek } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useDashboard } from '../layout';
+import ReactMarkdown from 'react-markdown';
+
+type ParsedSuggestion = {
+  title: string;
+  body: string;
+};
+
+function parseSuggestions(text: string): ParsedSuggestion[] {
+  if (!text || !text.trim()) return [];
+
+  const items = text
+    .split(/(?=\d+[\.\)]\s+)/)
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  const list = items.length > 0 ? items : text.split(/\n\s*\n/).map(s => s.trim()).filter(Boolean);
+
+  return list.map(item => {
+    const cleaned = item.replace(/^\d+[\.\)]\s*/, '').trim();
+    const boldMatch = cleaned.match(/^\*\*(.*?)\*\*:?\s*([\s\S]*)/);
+    if (boldMatch) {
+      return {
+        title: boldMatch[1].trim(),
+        body: boldMatch[2].trim(),
+      };
+    }
+
+    const colonMatch = cleaned.match(/^([^:\n]+):\s*([\s\S]*)/);
+    if (colonMatch && colonMatch[1].length < 45) {
+      return {
+        title: colonMatch[1].replace(/\*\*/g, '').trim(),
+        body: colonMatch[2].trim(),
+      };
+    }
+
+    const words = cleaned.replace(/\*\*/g, '').split(/\s+/);
+    if (words.length > 6) {
+      return {
+        title: words.slice(0, 6).join(' ') + '...',
+        body: words.slice(6).join(' '),
+      };
+    }
+
+    return {
+      title: cleaned.replace(/\*\*/g, ''),
+      body: '',
+    };
+  });
+}
+
+function NumberedSuggestionsList({ text }: { text: string }) {
+  const suggestions = parseSuggestions(text);
+
+  if (suggestions.length === 0) return null;
+
+  return (
+    <div className="space-y-2 mt-1.5">
+      {suggestions.map((item, index) => (
+        <div key={index} className="bg-[#F5F5F7] rounded-xl p-3 border border-[#E5E5EA]">
+          <div className="flex gap-2.5 items-start">
+            <span className="bg-[#FF6B00] text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5">
+              {index + 1}
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="text-[12px] font-semibold text-[#1D1D1F] mb-0.5">
+                {item.title}
+              </p>
+              {item.body ? (
+                <div className="text-[11px] text-[#6E6E73] leading-relaxed">
+                  <ReactMarkdown>{item.body}</ReactMarkdown>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 type CV = { id: string; fileName: string; uploadDate: string; fileContent: string; };
-type MatchResult = { id: string; jobTitle: string; matchScore: number; analysisDate: string; };
+type FullScanResult = {
+  id: string;
+  jobTitle: string;
+  matchScore: number;
+  analysisDate: string;
+  strengths?: string[];
+  missingKeywords?: string[];
+  improvementSuggestions?: string;
+  reasoning?: string;
+  cvFileName?: string;
+  jobDescriptionSnippet?: string;
+};
 
 function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
@@ -45,9 +135,46 @@ export default function ProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [cvs, setCvs] = useState<CV[] | null>(null);
+  const [showAllCVs, setShowAllCVs] = useState(false);
   const [isCvsLoading, setIsCvsLoading] = useState(true);
-  const [scanHistory, setScanHistory] = useState<MatchResult[] | null>(null);
+  const [scanHistory, setScanHistory] = useState<FullScanResult[] | null>(null);
   const [isHistoryLoading, setIsHistoryLoading] = useState(true);
+  const [expandedResultIds, setExpandedResultIds] = useState<Set<string>>(new Set());
+
+  // Settings State
+  const [isSettingsExpanded, setIsSettingsExpanded] = useState(false);
+  const [savedFeedback, setSavedFeedback] = useState<string | null>(null);
+  const [emailNotifs, setEmailNotifs] = useState(true);
+  const [jobAlerts, setJobAlerts] = useState(true);
+  const [displayNameInput, setDisplayNameInput] = useState('');
+  const [usernameInput, setUsernameInput] = useState('');
+  const [bioInput, setBioInput] = useState('');
+  const [cityInput, setCityInput] = useState('Johannesburg');
+
+  useEffect(() => {
+    if (userProfile) {
+      if ((userProfile as any).full_name) setDisplayNameInput((userProfile as any).full_name);
+      if ((userProfile as any).username) setUsernameInput((userProfile as any).username);
+      if ((userProfile as any).bio) setBioInput((userProfile as any).bio);
+      if (userProfile.location) setCityInput(userProfile.location);
+    }
+  }, [userProfile]);
+
+  const handleSaveProfileField = async (fieldsToUpdate: Record<string, any>) => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update(fieldsToUpdate)
+        .eq('id', user.id);
+      if (!error) {
+        setSavedFeedback('Saved ✓');
+        setTimeout(() => setSavedFeedback(null), 2000);
+      }
+    } catch (e) {
+      console.error('Error saving profile settings field:', e);
+    }
+  };
 
   const loading = authLoading || isProfileLoading;
 
@@ -62,14 +189,71 @@ export default function ProfilePage() {
   }, [user, supabase, authLoading]);
 
   useEffect(() => {
-    if (!user || !cvs || cvs.length === 0) { if (!isCvsLoading) setIsHistoryLoading(false); return; }
+    if (!user) { if (!authLoading) setIsHistoryLoading(false); return; }
+    const userId = user.id;
     let mounted = true;
-    supabase.from('match_results').select('*').eq('user_id', user.id).eq('cv_id', cvs[0].id).order('analysis_date', { ascending: false }).limit(5)
-      .then(({ data }) => {
-        if (mounted) { if (data) setScanHistory(data.map(d => ({ id: d.id, jobTitle: d.job_title, matchScore: d.match_score, analysisDate: d.analysis_date }))); setIsHistoryLoading(false); }
-      });
+
+    async function fetchScanHistory() {
+      setIsHistoryLoading(true);
+      try {
+        const { data: matchData, error } = await supabase
+          .from('match_results')
+          .select('id, user_id, cv_id, job_description_id, job_title, match_score, analysis_date, strengths, missing_keywords, improvement_suggestions, reasoning')
+          .eq('user_id', userId)
+          .order('analysis_date', { ascending: false })
+          .limit(10);
+
+        if (error || !matchData) {
+          if (mounted) { setScanHistory([]); setIsHistoryLoading(false); }
+          return;
+        }
+
+        const cvIds = Array.from(new Set(matchData.map(m => m.cv_id).filter(Boolean)));
+        const jdIds = Array.from(new Set(matchData.map(m => m.job_description_id).filter(Boolean)));
+
+        const cvMap: Record<string, string> = {};
+        const jdMap: Record<string, string> = {};
+
+        if (cvIds.length > 0) {
+          const { data: cvsData } = await supabase.from('cvs').select('id, file_name').in('id', cvIds);
+          if (cvsData) {
+            cvsData.forEach(c => { cvMap[c.id] = c.file_name; });
+          }
+        }
+
+        if (jdIds.length > 0) {
+          const { data: jdsData } = await supabase.from('job_descriptions').select('id, description_text').in('id', jdIds);
+          if (jdsData) {
+            jdsData.forEach(j => { jdMap[j.id] = j.description_text; });
+          }
+        }
+
+        const formattedResults: FullScanResult[] = matchData.map(m => ({
+          id: m.id,
+          jobTitle: m.job_title || 'Untitled Job',
+          matchScore: m.match_score || 0,
+          analysisDate: m.analysis_date,
+          strengths: m.strengths || [],
+          missingKeywords: m.missing_keywords || [],
+          improvementSuggestions: m.improvement_suggestions || '',
+          reasoning: m.reasoning || '',
+          cvFileName: m.cv_id ? (cvMap[m.cv_id] || 'CV not found') : 'CV not found',
+          jobDescriptionSnippet: m.job_description_id ? (jdMap[m.job_description_id] || 'Description not available') : 'Description not available',
+        }));
+
+        if (mounted) {
+          setScanHistory(formattedResults);
+          setIsHistoryLoading(false);
+        }
+      } catch (err) {
+        console.error("Error fetching scan history:", err);
+        if (mounted) { setScanHistory([]); setIsHistoryLoading(false); }
+      }
+    }
+
+    fetchScanHistory();
     return () => { mounted = false; };
-  }, [user, cvs, supabase, isCvsLoading]);
+  }, [user, supabase, authLoading]);
 
   // Safe avatar — no Japanese characters from OAuth
   const avatarSrc = userProfile?.photo_url && userProfile.photo_url.trim() !== '' ? userProfile.photo_url : null;
@@ -211,38 +395,52 @@ export default function ProfilePage() {
         <SectionTitle>CV Manager</SectionTitle>
         <div className="space-y-1">
           {isCvsLoading && <Skeleton className="h-16 w-full rounded-xl" />}
-          {cvs && cvs.length > 0 ? cvs.map(cv => (
-            <Dialog key={cv.id}>
-              <DialogTrigger asChild>
-                <div className="flex items-center justify-between p-3 rounded-xl hover:bg-[#F5F5F7] cursor-pointer transition-colors">
-                  <div className="flex items-center gap-3 overflow-hidden">
-                    <FileText className="h-5 w-5 text-[#AEAEB2] flex-shrink-0" />
-                    <div className="overflow-hidden">
-                      <p className="text-sm font-semibold text-[#1D1D1F] truncate">{cv.fileName}</p>
-                      <p className="text-xs text-[#6E6E73] flex items-center gap-1">
-                        <Clock className="h-3 w-3" />{formatDistanceToNow(new Date(cv.uploadDate), { addSuffix: true })}
-                      </p>
+          {cvs && cvs.length > 0 ? (
+            (showAllCVs ? cvs : cvs.slice(0, 3)).map(cv => (
+              <Dialog key={cv.id}>
+                <DialogTrigger asChild>
+                  <div className="flex items-center justify-between p-3 rounded-xl hover:bg-[#F5F5F7] cursor-pointer transition-colors">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <FileText className="h-5 w-5 text-[#AEAEB2] flex-shrink-0" />
+                      <div className="overflow-hidden">
+                        <p className="text-sm font-semibold text-[#1D1D1F] truncate">{cv.fileName}</p>
+                        <p className="text-xs text-[#6E6E73] flex items-center gap-1">
+                          <Clock className="h-3 w-3" />{formatDistanceToNow(new Date(cv.uploadDate), { addSuffix: true })}
+                        </p>
+                      </div>
                     </div>
+                    <span className="text-xs font-medium text-[#6E6E73] flex items-center gap-1 flex-shrink-0 ml-2">
+                      <Eye className="h-3.5 w-3.5" />View
+                    </span>
                   </div>
-                  <span className="text-xs font-medium text-[#6E6E73] flex items-center gap-1 flex-shrink-0 ml-2">
-                    <Eye className="h-3.5 w-3.5" />View
-                  </span>
-                </div>
-              </DialogTrigger>
-              <DialogContent className="max-w-3xl bg-white">
-                <DialogHeader>
-                  <DialogTitle>{cv.fileName}</DialogTitle>
-                  <DialogDescription>Uploaded {formatDistanceToNow(new Date(cv.uploadDate), { addSuffix: true })}</DialogDescription>
-                </DialogHeader>
-                <ScrollArea className="h-96">
-                  <pre className="bg-white text-[#1D1D1F] border border-[#E5E5EA] rounded-xl p-5 text-sm leading-relaxed whitespace-pre-wrap overflow-y-auto max-h-[500px] font-sans">{cv.fileContent}</pre>
-                </ScrollArea>
-              </DialogContent>
-            </Dialog>
-          )) : !isCvsLoading && (
+                </DialogTrigger>
+                <DialogContent className="max-w-3xl bg-white">
+                  <DialogHeader>
+                    <DialogTitle>{cv.fileName}</DialogTitle>
+                    <DialogDescription>Uploaded {formatDistanceToNow(new Date(cv.uploadDate), { addSuffix: true })}</DialogDescription>
+                  </DialogHeader>
+                  <div className="bg-white text-[#1D1D1F] border border-[#E5E5EA] rounded-xl p-5 text-sm leading-relaxed whitespace-pre-wrap overflow-y-auto max-h-[500px]">
+                    {cv.fileContent && cv.fileContent.trim() !== ''
+                      ? cv.fileContent
+                      : 'CV content not available for this file. Try uploading again as .txt format.'}
+                  </div>
+                </DialogContent>
+              </Dialog>
+            ))
+          ) : !isCvsLoading && (
             <p className="text-sm text-[#6E6E73] text-center py-4">No CVs uploaded yet.</p>
           )}
         </div>
+
+        {cvs && cvs.length > 3 && (
+          <button 
+            onClick={() => setShowAllCVs(!showAllCVs)}
+            className="text-sm text-[#FF6B00] mt-2 font-medium hover:underline flex items-center gap-1"
+          >
+            {showAllCVs ? 'Show less ▴' : `Show all ${cvs.length} CVs ▾`}
+          </button>
+        )}
+
         <div className="mt-4 pt-4 border-t border-[#E5E5EA]">
           <Link href="/dashboard/scanner" className="flex items-center justify-center gap-2 w-full py-3 border border-[#D2D2D7] rounded-full text-sm font-medium text-[#1D1D1F] hover:bg-[#F5F5F7] transition-colors">
             <FileUp className="h-4 w-4" />Upload &amp; Analyse New CV
@@ -252,33 +450,309 @@ export default function ProfilePage() {
 
       {/* ── Scan History ── */}
       <Card className="p-6">
-        <SectionTitle>Recent Scan History</SectionTitle>
-        {isHistoryLoading && <div className="space-y-2"><Skeleton className="h-12 w-full rounded-xl" /><Skeleton className="h-12 w-full rounded-xl" /></div>}
-        {scanHistory && scanHistory.length > 0 ? (
-          <>
-            <ul className="space-y-1">
-              {scanHistory.map(scan => (
-                <li key={scan.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-[#F5F5F7] transition-colors">
-                  <div className="flex-1 overflow-hidden">
-                    <p className="text-sm font-medium text-[#1D1D1F] truncate">{scan.jobTitle}</p>
-                    <p className="text-xs text-[#6E6E73]">{formatDistanceToNow(new Date(scan.analysisDate), { addSuffix: true })}</p>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-[16px] font-semibold text-[#1D1D1F]">Scan History</h2>
+            <p className="text-[14px] text-[#6E6E73] mt-0.5">Your recent CV scan results</p>
+          </div>
+          {scanHistory && scanHistory.length > 0 && (
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-[#FFF3EB] text-[#CC5200]">
+              {(() => {
+                const countThisWeek = scanHistory.filter(s => isSameWeek(new Date(s.analysisDate), new Date(), { weekStartsOn: 1 })).length;
+                return `${countThisWeek} scan${countThisWeek === 1 ? '' : 's'} this week`;
+              })()}
+            </span>
+          )}
+        </div>
+
+        {isHistoryLoading && (
+          <div className="space-y-3">
+            <Skeleton className="h-20 w-full rounded-2xl" />
+            <Skeleton className="h-20 w-full rounded-2xl" />
+          </div>
+        )}
+
+        {!isHistoryLoading && scanHistory && scanHistory.length > 0 && (
+          <div className="space-y-3">
+            {scanHistory.map(scan => {
+              const isExpanded = expandedResultIds.has(scan.id);
+              const scoreColor = scan.matchScore >= 70
+                ? '#34C759'
+                : scan.matchScore >= 40
+                ? '#FF6B00'
+                : '#AEAEB2';
+
+              return (
+                <div
+                  key={scan.id}
+                  className="border border-[#E5E5EA] rounded-2xl p-4 transition-all duration-200 hover:shadow-sm"
+                >
+                  {/* Always visible top row */}
+                  <div
+                    onClick={() => {
+                      setExpandedResultIds(prev => {
+                        const next = new Set(prev);
+                        if (next.has(scan.id)) next.delete(scan.id);
+                        else next.add(scan.id);
+                        return next;
+                      });
+                    }}
+                    className="flex items-center justify-between gap-3 cursor-pointer select-none"
+                  >
+                    {/* Left: 48px Score Circle */}
+                    <div
+                      className="w-12 h-12 rounded-full border-[3px] flex items-center justify-center flex-shrink-0"
+                      style={{ borderColor: scoreColor, color: scoreColor }}
+                    >
+                      <span className="text-[14px] font-bold">{scan.matchScore}%</span>
+                    </div>
+
+                    {/* Middle: Job title, CV used, Date */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-[14px] font-semibold text-[#1D1D1F] truncate leading-snug">
+                        {scan.jobTitle}
+                      </h3>
+                      <p className="text-[12px] text-[#6E6E73] mt-0.5 truncate">
+                        CV: {scan.cvFileName}
+                      </p>
+                      <p className="text-[12px] text-[#AEAEB2] mt-0.5">
+                        {formatDistanceToNow(new Date(scan.analysisDate), { addSuffix: true })}
+                      </p>
+                    </div>
+
+                    {/* Right: Chevron Icon */}
+                    <div className="flex-shrink-0 text-[#AEAEB2]">
+                      {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3 ml-4">
-                    <span className="text-sm font-bold" style={{ color: getScoreColour(scan.matchScore) }}>{scan.matchScore}%</span>
-                    <ChevronRight className="h-4 w-4 text-[#AEAEB2]" />
-                  </div>
-                </li>
-              ))}
-            </ul>
-            <p className="text-xs text-center text-[#AEAEB2] mt-4 pt-4 border-t border-[#E5E5EA]">
-              <Lock className="inline h-3 w-3 mr-1" />Showing most recent CV only.{' '}
-              <Link href="/dashboard/upgrade" className="text-[#FF6B00]">Upgrade for full history.</Link>
-            </p>
-          </>
-        ) : !isHistoryLoading && (
-          <p className="text-sm text-[#6E6E73] text-center py-4">
-            No scan history yet. Analyse a CV on the dashboard to get started.
-          </p>
+
+                  {/* Expanded Section */}
+                  {isExpanded && (
+                    <div
+                      className="mt-3 bg-[#F5F5F7] rounded-2xl p-4 space-y-3 border border-[#E5E5EA] cursor-default"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {/* Job Description Preview */}
+                      <div>
+                        <p className="text-[11px] font-semibold text-[#AEAEB2] uppercase tracking-wider mb-1">
+                          Job Description Preview
+                        </p>
+                        <p className="text-[12px] text-[#6E6E73] italic leading-relaxed">
+                          {scan.jobDescriptionSnippet
+                            ? (scan.jobDescriptionSnippet.length > 200
+                                ? `${scan.jobDescriptionSnippet.slice(0, 200)}...`
+                                : scan.jobDescriptionSnippet)
+                            : 'Description not available'}
+                        </p>
+                      </div>
+
+                      {/* Strengths */}
+                      {scan.strengths && scan.strengths.length > 0 && (
+                        <div>
+                          <p className="text-[12px] font-medium text-[#34C759] mb-1.5">✓ Strengths</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {scan.strengths.map((s, i) => (
+                              <span key={i} className="text-[10px] bg-[#E8F8EE] text-[#1A7A3A] rounded-full px-2.5 py-0.5 font-medium">
+                                {s}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Missing Keywords */}
+                      {scan.missingKeywords && scan.missingKeywords.length > 0 && (
+                        <div>
+                          <p className="text-[12px] font-medium text-[#FF3B30] mb-1.5">✗ Missing</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {scan.missingKeywords.map((k, i) => (
+                              <span key={i} className="text-[10px] bg-[#FFE5E5] text-[#FF3B30] rounded-full px-2.5 py-0.5 font-medium">
+                                {k}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Improvement Suggestion */}
+                      {scan.improvementSuggestions && (
+                        <div>
+                          <p className="text-[12px] font-medium text-[#6E6E73] mb-0.5">Suggestion</p>
+                          <NumberedSuggestionsList text={scan.improvementSuggestions} />
+                        </div>
+                      )}
+
+                      {/* Re-scan button */}
+                      <div className="pt-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push('/dashboard/scanner');
+                          }}
+                          className="text-sm font-medium text-[#FF6B00] hover:underline flex items-center gap-1"
+                        >
+                          Scan this job again →
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {!isHistoryLoading && (!scanHistory || scanHistory.length === 0) && (
+          <div className="text-center py-8 px-4 space-y-3">
+            <FileSearch className="h-10 w-10 mx-auto text-[#AEAEB2]" />
+            <div>
+              <p className="text-sm font-semibold text-[#1D1D1F]">No scans yet</p>
+              <p className="text-xs text-[#6E6E73] mt-1">Use the Scanner to analyse your CV against job descriptions</p>
+            </div>
+            <Button
+              onClick={() => router.push('/dashboard/scanner')}
+              className="bg-[#FF6B00] hover:bg-[#E55F00] text-white text-xs rounded-full px-4 py-2 mt-2"
+            >
+              Go to Scanner →
+            </Button>
+          </div>
+        )}
+      </Card>
+
+      {/* ── Settings Section ── */}
+      <Card className="p-6">
+        <div
+          onClick={() => setIsSettingsExpanded(prev => !prev)}
+          className="flex items-center justify-between cursor-pointer select-none"
+        >
+          <div className="flex items-center gap-2">
+            <Settings className="h-5 w-5 text-[#FF6B00]" />
+            <h2 className="text-[16px] font-semibold text-[#1D1D1F]">⚙ Account Settings</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            {savedFeedback && (
+              <span className="text-xs font-semibold text-[#34C759] bg-[#E8F8EE] px-2.5 py-0.5 rounded-full transition-opacity">
+                {savedFeedback}
+              </span>
+            )}
+            <span className="text-[#AEAEB2]">
+              {isSettingsExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+            </span>
+          </div>
+        </div>
+
+        {isSettingsExpanded && (
+          <div className="mt-5 pt-5 border-t border-[#E5E5EA] space-y-4">
+            {/* Display Name */}
+            <div>
+              <label className="block text-xs font-semibold text-[#1D1D1F] uppercase tracking-wider mb-1">
+                Display Name
+              </label>
+              <input
+                type="text"
+                value={displayNameInput}
+                onChange={e => setDisplayNameInput(e.target.value)}
+                onBlur={() => handleSaveProfileField({ full_name: displayNameInput })}
+                placeholder="Your full name"
+                className="w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-xl px-4 py-2.5 text-sm text-[#1D1D1F] outline-none focus:border-[#FF6B00] transition-colors"
+              />
+            </div>
+
+            {/* Username */}
+            <div>
+              <label className="block text-xs font-semibold text-[#1D1D1F] uppercase tracking-wider mb-1">
+                Username
+              </label>
+              <input
+                type="text"
+                value={usernameInput}
+                onChange={e => setUsernameInput(e.target.value)}
+                onBlur={() => handleSaveProfileField({ username: usernameInput })}
+                placeholder="username"
+                className="w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-xl px-4 py-2.5 text-sm text-[#1D1D1F] outline-none focus:border-[#FF6B00] transition-colors"
+              />
+            </div>
+
+            {/* Bio */}
+            <div>
+              <label className="block text-xs font-semibold text-[#1D1D1F] uppercase tracking-wider mb-1">
+                Bio
+              </label>
+              <textarea
+                rows={3}
+                value={bioInput}
+                onChange={e => setBioInput(e.target.value)}
+                onBlur={() => handleSaveProfileField({ bio: bioInput })}
+                placeholder="Brief professional bio..."
+                className="w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-xl px-4 py-2.5 text-sm text-[#1D1D1F] outline-none focus:border-[#FF6B00] transition-colors resize-none"
+              />
+            </div>
+
+            {/* City Dropdown */}
+            <div>
+              <label className="block text-xs font-semibold text-[#1D1D1F] uppercase tracking-wider mb-1">
+                City (South Africa)
+              </label>
+              <select
+                value={cityInput}
+                onChange={e => {
+                  setCityInput(e.target.value);
+                  handleSaveProfileField({ location: e.target.value });
+                }}
+                className="w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-xl px-4 py-2.5 text-sm text-[#1D1D1F] outline-none focus:border-[#FF6B00] transition-colors"
+              >
+                {['Johannesburg', 'Cape Town', 'Durban', 'Pretoria', 'Gqeberha (Port Elizabeth)', 'Bloemfontein', 'Polokwane', 'Nelspruit', 'East London', 'Kimberley', 'Remote / Other'].map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Notification Toggles */}
+            <div className="pt-2 border-t border-[#E5E5EA] space-y-3">
+              <h3 className="text-xs font-semibold text-[#1D1D1F] uppercase tracking-wider">Notifications</h3>
+              
+              <div className="flex items-center justify-between bg-[#F5F5F7] p-3 rounded-xl">
+                <div>
+                  <p className="text-xs font-medium text-[#1D1D1F]">Email Notifications</p>
+                  <p className="text-[11px] text-[#6E6E73]">Account updates and scan results</p>
+                </div>
+                <button
+                  role="switch"
+                  aria-checked={emailNotifs}
+                  onClick={() => setEmailNotifs(!emailNotifs)}
+                  className={`relative w-10 h-5 rounded-full transition-colors ${emailNotifs ? 'bg-[#FF6B00]' : 'bg-[#D2D2D7]'}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white transition-transform ${emailNotifs ? 'translate-x-5' : ''}`} />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between bg-[#F5F5F7] p-3 rounded-xl">
+                <div>
+                  <p className="text-xs font-medium text-[#1D1D1F]">Job Match Alerts</p>
+                  <p className="text-[11px] text-[#6E6E73]">Weekly digest of high-match roles</p>
+                </div>
+                <button
+                  role="switch"
+                  aria-checked={jobAlerts}
+                  onClick={() => setJobAlerts(!jobAlerts)}
+                  className={`relative w-10 h-5 rounded-full transition-colors ${jobAlerts ? 'bg-[#FF6B00]' : 'bg-[#D2D2D7]'}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white transition-transform ${jobAlerts ? 'translate-x-5' : ''}`} />
+                </button>
+              </div>
+            </div>
+
+            {/* Delete Account Info */}
+            <div className="pt-2 border-t border-[#E5E5EA]">
+              <p className="text-xs font-semibold text-[#FF3B30] mb-1">Delete Account</p>
+              <p className="text-xs text-[#6E6E73]">
+                To request permanent account and data deletion, contact support at{' '}
+                <a href="mailto:support@e-jobfinder.co.za" className="text-[#FF6B00] underline">
+                  support@e-jobfinder.co.za
+                </a>.
+              </p>
+            </div>
+          </div>
         )}
       </Card>
 

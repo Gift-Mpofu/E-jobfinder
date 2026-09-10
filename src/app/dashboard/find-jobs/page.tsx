@@ -70,10 +70,20 @@ export default function FindJobsPage() {
 
   const [jobs, setJobs] = useState<LiveJob[]>([]);
   const [savedJobIds, setSavedJobIds] = useState<Set<string>>(new Set());
+  const [expandedJobIds, setExpandedJobIds] = useState<Set<string>>(new Set());
   const [isLoadingJobs, setIsLoadingJobs] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<TabKey>('All Jobs');
+
+  const toggleExpandJob = (jobId: string) => {
+    setExpandedJobIds(prev => {
+      const next = new Set(prev);
+      if (next.has(jobId)) next.delete(jobId);
+      else next.add(jobId);
+      return next;
+    });
+  };
 
   useEffect(() => {
     async function fetchData() {
@@ -205,49 +215,131 @@ export default function FindJobsPage() {
         <div className="space-y-3">
           {tabJobs[activeTab].map(({ job, score }) => {
             const isSaved = savedJobIds.has(job.id);
+            const isExpanded = expandedJobIds.has(job.id);
             const postedDate = job.posted_at ? new Date(job.posted_at) : new Date(job.creation_date);
+            const descSnippet = job.description_text
+              ? job.description_text.length > 120
+                ? `${job.description_text.slice(0, 120)}...`
+                : job.description_text
+              : '';
+
             return (
               <div
                 key={job.id}
-                className="bg-white rounded-2xl border border-[#E5E5EA] p-5 flex items-start gap-4 hover:-translate-y-px hover:shadow-md transition-all duration-200 cursor-pointer"
+                onClick={() => toggleExpandJob(job.id)}
+                className="bg-white rounded-2xl border border-[#E5E5EA] p-5 hover:-translate-y-px hover:shadow-md transition-all duration-200 cursor-pointer"
               >
-                <CompanyAvatar name={job.company} />
+                <div className="flex items-start gap-4">
+                  <CompanyAvatar name={job.company} />
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <h2 className="text-[15px] font-semibold text-[#1D1D1F] leading-snug">{job.title}</h2>
-                      <p className="text-[13px] text-[#6E6E73] mt-0.5">
-                        {job.company} · {job.location || 'Remote'}
-                      </p>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h2 className="text-[15px] font-semibold text-[#1D1D1F] leading-snug">{job.title}</h2>
+                        <p className="text-[13px] text-[#6E6E73] mt-0.5">
+                          {job.company} · {job.location || 'Remote'}
+                        </p>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleSaveJob(job.id);
+                        }}
+                        className={`flex-shrink-0 p-1 transition-colors ${isSaved ? 'text-[#FF6B00]' : 'text-[#AEAEB2] hover:text-[#FF6B00]'}`}
+                        aria-label={isSaved ? 'Unsave job' : 'Save job'}
+                      >
+                        {isSaved ? <BookmarkCheck className="h-5 w-5" /> : <Bookmark className="h-5 w-5" />}
+                      </button>
                     </div>
-                    <button
-                      onClick={() => toggleSaveJob(job.id)}
-                      className={`flex-shrink-0 p-1 transition-colors ${isSaved ? 'text-[#FF6B00]' : 'text-[#AEAEB2] hover:text-[#FF6B00]'}`}
-                      aria-label={isSaved ? 'Unsave job' : 'Save job'}
+
+                    {/* Description preview */}
+                    {descSnippet && (
+                      <p className="text-xs text-[#6E6E73] mt-1 line-clamp-2">
+                        {descSnippet}
+                      </p>
+                    )}
+
+                    {/* Skill pill tags */}
+                    {job.skills_required && job.skills_required.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                        {job.skills_required.slice(0, 4).map((skill, i) => (
+                          <span key={i} className="text-[10px] bg-[#FFF3EB] text-[#CC5200] rounded-full px-2 py-0.5 font-medium">
+                            {skill}
+                          </span>
+                        ))}
+                        {job.skills_required.length > 4 && (
+                          <span className="text-[10px] bg-[#FFF3EB] text-[#CC5200] rounded-full px-2 py-0.5 font-medium">
+                            +{job.skills_required.length - 4} more
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap items-center gap-2 mt-3">
+                      <MatchBadge score={score} />
+                      <span className="text-xs text-[#AEAEB2]">
+                        Posted {formatDistanceToNow(postedDate, { addSuffix: true })}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex-shrink-0 hidden sm:block">
+                    <a
+                      href={job.url || '#'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-block bg-[#FF6B00] hover:bg-[#E55F00] text-white text-sm font-medium px-4 py-2 rounded-full transition-colors duration-150"
                     >
-                      {isSaved ? <BookmarkCheck className="h-5 w-5" /> : <Bookmark className="h-5 w-5" />}
-                    </button>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2 mt-3">
-                    <MatchBadge score={score} />
-                    <span className="text-xs text-[#AEAEB2]">
-                      Posted {formatDistanceToNow(postedDate, { addSuffix: true })}
-                    </span>
+                      View Details
+                    </a>
                   </div>
                 </div>
 
-                <div className="flex-shrink-0 hidden sm:block">
-                  <a
-                    href={job.url || '#'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-block bg-[#FF6B00] hover:bg-[#E55F00] text-white text-sm font-medium px-4 py-2 rounded-full transition-colors duration-150"
+                {/* Expandable section */}
+                {isExpanded && (
+                  <div
+                    className="mt-4 pt-4 border-t border-[#E5E5EA] space-y-3 cursor-default"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    View Details
-                  </a>
-                </div>
+                    <div>
+                      <h4 className="text-xs font-semibold text-[#1D1D1F] uppercase tracking-wider mb-1.5">Description</h4>
+                      <div className="text-xs text-[#1D1D1F] leading-relaxed whitespace-pre-wrap overflow-y-auto max-h-48 p-3.5 bg-[#F5F5F7] rounded-xl border border-[#E5E5EA]">
+                        {job.description_text || 'No description available for this job listing.'}
+                      </div>
+                    </div>
+
+                    {job.skills_required && job.skills_required.length > 0 && (
+                      <div>
+                        <h4 className="text-xs font-semibold text-[#1D1D1F] uppercase tracking-wider mb-1.5">All Required Skills</h4>
+                        <div className="flex flex-wrap gap-1.5">
+                          {job.skills_required.map((skill, i) => (
+                            <span key={i} className="text-[10px] bg-[#FFF3EB] text-[#CC5200] rounded-full px-2 py-0.5 font-medium">
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap gap-4 text-xs text-[#6E6E73] pt-1">
+                      {job.seniority && (
+                        <div>
+                          <span className="font-semibold text-[#1D1D1F]">Seniority: </span>
+                          {job.seniority}
+                        </div>
+                      )}
+                      {(job.salary_min != null || job.salary_max != null) && (
+                        <div>
+                          <span className="font-semibold text-[#1D1D1F]">Salary Range: </span>
+                          {job.salary_min != null ? `R${job.salary_min.toLocaleString()}` : ''}
+                          {job.salary_min != null && job.salary_max != null ? ' - ' : ''}
+                          {job.salary_max != null ? `R${job.salary_max.toLocaleString()}` : ''}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
