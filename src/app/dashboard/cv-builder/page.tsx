@@ -202,19 +202,20 @@ export default function CvBuilderPage() {
   const [isReady, setIsReady] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isEditingAnswer, setIsEditingAnswer] = useState(false);
-  const [savedSessionPrompt, setSavedSessionPrompt] = useState<any | null>(null);
+  const [pendingSession, setPendingSession] = useState<any | null>(null);
   const [cvTemplate, setCvTemplate] = useState<'modern' | 'corporate' | 'minimalist' | 'jordan'>('jordan');
 
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const skipInitialSaveRef = useRef(true);
 
-  // Load session from localStorage
+  // On mount: offer to restore a session less than 24 hours old
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && parsed.timestamp && Date.now() - parsed.timestamp < 86400000) {
-          setSavedSessionPrompt(parsed);
+        if (parsed?.timestamp && Date.now() - parsed.timestamp < 86400000) {
+          setPendingSession(parsed);
         } else {
           localStorage.removeItem(STORAGE_KEY);
         }
@@ -224,49 +225,51 @@ export default function CvBuilderPage() {
     }
   }, []);
 
-  // Save session to localStorage
-  const saveSession = (
-    msgs: CompanionMessage[],
-    step: number,
-    data: CvData,
-    formatted: string | null
-  ) => {
+  // Save after each chat message exchange
+  useEffect(() => {
+    if (skipInitialSaveRef.current) {
+      skipInitialSaveRef.current = false;
+      return;
+    }
+    if (pendingSession) return;
+
     try {
       localStorage.setItem(
         STORAGE_KEY,
         JSON.stringify({
-          messages: msgs,
-          questionStep: step,
-          cvData: data,
-          formattedCvText: formatted,
-          timestamp: Date.now()
+          messages,
+          currentStep: questionStep,
+          answers: cvData,
+          formattedCvText,
+          timestamp: Date.now(),
         })
       );
     } catch (e) {
       console.error('Failed to save CV session to localStorage:', e);
     }
-  };
+  }, [messages, questionStep, cvData, formattedCvText, pendingSession]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading, isFormatting]);
 
   const restoreSession = () => {
-    if (!savedSessionPrompt) return;
-    setMessages(savedSessionPrompt.messages || []);
-    setQuestionStep(savedSessionPrompt.questionStep || 1);
-    setCvData(savedSessionPrompt.cvData || INITIAL_CV_DATA);
-    setFormattedCvText(savedSessionPrompt.formattedCvText || null);
-    if (savedSessionPrompt.formattedCvText || savedSessionPrompt.questionStep > 8) {
+    if (!pendingSession) return;
+    setMessages(pendingSession.messages || [{ role: 'model', content: INITIAL_QUESTION }]);
+    setQuestionStep(pendingSession.currentStep ?? pendingSession.questionStep ?? 1);
+    setCvData(pendingSession.answers ?? pendingSession.cvData ?? INITIAL_CV_DATA);
+    setFormattedCvText(pendingSession.formattedCvText ?? null);
+    const step = pendingSession.currentStep ?? pendingSession.questionStep ?? 1;
+    if (pendingSession.formattedCvText || step > 8) {
       setIsReady(true);
     }
-    setSavedSessionPrompt(null);
+    setPendingSession(null);
     toast({ title: 'Session Restored', description: 'Continued from your previous CV session.' });
   };
 
   const clearSessionPrompt = () => {
     localStorage.removeItem(STORAGE_KEY);
-    setSavedSessionPrompt(null);
+    setPendingSession(null);
   };
 
   const updateCvDataFromStep = (step: number, answerText: string) => {
@@ -315,7 +318,6 @@ export default function CvBuilderPage() {
       const formattedResult = await generateProfessionalCv(history);
       setFormattedCvText(formattedResult);
       setIsReady(true);
-      saveSession(history, 9, cvData, formattedResult);
     } catch (err: any) {
       console.error('Error generating professional CV:', err);
       toast({
@@ -342,7 +344,6 @@ export default function CvBuilderPage() {
 
     setMessages(newHistory);
     updateCvDataFromStep(questionStep, userMessage);
-    saveSession(newHistory, questionStep, cvData, formattedCvText);
 
     // Check if user pasted a multi-section full CV
     const multiExtracted = detectAndExtractMultiSections(userMessage);
@@ -370,7 +371,6 @@ export default function CvBuilderPage() {
 
       setMessages(updatedHistory);
       setQuestionStep(9);
-      saveSession(updatedHistory, 9, cvData, formattedCvText);
 
       await handleTriggerFormatCv(updatedHistory);
       return;
@@ -409,7 +409,6 @@ export default function CvBuilderPage() {
       setMessages(updatedHistory);
       const nextStep = isEditingAnswer ? questionStep : questionStep + 1;
       setQuestionStep(nextStep);
-      saveSession(updatedHistory, nextStep, cvData, formattedCvText);
 
       // Trigger professional CV formatting if 8 questions answered or in edit mode
       if (nextStep > 8 || isEditingAnswer) {
@@ -484,7 +483,7 @@ export default function CvBuilderPage() {
     setFormattedCvText(null);
     setIsReady(false);
     setIsEditingAnswer(false);
-    setSavedSessionPrompt(null);
+    setPendingSession(null);
   };
 
   const isInterviewComplete = questionStep > 8 && !isEditingAnswer;
@@ -516,11 +515,11 @@ export default function CvBuilderPage() {
       `}</style>
 
       {/* Resume Session Banner */}
-      {savedSessionPrompt && (
+      {pendingSession && (
         <div className="bg-[#FFF3EB] border border-[#FFE0CC] rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-sm text-[#CC5200] font-medium">
             <Sparkles className="h-4 w-4 text-[#FF6B00]" />
-            <span>Resume your previous CV session?</span>
+            <span>Resume session?</span>
           </div>
           <div className="flex items-center gap-2">
             <Button

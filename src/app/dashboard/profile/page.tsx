@@ -15,85 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useDashboard } from '../layout';
-import ReactMarkdown from 'react-markdown';
-
-type ParsedSuggestion = {
-  title: string;
-  body: string;
-};
-
-function parseSuggestions(text: string): ParsedSuggestion[] {
-  if (!text || !text.trim()) return [];
-
-  const items = text
-    .split(/(?=\d+[\.\)]\s+)/)
-    .map(s => s.trim())
-    .filter(Boolean);
-
-  const list = items.length > 0 ? items : text.split(/\n\s*\n/).map(s => s.trim()).filter(Boolean);
-
-  return list.map(item => {
-    const cleaned = item.replace(/^\d+[\.\)]\s*/, '').trim();
-    const boldMatch = cleaned.match(/^\*\*(.*?)\*\*:?\s*([\s\S]*)/);
-    if (boldMatch) {
-      return {
-        title: boldMatch[1].trim(),
-        body: boldMatch[2].trim(),
-      };
-    }
-
-    const colonMatch = cleaned.match(/^([^:\n]+):\s*([\s\S]*)/);
-    if (colonMatch && colonMatch[1].length < 45) {
-      return {
-        title: colonMatch[1].replace(/\*\*/g, '').trim(),
-        body: colonMatch[2].trim(),
-      };
-    }
-
-    const words = cleaned.replace(/\*\*/g, '').split(/\s+/);
-    if (words.length > 6) {
-      return {
-        title: words.slice(0, 6).join(' ') + '...',
-        body: words.slice(6).join(' '),
-      };
-    }
-
-    return {
-      title: cleaned.replace(/\*\*/g, ''),
-      body: '',
-    };
-  });
-}
-
-function NumberedSuggestionsList({ text }: { text: string }) {
-  const suggestions = parseSuggestions(text);
-
-  if (suggestions.length === 0) return null;
-
-  return (
-    <div className="space-y-2 mt-1.5">
-      {suggestions.map((item, index) => (
-        <div key={index} className="bg-[#F5F5F7] rounded-xl p-3 border border-[#E5E5EA]">
-          <div className="flex gap-2.5 items-start">
-            <span className="bg-[#FF6B00] text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5">
-              {index + 1}
-            </span>
-            <div className="flex-1 min-w-0">
-              <p className="text-[12px] font-semibold text-[#1D1D1F] mb-0.5">
-                {item.title}
-              </p>
-              {item.body ? (
-                <div className="text-[11px] text-[#6E6E73] leading-relaxed">
-                  <ReactMarkdown>{item.body}</ReactMarkdown>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
+import { NumberedSuggestionsList } from '@/components/ui/numbered-suggestions';
 
 type CV = { id: string; fileName: string; uploadDate: string; fileContent: string; };
 type FullScanResult = {
@@ -136,7 +58,7 @@ export default function ProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [cvs, setCvs] = useState<CV[] | null>(null);
-  const [showAllCVs, setShowAllCVs] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   const [isCvsLoading, setIsCvsLoading] = useState(true);
   const [scanHistory, setScanHistory] = useState<FullScanResult[] | null>(null);
   const [isHistoryLoading, setIsHistoryLoading] = useState(true);
@@ -397,7 +319,7 @@ export default function ProfilePage() {
         <div className="space-y-1">
           {isCvsLoading && <Skeleton className="h-16 w-full rounded-xl" />}
           {cvs && cvs.length > 0 ? (
-            (showAllCVs ? cvs : cvs.slice(0, 3)).map(cv => (
+            (showAll ? cvs : cvs.slice(0, 3)).map(cv => (
               <Dialog key={cv.id}>
                 <DialogTrigger asChild>
                   <div className="flex items-center justify-between p-3 rounded-xl hover:bg-[#F5F5F7] cursor-pointer transition-colors">
@@ -434,11 +356,11 @@ export default function ProfilePage() {
         </div>
 
         {cvs && cvs.length > 3 && (
-          <button 
-            onClick={() => setShowAllCVs(!showAllCVs)}
-            className="text-sm text-[#FF6B00] mt-2 font-medium hover:underline flex items-center gap-1"
+          <button
+            onClick={() => setShowAll(!showAll)}
+            className="text-sm text-[#FF6B00] mt-2 font-medium hover:underline"
           >
-            {showAllCVs ? 'Show less ▴' : `Show all ${cvs.length} CVs ▾`}
+            {showAll ? 'Show less' : `Show all ${cvs.length} CVs`}
           </button>
         )}
 
