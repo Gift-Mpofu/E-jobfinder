@@ -232,6 +232,7 @@ export default function CvBuilderPage() {
       return;
     }
     if (pendingSession) return;
+    if (messages.length <= 1) return;
 
     try {
       localStorage.setItem(
