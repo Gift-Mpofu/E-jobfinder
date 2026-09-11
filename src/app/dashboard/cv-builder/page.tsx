@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { useSupabase, useUser } from '@/supabase/provider';
+import { getSupabaseClient } from '@/lib/supabase/client';
+import { useUser } from '@/supabase/provider';
 import { useDashboard } from '../layout';
 import { useToast } from '@/hooks/use-toast';
 import { askCvBuilder, generateProfessionalCv, parseStepAnswer, type CompanionMessage } from '@/ai/flows/cv-builder-flow';
@@ -185,7 +186,7 @@ const INITIAL_QUESTION = "Hi! I'm your AI CV Writer. I'll ask you 8 quick questi
 const STORAGE_KEY = 'cv_builder_progress';
 
 export default function CvBuilderPage() {
-  const supabase = useSupabase();
+  const supabase = getSupabaseClient();
   const { user } = useUser();
   const { toast } = useToast();
 

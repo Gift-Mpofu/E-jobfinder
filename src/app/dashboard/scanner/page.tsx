@@ -128,7 +128,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useSupabase, useUser } from "@/supabase/provider";
+import { getSupabaseClient } from '@/lib/supabase/client';
+import { useUser } from "@/supabase/provider";
 import { useDashboard } from "@/app/dashboard/layout";
 
 const hireRateChartConfig = {
@@ -192,7 +193,7 @@ export default function ScannerPage() {
   const { toast } = useToast();
   const router = useRouter();
   const { user } = useUser();
-  const supabase = useSupabase();
+  const supabase = getSupabaseClient();
   const { scansUsed, usageLimit, addScan, addNotification, isLimitActive } =
     useDashboard();
 

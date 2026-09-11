@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSupabase, useUser } from '@/supabase/provider';
+import { getSupabaseClient } from '@/lib/supabase/client';
+import { useUser } from '@/supabase/provider';
 import { useProfile } from '@/supabase/hooks';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -63,7 +64,7 @@ const TABS = ['All Jobs', 'Best Matches', 'Remote', 'Saved'] as const;
 type TabKey = typeof TABS[number];
 
 export default function FindJobsPage() {
-  const supabase = useSupabase();
+  const supabase = getSupabaseClient();
   const { user } = useUser();
   const { profile, isLoading: isProfileLoading } = useProfile();
   const { toast } = useToast();

@@ -2,7 +2,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { useSupabase, useUser } from '@/supabase/provider';
+import { getSupabaseClient } from '@/lib/supabase/client';
+import { useUser } from '@/supabase/provider';
 import { Eye, EyeOff, Loader2, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
@@ -16,7 +17,7 @@ export default function AuthForm({ mode }: { mode: Mode }) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const supabase = useSupabase();
+  const supabase = getSupabaseClient();
   const { user } = useUser();
 
   const isEmailAdmin = email.toLowerCase() === ADMIN_EMAIL.toLowerCase();

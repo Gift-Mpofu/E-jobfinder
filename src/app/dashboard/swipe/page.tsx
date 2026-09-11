@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useSupabase, useUser } from '@/supabase/provider';
+import { getSupabaseClient } from '@/lib/supabase/client';
+import { useUser } from '@/supabase/provider';
 import { useProfile } from '@/supabase/hooks';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Heart, X, RotateCcw, MapPin, Briefcase } from 'lucide-react';
@@ -25,7 +26,7 @@ function getCompanyColour(name: string) {
 }
 
 export default function SwipePage() {
-  const supabase = useSupabase();
+  const supabase = getSupabaseClient();
   const { user } = useUser();
   const { profile } = useProfile();
   const { toast } = useToast();

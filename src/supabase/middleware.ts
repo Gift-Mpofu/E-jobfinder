@@ -6,11 +6,15 @@ export async function updateSession(request: NextRequest) {
     request,
   })
 
-  // Create a Supabase client configured to use cookies
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!url || !key) {
+    return supabaseResponse
+  }
+
+  try {
+    const supabase = createServerClient(url, key, {
       cookies: {
         getAll() {
           return request.cookies.getAll()
@@ -25,25 +29,27 @@ export async function updateSession(request: NextRequest) {
           )
         },
       },
+    })
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    const isAuthPage =
+      request.nextUrl.pathname.startsWith('/login') ||
+      request.nextUrl.pathname.startsWith('/signup')
+
+    // Protect the dashboard - redirect to login if not authenticated
+    if (!user && request.nextUrl.pathname.startsWith('/dashboard')) {
+      return NextResponse.redirect(new URL('/login', request.url))
     }
-  )
 
-  // VERY IMPORTANT: You must call getUser to properly validate the token 
-  // on the server instead of just reading a cookie wrapper like getSession.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  const isAuthPage = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/signup')
-
-  // Protect the dashboard - redirect to login if not authenticated
-  if (!user && request.nextUrl.pathname.startsWith('/dashboard')) {
-    return NextResponse.redirect(new URL('/login', request.url))
-  }
-
-  // Prevent logged-in users from seeing the login/signup pages
-  if (user && isAuthPage) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+    // Prevent logged-in users from seeing the login/signup pages
+    if (user && isAuthPage) {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+  } catch (error) {
+    console.warn('Supabase middleware auth update warning:', error)
   }
 
   return supabaseResponse

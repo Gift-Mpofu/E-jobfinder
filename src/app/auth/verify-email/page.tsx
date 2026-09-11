@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { useSupabase } from '@/supabase/provider';
+import { getSupabaseClient } from '@/lib/supabase/client';
 import { Mail, ArrowLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -11,7 +11,7 @@ function VerifyEmailContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { toast } = useToast();
-  const supabase = useSupabase();
+  const supabase = getSupabaseClient();
   const email = searchParams.get('email') ?? '';
 
   const [cooldown, setCooldown] = useState(0);

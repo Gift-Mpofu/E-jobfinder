@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSupabase, useUser } from '@/supabase/provider';
+import { getSupabaseClient } from '@/lib/supabase/client';
+import { useUser } from '@/supabase/provider';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -127,7 +128,7 @@ function SectionTitle({ children, action }: { children: React.ReactNode; action?
 
 export default function ProfilePage() {
   const { user, isUserLoading: authLoading } = useUser();
-  const supabase = useSupabase();
+  const supabase = getSupabaseClient();
   const router = useRouter();
   const { toast } = useToast();
   const { scansUsed, usageLimit, userProfile, isProfileLoading } = useDashboard();

@@ -24,7 +24,8 @@ import {
   FileText,
   MessageCircle,
 } from "lucide-react";
-import { useSupabase, useUser } from "@/supabase/provider";
+import { getSupabaseClient } from '@/lib/supabase/client';
+import { useUser } from "@/supabase/provider";
 import { useDashboard } from "@/app/dashboard/layout";
 import { formatDistanceToNow, subDays, startOfDay, format, subWeeks, nextMonday, startOfWeek } from "date-fns";
 
@@ -167,7 +168,7 @@ type Application = {
 export default function DashboardPage() {
   const router = useRouter();
   const { user, isUserLoading } = useUser();
-  const supabase = useSupabase();
+  const supabase = getSupabaseClient();
   const { userProfile, isProfileLoading, isAdmin } = useDashboard();
 
   const [isLoading, setIsLoading] = useState(true);

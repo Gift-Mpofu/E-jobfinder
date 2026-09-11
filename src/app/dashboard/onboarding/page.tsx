@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSupabase, useUser } from '@/supabase/provider';
+import { getSupabaseClient } from '@/lib/supabase/client';
+import { useUser } from '@/supabase/provider';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 export default function OnboardingPage() {
   const router = useRouter();
   const { user } = useUser();
-  const supabase = useSupabase();
+  const supabase = getSupabaseClient();
   const { toast } = useToast();
   
   const [step, setStep] = useState(0);

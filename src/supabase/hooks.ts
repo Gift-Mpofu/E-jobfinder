@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useSupabase, useUser } from './provider';
+import { getSupabaseClient } from '@/lib/supabase/client';
+import { useUser } from './provider';
 
 export type UserProfile = {
   id: string;
@@ -19,7 +20,7 @@ export type UserProfile = {
 
 export function useProfile() {
   const { user, isUserLoading } = useUser();
-  const supabase = useSupabase();
+  const supabase = getSupabaseClient();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -54,20 +55,11 @@ export function useProfile() {
     }
 
     fetchProfile();
-    
-    // Realtime subscription
-    const channel = supabase.channel(`profile-updates-${user.id}-${Math.random()}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` }, payload => {
-        const newData = payload.new as any;
-        setProfile(newData as UserProfile);
-      })
-      .subscribe();
 
     return () => {
       mounted = false;
-      supabase.removeChannel(channel);
     };
-  }, [user, isUserLoading, supabase]);
+  }, [user, isUserLoading]);
 
   return { profile, isLoading };
 }

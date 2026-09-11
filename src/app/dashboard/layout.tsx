@@ -3,7 +3,8 @@
 import { useState, useEffect, createContext, useContext, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from 'next/navigation';
-import { useSupabase, useUser } from "@/supabase/provider";
+import { getSupabaseClient } from '@/lib/supabase/client';
+import { useUser } from "@/supabase/provider";
 import { useProfile, type UserProfile } from "@/supabase/hooks";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -88,7 +89,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const { toast } = useToast();
   const { user, isUserLoading } = useUser();
-  const supabase = useSupabase();
+  const supabase = getSupabaseClient();
 
   const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -98,6 +99,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [isLimitActive, setIsLimitActive] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
+
+  useEffect(() => {
+    const checkConnection = async () => {
+      const { error } = await supabase
+        .from('profiles')
+        .select('id')
+        .limit(1)
+        .single();
+
+      if (error && error.message.includes('timeout')) {
+        console.warn('Supabase connection slow — retrying...');
+      }
+    };
+    checkConnection();
+  }, []);
 
   const isAdminUser = mounted && user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
