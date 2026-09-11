@@ -218,7 +218,7 @@ export default function ScannerPage() {
         .single();
       if (jdError) throw jdError;
 
-      await supabase.from("match_results").insert({
+      const { error: matchError } = await supabase.from("match_results").insert({
         user_id: userId,
         cv_id: cvData.id,
         job_description_id: jdData.id,
@@ -230,11 +230,40 @@ export default function ScannerPage() {
         reasoning: analysis.reasoning,
         hire_rate_data: analysis.hireRateData,
       });
+      if (matchError) throw matchError;
+
+      // Merge AI-extracted strengths into profile skills for job matching
+      if (analysis.strengths?.length) {
+        const { data: profileRow } = await supabase
+          .from("profiles")
+          .select("skills")
+          .eq("id", userId)
+          .single();
+        const existing = profileRow?.skills ?? [];
+        const merged = [
+          ...new Set([
+            ...existing,
+            ...analysis.strengths.map((s) => s.trim()).filter(Boolean),
+          ]),
+        ];
+        const { error: skillsError } = await supabase
+          .from("profiles")
+          .update({ skills: merged })
+          .eq("id", userId);
+        if (skillsError) {
+          console.warn("Could not update profile skills:", skillsError.message);
+        }
+      }
     } catch (error: any) {
       console.error(
         "Failed to save analysis data:",
         error?.message || error?.details || JSON.stringify(error)
       );
+      toast({
+        variant: "destructive",
+        title: "Save Failed",
+        description: "Scan completed but results could not be saved. Please try again.",
+      });
     }
   };
 

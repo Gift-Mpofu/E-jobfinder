@@ -9,7 +9,7 @@ import { useProfile, type UserProfile } from "@/supabase/hooks";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bell, User, LogOut, CheckCircle, BrainCircuit, Timer, LayoutDashboard, CreditCard, Menu, ShieldCheck, ScanLine, Settings, Heart, FileText } from "lucide-react";
+import { Bell, User, LogOut, CheckCircle, BrainCircuit, Timer, LayoutDashboard, CreditCard, Menu, ShieldCheck, ScanLine, Heart, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { AiCompanion } from '@/components/ui/ai-companion';
@@ -220,10 +220,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const navLinks = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/dashboard/scanner', label: 'Scanner', icon: ScanLine },
+    { href: '/dashboard/cv-builder', label: 'CV Builder', icon: FileText },
     { href: '/dashboard/find-jobs', label: 'Find Jobs' },
     { href: '/dashboard/swipe', label: 'Swipe', icon: Heart },
     { href: '/dashboard/profile', label: 'Profile', icon: User },
-    { href: '/dashboard/settings', label: 'Settings', icon: Settings },
     { href: '/dashboard/upgrade', label: 'Upgrade', icon: CreditCard },
   ];
 

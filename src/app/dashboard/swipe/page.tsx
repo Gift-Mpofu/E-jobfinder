@@ -51,6 +51,14 @@ export default function SwipePage() {
         supabase.from('job_swipes').select('job_id, direction').eq('user_id', user!.id),
       ]);
 
+      if (jobsRes.error) {
+        console.error('Swipe jobs load error:', jobsRes.error);
+        toast({ variant: 'destructive', title: 'Could not load jobs', description: jobsRes.error.message });
+      }
+      if (swipesRes.error) {
+        console.error('Swipe history load error:', swipesRes.error);
+      }
+
       const swiped = new Set((swipesRes.data || []).map((s) => s.job_id));
       setSwipedIds(swiped);
       setJobs((jobsRes.data || []).filter((j) => !swiped.has(j.id)));

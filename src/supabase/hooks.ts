@@ -14,6 +14,11 @@ export type UserProfile = {
   location?: string;
   skills?: string[];
   career_goals?: string;
+  full_name?: string;
+  username?: string;
+  bio?: string;
+  email_notifications?: boolean;
+  job_alerts?: boolean;
   role?: 'admin' | 'user';
   status?: 'active' | 'suspended';
 };

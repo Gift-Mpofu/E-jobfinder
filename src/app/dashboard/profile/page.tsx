@@ -76,27 +76,30 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (userProfile) {
-      if ((userProfile as any).full_name) setDisplayNameInput((userProfile as any).full_name);
-      if ((userProfile as any).username) setUsernameInput((userProfile as any).username);
-      if ((userProfile as any).bio) setBioInput((userProfile as any).bio);
+      if (userProfile.full_name) setDisplayNameInput(userProfile.full_name);
+      if (userProfile.username) setUsernameInput(userProfile.username);
+      if (userProfile.bio) setBioInput(userProfile.bio);
       if (userProfile.location) setCityInput(userProfile.location);
+      if (userProfile.email_notifications != null) setEmailNotifs(userProfile.email_notifications);
+      if (userProfile.job_alerts != null) setJobAlerts(userProfile.job_alerts);
     }
   }, [userProfile]);
 
-  const handleSaveProfileField = async (fieldsToUpdate: Record<string, any>) => {
+  const handleSaveProfileField = async (fieldsToUpdate: Record<string, unknown>) => {
     if (!user) return;
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update(fieldsToUpdate)
-        .eq('id', user.id);
-      if (!error) {
-        setSavedFeedback('Saved ✓');
-        setTimeout(() => setSavedFeedback(null), 2000);
-      }
-    } catch (e) {
-      console.error('Error saving profile settings field:', e);
+    const { error } = await supabase
+      .from('profiles')
+      .update(fieldsToUpdate)
+      .eq('id', user.id);
+    if (error) {
+      toast({ variant: 'destructive', title: 'Save failed', description: error.message });
+      return;
     }
+    if (typeof fieldsToUpdate.full_name === 'string') {
+      await supabase.auth.updateUser({ data: { full_name: fieldsToUpdate.full_name } });
+    }
+    setSavedFeedback('Saved ✓');
+    setTimeout(() => setSavedFeedback(null), 2000);
   };
 
   const loading = authLoading || isProfileLoading;
@@ -105,8 +108,15 @@ export default function ProfilePage() {
     if (!user) { if (!authLoading) setIsCvsLoading(false); return; }
     let mounted = true;
     supabase.from('cvs').select('*').eq('user_id', user.id).order('upload_date', { ascending: false })
-      .then(({ data }) => {
-        if (mounted) { if (data) setCvs(data.map(d => ({ id: d.id, fileName: d.file_name, uploadDate: d.upload_date, fileContent: d.file_content }))); setIsCvsLoading(false); }
+      .then(({ data, error }) => {
+        if (!mounted) return;
+        if (error) {
+          console.error('Error fetching CVs:', error);
+          toast({ variant: 'destructive', title: 'Could not load CVs', description: error.message });
+        } else if (data) {
+          setCvs(data.map(d => ({ id: d.id, fileName: d.file_name, uploadDate: d.upload_date, fileContent: d.file_content })));
+        }
+        setIsCvsLoading(false);
       });
     return () => { mounted = false; };
   }, [user, supabase, authLoading]);
@@ -181,7 +191,7 @@ export default function ProfilePage() {
   // Safe avatar — no Japanese characters from OAuth
   const avatarSrc = userProfile?.photo_url && userProfile.photo_url.trim() !== '' ? userProfile.photo_url : null;
   const emailInitials = user?.email?.slice(0, 2).toUpperCase() ?? 'U';
-  const displayName = user?.user_metadata?.full_name || (user?.email ? user.email.split('@')[0] : 'Anonymous User');
+  const displayName = userProfile?.full_name || user?.user_metadata?.full_name || (user?.email ? user.email.split('@')[0] : 'Anonymous User');
 
   const onSignOut = async () => {
     try { await supabase.auth.signOut(); router.push('/login'); }
@@ -642,7 +652,11 @@ export default function ProfilePage() {
                 <button
                   role="switch"
                   aria-checked={emailNotifs}
-                  onClick={() => setEmailNotifs(!emailNotifs)}
+                  onClick={() => {
+                    const next = !emailNotifs;
+                    setEmailNotifs(next);
+                    handleSaveProfileField({ email_notifications: next });
+                  }}
                   className={`relative w-10 h-5 rounded-full transition-colors ${emailNotifs ? 'bg-[#FF6B00]' : 'bg-[#D2D2D7]'}`}
                 >
                   <span className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white transition-transform ${emailNotifs ? 'translate-x-5' : ''}`} />
@@ -657,7 +671,11 @@ export default function ProfilePage() {
                 <button
                   role="switch"
                   aria-checked={jobAlerts}
-                  onClick={() => setJobAlerts(!jobAlerts)}
+                  onClick={() => {
+                    const next = !jobAlerts;
+                    setJobAlerts(next);
+                    handleSaveProfileField({ job_alerts: next });
+                  }}
                   className={`relative w-10 h-5 rounded-full transition-colors ${jobAlerts ? 'bg-[#FF6B00]' : 'bg-[#D2D2D7]'}`}
                 >
                   <span className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white transition-transform ${jobAlerts ? 'translate-x-5' : ''}`} />
