@@ -278,7 +278,11 @@ export default function ScannerPage() {
       return;
     }
 
-    const isAdminUser = user?.email?.toLowerCase() === 'giftmpofud@gmail.com';
+    const userEmail = user?.email?.toLowerCase() || '';
+    const isAdminUser =
+      userEmail === 'giftmpofud@gmail.com' ||
+      userEmail === 'jordanhellsent@gmail.com' ||
+      userEmail === 'jordanhellsent-dev@gmail.com';
 
     if (!isAdminUser && scansUsed >= usageLimit && isLimitActive) {
       toast({
