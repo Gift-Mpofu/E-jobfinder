@@ -18,6 +18,17 @@ import { useDashboard } from '../layout';
 import { NumberedSuggestionsList } from '@/components/ui/numbered-suggestions';
 
 type CV = { id: string; fileName: string; uploadDate: string; fileContent: string; };
+type Application = {
+  id: string;
+  user_id: string;
+  job_id: string | null;
+  job_title: string;
+  company: string;
+  cover_letter_used: string | null;
+  status: 'applied' | 'responded' | 'interview' | 'rejected' | 'offer';
+  applied_at: string;
+  notes?: string | null;
+};
 type FullScanResult = {
   id: string;
   jobTitle: string;
@@ -63,6 +74,10 @@ export default function ProfilePage() {
   const [scanHistory, setScanHistory] = useState<FullScanResult[] | null>(null);
   const [isHistoryLoading, setIsHistoryLoading] = useState(true);
   const [expandedResultIds, setExpandedResultIds] = useState<Set<string>>(new Set());
+
+  // Applications State
+  const [applications, setApplications] = useState<Application[] | null>(null);
+  const [isApplicationsLoading, setIsApplicationsLoading] = useState(true);
 
   // Settings State
   const [isSettingsExpanded, setIsSettingsExpanded] = useState(false);
@@ -187,6 +202,43 @@ export default function ProfilePage() {
     fetchScanHistory();
     return () => { mounted = false; };
   }, [user, supabase, authLoading]);
+
+  useEffect(() => {
+    if (!user) { if (!authLoading) setIsApplicationsLoading(false); return; }
+    let mounted = true;
+    supabase
+      .from('applications')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('applied_at', { ascending: false })
+      .then(({ data, error }) => {
+        if (!mounted) return;
+        if (error) {
+          console.error('Error fetching applications:', error);
+        } else if (data) {
+          setApplications(data as Application[]);
+        }
+        setIsApplicationsLoading(false);
+      });
+    return () => { mounted = false; };
+  }, [user, supabase, authLoading]);
+
+  const handleUpdateAppStatus = async (appId: string, newStatus: Application['status']) => {
+    const { error } = await supabase
+      .from('applications')
+      .update({ status: newStatus })
+      .eq('id', appId);
+
+    if (error) {
+      toast({ variant: 'destructive', title: 'Update failed', description: error.message });
+      return;
+    }
+
+    setApplications(prev =>
+      prev ? prev.map(a => (a.id === appId ? { ...a, status: newStatus } : a)) : null
+    );
+    toast({ title: 'Status updated', description: `Application status changed to ${newStatus}.` });
+  };
 
   // Safe avatar — no Japanese characters from OAuth
   const avatarSrc = userProfile?.photo_url && userProfile.photo_url.trim() !== '' ? userProfile.photo_url : null;
@@ -548,6 +600,84 @@ export default function ProfilePage() {
             >
               Go to Scanner →
             </Button>
+          </div>
+        )}
+      </Card>
+
+      {/* ── My Applications ── */}
+      <Card className="p-6">
+        <SectionTitle>My Applications</SectionTitle>
+        {isApplicationsLoading ? (
+          <Skeleton className="h-20 w-full rounded-xl" />
+        ) : applications && applications.length > 0 ? (
+          <div className="space-y-3">
+            {applications.map((app) => {
+              const statusStyles: Record<Application['status'], string> = {
+                applied: 'bg-[#EBF5FF] text-[#007AFF] border-[#B8D8FF]',
+                responded: 'bg-[#FFF3EB] text-[#CC5200] border-[#FFD0B3]',
+                interview: 'bg-[#E8F8EE] text-[#1A7A3A] border-[#BCE8C9]',
+                rejected: 'bg-[#FFEBEB] text-[#FF3B30] border-[#FFC2C2]',
+                offer: 'bg-[#FFF9E6] text-[#B8860B] border-[#FFE699]',
+              };
+
+              return (
+                <div
+                  key={app.id}
+                  className="p-4 bg-[#F5F5F7] rounded-xl border border-[#E5E5EA] flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                >
+                  <div>
+                    <h3 className="text-sm font-semibold text-[#1D1D1F]">{app.job_title}</h3>
+                    <p className="text-xs text-[#6E6E73] mt-0.5">{app.company}</p>
+                    <p className="text-[11px] text-[#AEAEB2] mt-1">
+                      Applied {formatDistanceToNow(new Date(app.applied_at), { addSuffix: true })}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={app.status}
+                      onChange={(e) => handleUpdateAppStatus(app.id, e.target.value as Application['status'])}
+                      className={`text-xs font-semibold px-3 py-1.5 rounded-full border outline-none cursor-pointer transition-colors ${statusStyles[app.status]}`}
+                    >
+                      <option value="applied">Applied</option>
+                      <option value="responded">Responded</option>
+                      <option value="interview">Interview</option>
+                      <option value="rejected">Rejected</option>
+                      <option value="offer">Offer</option>
+                    </select>
+
+                    {app.cover_letter_used && (
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <button className="text-xs font-medium text-[#6E6E73] hover:text-[#1D1D1F] p-1.5 bg-white rounded-lg border border-[#E5E5EA]">
+                            <FileText className="w-3.5 h-3.5" />
+                          </button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl bg-white p-6">
+                          <DialogHeader>
+                            <DialogTitle className="text-lg font-bold text-[#1D1D1F]">
+                              Cover Letter Used: {app.job_title}
+                            </DialogTitle>
+                            <DialogDescription className="text-xs text-[#6E6E73]">
+                              {app.company}
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="bg-[#F5F5F7] p-4 rounded-xl text-xs font-mono text-[#1D1D1F] whitespace-pre-wrap overflow-y-auto max-h-96 border border-[#E5E5EA]">
+                            {app.cover_letter_used}
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-center py-8 px-4 space-y-2">
+            <Briefcase className="h-10 w-10 mx-auto text-[#AEAEB2]" />
+            <p className="text-sm font-semibold text-[#1D1D1F]">No applications logged yet</p>
+            <p className="text-xs text-[#6E6E73]">Use Auto Apply on the Find Jobs page to track your job applications here!</p>
           </div>
         )}
       </Card>

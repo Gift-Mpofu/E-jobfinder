@@ -6,9 +6,11 @@ import { useUser } from '@/supabase/provider';
 import { useProfile } from '@/supabase/hooks';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Bookmark, BookmarkCheck, Search, AlertCircle } from 'lucide-react';
+import { Bookmark, BookmarkCheck, Search, AlertCircle, Sparkles, Copy, Download, Mail, CheckCircle, Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { useDashboard } from '../layout';
 
 type LiveJob = {
   id: string;
@@ -116,6 +118,7 @@ export default function FindJobsPage() {
   const { user } = useUser();
   const { profile, isLoading: isProfileLoading } = useProfile();
   const { toast } = useToast();
+  const { userProfile } = useDashboard();
 
   const [jobs, setJobs] = useState<LiveJob[]>([]);
   const [savedJobIds, setSavedJobIds] = useState<Set<string>>(new Set());
@@ -125,6 +128,100 @@ export default function FindJobsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<TabKey>('All Jobs');
   const [dateFilter, setDateFilter] = useState<'all' | '24h' | '7d' | '30d'>('all');
+
+  // Auto Apply Modal State
+  const [autoApplyState, setAutoApplyState] = useState<'generating' | 'review' | 'done' | null>(null);
+  const [selectedJob, setSelectedJob] = useState<LiveJob | null>(null);
+  const [coverLetter, setCoverLetter] = useState('');
+  const [tailoredSummary, setTailoredSummary] = useState('');
+  const [activeModalTab, setActiveModalTab] = useState<'coverLetter' | 'summary'>('coverLetter');
+  const [isMarkingApplied, setIsMarkingApplied] = useState(false);
+
+  const handleAutoApply = async (job: LiveJob) => {
+    if (!user) {
+      toast({ variant: 'destructive', title: 'Authentication required', description: 'Please sign in to auto-apply.' });
+      return;
+    }
+
+    // Fetch user CVs from Supabase
+    const { data: cvData } = await supabase
+      .from('cvs')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('upload_date', { ascending: false })
+      .limit(1);
+
+    const userCvText = cvData?.[0]?.file_content || '';
+    if (!userCvText && !userProfile?.skills?.length) {
+      toast({
+        variant: 'destructive',
+        title: 'Upload a CV first',
+        description: 'Please upload a CV in your profile before using Auto Apply.',
+      });
+      return;
+    }
+
+    setSelectedJob(job);
+    setAutoApplyState('generating');
+    setActiveModalTab('coverLetter');
+
+    try {
+      const res = await fetch('/api/auto-apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jobTitle: job.title,
+          company: job.company,
+          description: job.description_text,
+          userSkills: userProfile?.skills || [],
+          cvText: userCvText,
+          userName: userProfile?.full_name || user?.email?.split('@')[0] || 'Applicant',
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to generate application package.');
+      }
+
+      const data = await res.json();
+      setCoverLetter(data.coverLetter || '');
+      setTailoredSummary(data.tailoredSummary || '');
+      setAutoApplyState('review');
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Auto Apply Error',
+        description: err.message || 'Something went wrong while generating application.',
+      });
+      setAutoApplyState(null);
+    }
+  };
+
+  const handleMarkAsApplied = async () => {
+    if (!user || !selectedJob) return;
+    setIsMarkingApplied(true);
+    try {
+      const { error } = await supabase.from('applications').insert({
+        user_id: user.id,
+        job_id: selectedJob.id,
+        job_title: selectedJob.title,
+        company: selectedJob.company,
+        cover_letter_used: coverLetter,
+        status: 'applied',
+      });
+
+      if (error) throw error;
+      setAutoApplyState('done');
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Save Application Failed',
+        description: err.message || 'Could not record application.',
+      });
+    } finally {
+      setIsMarkingApplied(false);
+    }
+  };
 
   const toggleExpandJob = (jobId: string) => {
     setExpandedJobIds(prev => {
@@ -369,13 +466,23 @@ export default function FindJobsPage() {
                     </div>
                   </div>
 
-                  <div className="flex-shrink-0 hidden sm:block">
+                  <div className="flex-shrink-0 flex items-center gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAutoApply(job);
+                      }}
+                      className="flex items-center gap-1.5 bg-[#FF6B00] text-white text-xs sm:text-sm font-medium px-3.5 py-2 rounded-full hover:bg-[#E55F00] transition-colors"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Auto Apply
+                    </button>
                     <a
                       href={job.url || '#'}
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
-                      className="inline-block bg-[#FF6B00] hover:bg-[#E55F00] text-white text-sm font-medium px-4 py-2 rounded-full transition-colors duration-150"
+                      className="hidden sm:inline-block bg-[#F5F5F7] border border-[#E5E5EA] hover:bg-[#E5E5EA] text-[#1D1D1F] text-sm font-medium px-4 py-2 rounded-full transition-colors duration-150"
                     >
                       View Details
                     </a>
@@ -431,6 +538,162 @@ export default function FindJobsPage() {
           })}
         </div>
       )}
+
+      {/* Auto Apply Modal */}
+      <Dialog open={autoApplyState !== null} onOpenChange={(open) => { if (!open) setAutoApplyState(null); }}>
+        <DialogContent className="sm:max-w-2xl bg-white rounded-2xl p-6">
+          {autoApplyState === 'generating' && (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="w-10 h-10 border-3 border-[#FF6B00] border-t-transparent rounded-full animate-spin mb-4" />
+              <h3 className="font-semibold text-[#1D1D1F] text-lg">Crafting your application...</h3>
+              <p className="text-sm text-[#6E6E73] mt-1">Analysing job requirements...</p>
+            </div>
+          )}
+
+          {autoApplyState === 'review' && selectedJob && (
+            <div className="space-y-4">
+              <DialogHeader>
+                <DialogTitle className="text-xl font-bold text-[#1D1D1F]">
+                  Application Package: {selectedJob.title}
+                </DialogTitle>
+                <DialogDescription className="text-sm text-[#6E6E73]">
+                  {selectedJob.company} • Tailored by AI for your profile
+                </DialogDescription>
+              </DialogHeader>
+
+              {/* Tab Selector */}
+              <div className="flex gap-2 border-b border-[#E5E5EA] pb-2">
+                <button
+                  onClick={() => setActiveModalTab('coverLetter')}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    activeModalTab === 'coverLetter' ? 'bg-[#FF6B00] text-white' : 'bg-[#F5F5F7] text-[#6E6E73] hover:text-[#1D1D1F]'
+                  }`}
+                >
+                  Cover Letter
+                </button>
+                <button
+                  onClick={() => setActiveModalTab('summary')}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    activeModalTab === 'summary' ? 'bg-[#FF6B00] text-white' : 'bg-[#F5F5F7] text-[#6E6E73] hover:text-[#1D1D1F]'
+                  }`}
+                >
+                  CV Summary
+                </button>
+              </div>
+
+              {/* Editable Content */}
+              {activeModalTab === 'coverLetter' ? (
+                <div className="relative">
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(coverLetter);
+                      toast({ title: 'Copied!', description: 'Cover letter copied to clipboard.' });
+                    }}
+                    className="absolute right-3 top-3 p-1.5 bg-white rounded-lg border border-[#E5E5EA] hover:bg-[#F5F5F7] text-[#6E6E73] transition-colors"
+                    title="Copy cover letter"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                  </button>
+                  <textarea
+                    value={coverLetter}
+                    onChange={(e) => setCoverLetter(e.target.value)}
+                    rows={10}
+                    className="w-full bg-[#F5F5F7] border border-[#E5E5EA] rounded-xl p-4 text-xs font-mono text-[#1D1D1F] outline-none focus:border-[#FF6B00] leading-relaxed resize-y"
+                  />
+                </div>
+              ) : (
+                <div className="relative">
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(tailoredSummary);
+                      toast({ title: 'Copied!', description: 'CV summary copied to clipboard.' });
+                    }}
+                    className="absolute right-3 top-3 p-1.5 bg-white rounded-lg border border-[#E5E5EA] hover:bg-[#F5F5F7] text-[#6E6E73] transition-colors"
+                    title="Copy summary"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                  </button>
+                  <textarea
+                    value={tailoredSummary}
+                    onChange={(e) => setTailoredSummary(e.target.value)}
+                    rows={6}
+                    className="w-full bg-[#F5F5F7] border border-[#E5E5EA] rounded-xl p-4 text-xs font-mono text-[#1D1D1F] outline-none focus:border-[#FF6B00] leading-relaxed resize-y"
+                  />
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[#E5E5EA]">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(coverLetter);
+                    toast({ title: 'Copied cover letter!', description: 'Copied to clipboard.' });
+                  }}
+                  className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 bg-[#F5F5F7] hover:bg-[#E5E5EA] text-[#1D1D1F] rounded-lg border border-[#E5E5EA] transition-colors"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  Copy cover letter
+                </button>
+
+                <button
+                  onClick={() => window.print()}
+                  className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 bg-[#F5F5F7] hover:bg-[#E5E5EA] text-[#1D1D1F] rounded-lg border border-[#E5E5EA] transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Download PDF
+                </button>
+
+                {(() => {
+                  const emailMatch = selectedJob.description_text?.match(
+                    /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/
+                  );
+                  const recipientEmail = emailMatch ? emailMatch[0] : null;
+                  const mailtoUrl = recipientEmail
+                    ? `mailto:${recipientEmail}?subject=${encodeURIComponent(`Application for ${selectedJob.title} - ${userProfile?.full_name || 'Applicant'}`)}&body=${encodeURIComponent(coverLetter)}`
+                    : null;
+
+                  return mailtoUrl ? (
+                    <a
+                      href={mailtoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 bg-[#F5F5F7] hover:bg-[#E5E5EA] text-[#1D1D1F] rounded-lg border border-[#E5E5EA] transition-colors"
+                    >
+                      <Mail className="w-3.5 h-3.5 text-[#007AFF]" />
+                      Send via email ({recipientEmail})
+                    </a>
+                  ) : null;
+                })()}
+
+                <button
+                  onClick={handleMarkAsApplied}
+                  disabled={isMarkingApplied}
+                  className="ml-auto flex items-center gap-1.5 text-xs font-semibold px-4 py-2 bg-[#FF6B00] hover:bg-[#E55F00] text-white rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {isMarkingApplied ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                  Mark as applied
+                </button>
+              </div>
+            </div>
+          )}
+
+          {autoApplyState === 'done' && (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <CheckCircle className="w-12 h-12 text-[#34C759] mb-3" />
+              <h3 className="font-bold text-[#1D1D1F] text-xl">Application package ready!</h3>
+              <p className="text-sm text-[#6E6E73] mt-1 max-w-sm">
+                Your application has been logged to your profile applications list.
+              </p>
+              <button
+                onClick={() => setAutoApplyState(null)}
+                className="mt-6 bg-[#FF6B00] hover:bg-[#E55F00] text-white font-medium rounded-full px-6 py-2 text-sm transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
