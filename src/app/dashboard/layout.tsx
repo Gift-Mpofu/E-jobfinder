@@ -97,8 +97,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [resetTimeLeft, setResetTimeLeft] = useState('');
   const [isLimitActive, setIsLimitActive] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    const timeout = setTimeout(() => setLoading(false), 500);
+    return () => clearTimeout(timeout);
+  }, [pathname]);
 
   useEffect(() => {
     const checkConnection = async () => {
@@ -230,6 +237,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <DashboardContext.Provider value={contextValue}>
       <div className="min-h-screen bg-[#F5F5F7]" style={{ fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif" }}>
+        {loading && (
+          <div className="fixed top-0 left-0 right-0 h-0.5 bg-[#FF6B00] z-50 animate-pulse" />
+        )}
         {/* ── NAV ── */}
         <header className="sticky top-0 z-50 bg-white border-b border-[#E5E5EA]" style={{ height: '52px' }}>
           <div className="max-w-6xl mx-auto px-5 h-full flex items-center justify-between">

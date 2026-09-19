@@ -110,6 +110,21 @@ function getNewsForRole(role?: string): NewsItem[] {
   return SALES_NEWS;
 }
 
+function DashboardSkeleton() {
+  return (
+    <div className="animate-pulse space-y-4 p-6">
+      <div className="h-32 bg-gray-200 rounded-2xl" />
+      <div className="grid grid-cols-4 gap-4">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="h-20 bg-gray-200 rounded-xl" />
+        ))}
+      </div>
+      <div className="h-48 bg-gray-200 rounded-2xl" />
+      <div className="h-48 bg-gray-200 rounded-2xl" />
+    </div>
+  )
+}
+
 // ─── Skeleton shimmer ──────────────────────────────────────────────────────
 
 function Shimmer({ className }: { className?: string }) {
@@ -375,24 +390,7 @@ export default function DashboardPage() {
   );
 
   if (isLoading || isProfileLoading) {
-    return (
-      <div className="max-w-[1100px] mx-auto px-4 py-8 space-y-6">
-        <Shimmer className="h-44 w-full" />
-        <div className="grid grid-cols-1 md:grid-cols-[65fr_35fr] gap-4">
-          <div className="space-y-4">
-            <Shimmer className="h-64" />
-            <Shimmer className="h-52" />
-            <Shimmer className="h-64" />
-          </div>
-          <div className="space-y-4">
-            <Shimmer className="h-64" />
-            <Shimmer className="h-48" />
-            <Shimmer className="h-44" />
-          </div>
-        </div>
-        <Shimmer className="h-48" />
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   return (

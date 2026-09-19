@@ -60,6 +60,54 @@ function MatchBadge({ score }: { score: number }) {
   );
 }
 
+function JobFreshnessBadge({ postedAt, creationDate }: { postedAt: string | null; creationDate?: string }) {
+  const dateStr = postedAt || creationDate;
+  if (!dateStr) return null;
+  const postedDate = new Date(dateStr);
+  const diffHours = (Date.now() - postedDate.getTime()) / (1000 * 60 * 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffHours <= 24) {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs text-[#34C759] font-medium">
+        <span className="w-2 h-2 rounded-full bg-[#34C759] animate-pulse" />
+        New today
+      </span>
+    );
+  }
+
+  if (diffDays <= 7) {
+    return (
+      <span className="text-xs text-[#6E6E73]">
+        {diffDays} {diffDays === 1 ? 'day' : 'days'} ago
+      </span>
+    );
+  }
+
+  if (diffDays <= 14) {
+    return (
+      <span className="text-xs text-[#8E8E93]">
+        {Math.floor(diffDays / 7)} {Math.floor(diffDays / 7) === 1 ? 'week' : 'weeks'} ago
+      </span>
+    );
+  }
+
+  if (diffDays <= 21) {
+    return (
+      <span className="text-xs text-[#8E8E93]">
+        2 weeks ago
+      </span>
+    );
+  }
+
+  const weeksAgo = Math.floor(diffDays / 7);
+  return (
+    <span className="inline-flex items-center gap-1 text-xs text-[#8E8E93]">
+      {weeksAgo} weeks ago <span className="text-[#FF9F0A] font-medium">(older listing)</span>
+    </span>
+  );
+}
+
 const TABS = ['All Jobs', 'Best Matches', 'Remote', 'Saved'] as const;
 type TabKey = typeof TABS[number];
 
@@ -76,6 +124,7 @@ export default function FindJobsPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<TabKey>('All Jobs');
+  const [dateFilter, setDateFilter] = useState<'all' | '24h' | '7d' | '30d'>('all');
 
   const toggleExpandJob = (jobId: string) => {
     setExpandedJobIds(prev => {
@@ -137,8 +186,22 @@ export default function FindJobsPage() {
     return Math.min(Math.max(score, 10), 99);
   };
 
+  const filterByDate = (j: LiveJob) => {
+    if (dateFilter === 'all') return true;
+    const postedTime = j.posted_at ? new Date(j.posted_at).getTime() : new Date(j.creation_date).getTime();
+    const now = Date.now();
+    const diffHours = (now - postedTime) / (1000 * 60 * 60);
+    if (dateFilter === '24h') return diffHours <= 24;
+    if (dateFilter === '7d') return diffHours <= 24 * 7;
+    if (dateFilter === '30d') return diffHours <= 24 * 30;
+    return true;
+  };
+
   const q = searchQuery.toLowerCase().trim();
-  const fq = (j: LiveJob) => !q || j.title?.toLowerCase().includes(q) || j.company?.toLowerCase().includes(q) || j.location?.toLowerCase().includes(q);
+  const fq = (j: LiveJob) =>
+    (!q || j.title?.toLowerCase().includes(q) || j.company?.toLowerCase().includes(q) || j.location?.toLowerCase().includes(q)) &&
+    filterByDate(j);
+
   const allJobs = jobs.filter(fq).sort((a, b) => new Date(b.posted_at || b.creation_date).getTime() - new Date(a.posted_at || a.creation_date).getTime());
   const bestMatches = [...jobs].filter(fq).map(j => ({ job: j, score: calcScore(j) })).filter(j => j.score >= 60).sort((a, b) => b.score - a.score);
   const remoteJobs = jobs.filter(j => fq(j) && (j.location?.toLowerCase().includes('remote') || j.title?.toLowerCase().includes('remote')));
@@ -164,17 +227,29 @@ export default function FindJobsPage() {
       <div className="bg-white rounded-2xl border border-[#E5E5EA] p-6 flex flex-col sm:flex-row sm:items-center gap-4">
         <div className="flex-1">
           <h1 className="text-[28px] font-bold text-[#1D1D1F] tracking-tight">Find Jobs</h1>
-          <p className="text-[15px] text-[#6E6E73] mt-1">AI-matched live listings updated every 6 hours</p>
+          <p className="text-[15px] text-[#6E6E73] mt-1">AI-matched live listings updated daily</p>
         </div>
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#AEAEB2]" />
-          <input
-            type="text"
-            placeholder="Search jobs, companies..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-full pl-9 pr-4 py-2 text-sm text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:border-[#FF6B00] transition-colors"
-          />
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+          <div className="relative flex-1 sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#AEAEB2]" />
+            <input
+              type="text"
+              placeholder="Search jobs, companies..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-full pl-9 pr-4 py-2 text-sm text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:border-[#FF6B00] transition-colors"
+            />
+          </div>
+          <select
+            value={dateFilter}
+            onChange={e => setDateFilter(e.target.value as any)}
+            className="bg-[#F5F5F7] border border-[#D2D2D7] rounded-full px-3 py-2 text-xs font-medium text-[#1D1D1F] outline-none focus:border-[#FF6B00] transition-colors cursor-pointer"
+          >
+            <option value="all">Posted: Any time</option>
+            <option value="24h">Posted: Last 24 hours</option>
+            <option value="7d">Posted: Last 7 days</option>
+            <option value="30d">Posted: Last 30 days</option>
+          </select>
         </div>
       </div>
 
@@ -204,7 +279,19 @@ export default function FindJobsPage() {
       {/* Content */}
       {isLoadingJobs || isProfileLoading ? (
         <div className="space-y-3">
-          {[1, 2, 3].map(i => <Skeleton key={i} className="h-28 w-full rounded-2xl" />)}
+          {[...Array(5)].map((_, i) => (
+            <div
+              key={i}
+              className="animate-pulse flex gap-4 p-5 bg-white rounded-2xl border border-[#E5E5EA]"
+            >
+              <div className="w-11 h-11 bg-gray-200 rounded-xl flex-shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 bg-gray-200 rounded w-3/4" />
+                <div className="h-3 bg-gray-200 rounded w-1/2" />
+                <div className="h-3 bg-gray-200 rounded w-1/4" />
+              </div>
+            </div>
+          ))}
         </div>
       ) : tabJobs[activeTab].length === 0 ? (
         <div className="bg-white rounded-2xl border border-[#E5E5EA] p-12 text-center">
@@ -278,9 +365,7 @@ export default function FindJobsPage() {
 
                     <div className="flex flex-wrap items-center gap-2 mt-3">
                       <MatchBadge score={score} />
-                      <span className="text-xs text-[#AEAEB2]">
-                        Posted {formatDistanceToNow(postedDate, { addSuffix: true })}
-                      </span>
+                      <JobFreshnessBadge postedAt={job.posted_at} creationDate={job.creation_date} />
                     </div>
                   </div>
 

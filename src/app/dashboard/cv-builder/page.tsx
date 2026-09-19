@@ -720,7 +720,15 @@ export default function CvBuilderPage() {
         </div>
 
         {/* Right Panel (Live / Formatted Professional CV Preview) */}
-        <div className="lg:col-span-5 bg-white rounded-2xl border border-[#E5E5EA] p-6 h-[650px] overflow-y-auto flex flex-col justify-between">
+        <div className="lg:col-span-5 bg-white rounded-2xl border border-[#E5E5EA] p-6 h-[650px] overflow-y-auto flex flex-col justify-between relative">
+          {isFormatting && (
+            <div className="absolute inset-0 bg-white/80 flex flex-col items-center justify-center rounded-2xl z-10">
+              <div className="w-8 h-8 border-2 border-[#FF6B00] border-t-transparent rounded-full animate-spin mb-3" />
+              <p className="text-sm text-[#6E6E73]">
+                Crafting your professional CV...
+              </p>
+            </div>
+          )}
           <div>
             <div className="flex flex-col gap-2 border-b border-[#E5E5EA] pb-3 mb-4">
               <div className="flex items-center justify-between">
