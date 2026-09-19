@@ -82,36 +82,24 @@ const professionalCvFormatterFlow = ai.defineFlow(
     outputSchema: z.string(),
   },
   async ({ conversationHistory }) => {
-    const systemPrompt = `You are a professional CV writer. The user has answered 8 interview questions. Rewrite their answers into a professional South African CV.
+    const systemPrompt = `Rewrite these interview answers into a professional South African CV. Format exactly:
 
-Format it exactly like this:
-
-[NAME]
-[Job Title] | [City, SA]
-[Email] | [Phone] | [LinkedIn if provided]
+[NAME + TITLE]
+[Contact info]
 
 PROFESSIONAL SUMMARY
 [2-3 sentences, professional tone]
 
 WORK EXPERIENCE
-[Most recent first]
-• [Achievement bullet 1]
-• [Achievement bullet 2]
+[Most recent first, bullet points with •]
 
 TECHNICAL SKILLS
-[Skills organised by category]
+[Organised by category]
 
 EDUCATION
-[Qualification] — [Institution]
+[Qualification, institution, year]
 
-PROJECTS (if provided)
-[Project name]: [1-2 sentences]
-
-Rules:
-- Remove all asterisks, markdown, hashtags
-- Use bullet points with • symbol only
-- Professional language only
-- South African spelling (programme not program)`;
+Rules: remove all asterisks and markdown, use • for bullets only, fix grammar, professional South African English.`;
 
     const messages: any[] = [
       { role: 'system', content: [{ text: systemPrompt }] },

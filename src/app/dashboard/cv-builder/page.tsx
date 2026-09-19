@@ -183,7 +183,7 @@ const INITIAL_CV_DATA: CvData = {
 };
 
 const INITIAL_QUESTION = "Hi! I'm your AI CV Writer. I'll ask you 8 quick questions to help build a professional CV. First, what's your full name and current job title or the role you're targeting?";
-const STORAGE_KEY = 'cv_builder_progress';
+const STORAGE_KEY = 'cv_builder_v1';
 
 export default function CvBuilderPage() {
   const supabase = getSupabaseClient();
@@ -214,7 +214,7 @@ export default function CvBuilderPage() {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed?.timestamp && Date.now() - parsed.timestamp < 86400000) {
+        if (parsed?.timestamp && Date.now() - parsed.timestamp < 24 * 60 * 60 * 1000) {
           setPendingSession(parsed);
         } else {
           localStorage.removeItem(STORAGE_KEY);
@@ -239,7 +239,7 @@ export default function CvBuilderPage() {
         STORAGE_KEY,
         JSON.stringify({
           messages,
-          currentStep: questionStep,
+          step: questionStep,
           answers: cvData,
           formattedCvText,
           timestamp: Date.now(),
