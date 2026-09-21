@@ -8,7 +8,7 @@ import { Eye, EyeOff, Loader2, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
 type Mode = 'login' | 'signup';
-const ADMIN_EMAIL = 'giftmpofud@gmail.com';
+const ADMIN_EMAILS = ['giftmpofud@gmail.com', 'jordanhellsent@gmail.com', 'jordanhellsent-dev@gmail.com'];
 
 export default function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
@@ -20,11 +20,12 @@ export default function AuthForm({ mode }: { mode: Mode }) {
   const supabase = getSupabaseClient();
   const { user } = useUser();
 
-  const isEmailAdmin = email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+  const isEmailAdmin = email ? ADMIN_EMAILS.includes(email.toLowerCase()) : false;
 
   useEffect(() => {
     if (user) {
-      router.replace(user.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase() ? '/dashboard/admin' : '/dashboard');
+      const isUserAdmin = user.email ? ADMIN_EMAILS.includes(user.email.toLowerCase()) : false;
+      router.replace(isUserAdmin ? '/dashboard/admin' : '/dashboard');
     }
   }, [user, router]);
 
@@ -35,7 +36,7 @@ export default function AuthForm({ mode }: { mode: Mode }) {
       if (mode === 'login') {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        const isAdmin = data.user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+        const isAdmin = data.user?.email ? ADMIN_EMAILS.includes(data.user.email.toLowerCase()) : false;
         toast({ title: isAdmin ? 'Master Key Accepted' : 'Welcome back!', description: isAdmin ? 'System access granted.' : `Signed in as ${data.user?.email}` });
         router.replace(isAdmin ? '/dashboard/admin' : '/dashboard');
       } else {

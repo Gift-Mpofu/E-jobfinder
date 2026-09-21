@@ -124,11 +124,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const isAdminUser = Boolean(mounted && user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase()));
 
-  useEffect(() => {
-    if (mounted && !isUserLoading && isAdminUser && pathname.startsWith('/dashboard') && pathname !== '/dashboard/admin') {
-      router.replace('/dashboard/admin');
-    }
-  }, [mounted, isUserLoading, isAdminUser, pathname, router]);
+  // Access control for /dashboard/admin is handled inside admin/page.tsx
 
   const { profile: userProfile, isLoading: isProfileLoading } = useProfile();
 
