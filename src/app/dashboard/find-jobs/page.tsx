@@ -267,20 +267,44 @@ export default function FindJobsPage() {
     }
   };
 
+function calculateMatchScore(
+  userSkills: string[],
+  jobSkills: string[]
+): number {
+  if (!jobSkills?.length || !userSkills?.length) return 0;
+  
+  // If job only has 1-2 skills it's likely miscategorised
+  // Cap the score to prevent false 99% matches
+  if (jobSkills.length <= 2) {
+    const matched = jobSkills.filter(js =>
+      userSkills.some(us => 
+        us.toLowerCase().trim() === js.toLowerCase().trim()
+      )
+    ).length;
+    // Cap at 65% for jobs with very few required skills
+    return Math.min(65, Math.round((matched / jobSkills.length) * 100));
+  }
+  
+  const matched = jobSkills.filter(js =>
+    userSkills.some(us =>
+      us.toLowerCase().trim() === js.toLowerCase().trim()
+    )
+  ).length;
+  
+  return Math.round((matched / jobSkills.length) * 100);
+}
+
   const calcScore = (job: LiveJob) => {
     if (!profile?.skills?.length) return 0;
-    const us = profile.skills.map(s => s.toLowerCase().trim());
-    const js = job.skills_required?.map(s => s.toLowerCase().trim()) || [];
-    if (!js.length) return 50;
-    const matched = js.filter(j => us.some(u => j.includes(u) || u.includes(j))).length;
-    let score = 40 + Math.ceil((matched / js.length) * 60);
+    const userSkills = profile.skills;
+    const jobSkills = job.skills_required || [];
+    let score = calculateMatchScore(userSkills, jobSkills);
     if (profile.experience_level && job.seniority) {
       const e = profile.experience_level.toLowerCase(), s2 = job.seniority.toLowerCase();
       if (e.includes('senior') && s2.includes('junior')) score -= 20;
       else if (e.includes('junior') && s2.includes('senior')) score -= 20;
-      else if (e.includes(s2) || s2.includes(e)) score += 10;
     }
-    return Math.min(Math.max(score, 10), 99);
+    return Math.min(Math.max(score, 5), 99);
   };
 
   const filterByDate = (j: LiveJob) => {

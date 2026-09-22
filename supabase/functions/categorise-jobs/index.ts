@@ -1,25 +1,25 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const SKILL_KEYWORDS: Record<string, string[]> = {
-  'JavaScript': ['javascript','js','node.js','nodejs','react','vue','angular','next.js','typescript'],
-  'TypeScript': ['typescript','ts'],
+  'JavaScript': ['javascript','js','node.js','nodejs','react','vue','angular','next.js'],
+  'TypeScript': ['typescript', ' ts,', ' ts.', '(ts)'],
   'Python': ['python','django','flask','fastapi','pandas','numpy'],
   'React': ['react','reactjs','react.js','next.js','nextjs'],
-  'SQL': ['sql','postgresql','mysql','supabase','database','postgres'],
+  'SQL': ['sql server', 'postgresql', 'mysql', 'supabase postgres', ' sql ', 'database queries', 'relational database'],
   'Java': ['java','spring','maven','gradle'],
   'PHP': ['php','laravel','wordpress'],
   'C#': ['c#','dotnet','.net','asp.net'],
   'Excel': ['excel','spreadsheet','vlookup','pivot'],
-  'Power BI': ['power bi','powerbi','tableau','data visuali'],
+  'Power BI': ['power bi','powerbi','tableau','data visualization'],
   'Accounting': ['accounting','bookkeeping','xero','sage','pastel'],
-  'Sales': ['sales','crm','salesforce','cold calling','prospecting','pipeline'],
-  'Marketing': ['marketing','seo','sem','google ads','social media','content'],
+  'Sales': ['sales representative', 'sales manager', 'sales executive', 'sales coordinator', 'business development', 'crm', 'salesforce', 'cold calling', 'prospecting'],
+  'Marketing': ['digital marketing', 'marketing manager', 'seo specialist', 'content marketing', 'social media manager', 'google ads', 'marketing coordinator', 'brand manager'],
   'Project Management': ['project management','agile','scrum','jira','prince2','pmp'],
   'Customer Service': ['customer service','customer support','call centre','helpdesk'],
   'Design': ['figma','adobe','photoshop','illustrator','ui/ux','ux design'],
   'DevOps': ['devops','docker','kubernetes','ci/cd','aws','azure','gcp','terraform'],
-  'Data Analysis': ['data analysis','analyst','reporting','bi','business intelligence'],
-  'HR': ['human resources','hr','recruitment','talent acquisition','payroll'],
+  'Data Analysis': ['data analyst', 'data analysis', 'business intelligence', 'power bi', 'tableau', 'reporting analyst', 'data scientist', 'analytics'],
+  'HR': ['human resources', 'hr manager', 'hr coordinator', 'recruitment consultant', 'talent acquisition', 'payroll administrator', 'people operations'],
   'Finance': ['finance','financial','cfa','cima','acca','budgeting','forecasting'],
 };
 
@@ -33,11 +33,18 @@ const SENIORITY_KEYWORDS = {
 function extractSkills(title: string, description: string): string[] {
   const text = (title + ' ' + description).toLowerCase();
   const found: string[] = [];
+
   for (const [skill, keywords] of Object.entries(SKILL_KEYWORDS)) {
-    if (keywords.some(kw => text.includes(kw))) {
+    if (keywords.some(kw => {
+      const trimmed = kw.trim();
+      const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`(?:^|\\s|\\b)${escaped}(?:$|\\s|\\b)`, 'i');
+      return regex.test(text);
+    })) {
       found.push(skill);
     }
   }
+
   return found.length > 0 ? found : ['General'];
 }
 
@@ -72,6 +79,31 @@ Deno.serve(async (req: Request) => {
 
     const supabase = createClient(supabaseUrl, serviceKey);
 
+    // Check if request body contains reset: true
+    let shouldReset = false;
+    if (req.method === "POST") {
+      try {
+        const body = await req.clone().json();
+        if (body?.reset === true) {
+          shouldReset = true;
+        }
+      } catch (_e) {
+        // body was not JSON or empty
+      }
+    }
+
+    if (shouldReset) {
+      console.log("Reset flag detected. Resetting all open live_jobs skills & seniority...");
+      const { error: resetError } = await supabase
+        .from('live_jobs')
+        .update({ skills_required: '{}', seniority: '' })
+        .eq('status', 'open');
+
+      if (resetError) {
+        console.error("Reset failed:", resetError.message);
+      }
+    }
+
     // Fetch ALL live_jobs where skills_required is empty array '{}'
     const { data: jobs, error: fetchError } = await supabase
       .from('live_jobs')
@@ -104,6 +136,7 @@ Deno.serve(async (req: Request) => {
 
     return new Response(
       JSON.stringify({
+        reset: shouldReset,
         processed: updates.length,
         timestamp: new Date().toISOString()
       }),
