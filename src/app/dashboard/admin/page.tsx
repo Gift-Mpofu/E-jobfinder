@@ -174,11 +174,17 @@ export default function AdminPage() {
     const metrics = useMemo(() => {
         if (!users || !mounted) return { total: 0, active: 0, totalScans: 0, totalCvs: 0, totalJobs: 0 };
         const now = new Date();
-        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+        const activeCount = users.filter(u => {
+            if (u.status && u.status !== 'active') return false;
+            if (!u.lastActive) return true; // Registered active account
+            return new Date(u.lastActive) > thirtyDaysAgo;
+        }).length;
 
         return {
             total: users.length,
-            active: users.filter(u => u.lastActive && new Date(u.lastActive) > sevenDaysAgo).length,
+            active: activeCount,
             totalScans: users.reduce((acc, u) => acc + (u.scansUsed || 0), 0),
             totalCvs: allCvs?.length || 0,
             totalJobs: allJobs?.length || 0
