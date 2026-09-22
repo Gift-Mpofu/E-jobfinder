@@ -15,7 +15,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { AiCompanion } from '@/components/ui/ai-companion';
 import { isSameWeek, nextMonday, startOfDay } from 'date-fns';
 
-const ADMIN_EMAILS = ['giftmpofud@gmail.com', 'jordanhellsent@gmail.com', 'jordanhellsent-dev@gmail.com'];
+const ADMIN_EMAIL = 'giftmpofud@gmail.com';
 
 type Notification = {
   id: string;
@@ -122,7 +122,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     checkConnection();
   }, []);
 
-  const isAdminUser = Boolean(mounted && user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase()));
+  const isAdminUser = Boolean(mounted && user?.email && user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase());
 
   // Access control for /dashboard/admin is handled inside admin/page.tsx
 
@@ -142,7 +142,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const addScan = useCallback(async () => {
     if (!user) return;
-    const isUserAdmin = user.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
+    const isUserAdmin = Boolean(user.email && user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase());
     const newScansUsed = (userProfile?.scans_used ?? 0) + 1;
     if (!isUserAdmin && newScansUsed >= usageLimit) {
       addNotification({ type: 'limit_reached', title: 'Usage Limit Reached', description: 'Your free scans will reset next Monday.' });
@@ -154,7 +154,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     if (!user) return;
-    const isUserAdmin = user.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
+    const isUserAdmin = Boolean(user.email && user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase());
     if (isUserAdmin) {
       setIsLimitActive(false);
       setResetTimeLeft('');

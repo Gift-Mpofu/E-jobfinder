@@ -8,7 +8,7 @@ import { Eye, EyeOff, Loader2, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
 type Mode = 'login' | 'signup';
-const ADMIN_EMAILS = ['giftmpofud@gmail.com', 'jordanhellsent@gmail.com', 'jordanhellsent-dev@gmail.com'];
+const ADMIN_EMAIL = 'giftmpofud@gmail.com';
 
 export default function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
@@ -17,14 +17,24 @@ export default function AuthForm({ mode }: { mode: Mode }) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDevPortal, setIsDevPortal] = useState(false);
   const supabase = getSupabaseClient();
   const { user } = useUser();
 
-  const isEmailAdmin = email ? ADMIN_EMAILS.includes(email.toLowerCase()) : false;
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('admin') === 'true' || params.get('developer') === 'true') {
+        setIsDevPortal(true);
+      }
+    }
+  }, []);
+
+  const isEmailAdmin = email ? email.toLowerCase() === ADMIN_EMAIL.toLowerCase() : false;
 
   useEffect(() => {
     if (user) {
-      const isUserAdmin = user.email ? ADMIN_EMAILS.includes(user.email.toLowerCase()) : false;
+      const isUserAdmin = user.email ? user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase() : false;
       router.replace(isUserAdmin ? '/dashboard/admin' : '/dashboard');
     }
   }, [user, router]);
@@ -36,7 +46,7 @@ export default function AuthForm({ mode }: { mode: Mode }) {
       if (mode === 'login') {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        const isAdmin = data.user?.email ? ADMIN_EMAILS.includes(data.user.email.toLowerCase()) : false;
+        const isAdmin = data.user?.email ? data.user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase() : false;
         toast({ title: isAdmin ? 'Master Key Accepted' : 'Welcome back!', description: isAdmin ? 'System access granted.' : `Signed in as ${data.user?.email}` });
         router.replace(isAdmin ? '/dashboard/admin' : '/dashboard');
       } else {
@@ -101,9 +111,9 @@ export default function AuthForm({ mode }: { mode: Mode }) {
           {mode === 'login' ? 'Sign in to your account' : 'Sign up to start your AI job search'}
         </p>
 
-        {isEmailAdmin && (
+        {(isEmailAdmin || isDevPortal) && (
           <div className="mb-5 bg-[#FFF3EB] border border-[#FF6B00]/20 rounded-xl px-4 py-3 text-sm text-[#FF6B00] font-medium text-center">
-            Admin Master Key Detected
+            {isEmailAdmin ? 'Admin Master Key Detected' : 'Developer & Admin Access Portal'}
           </div>
         )}
 

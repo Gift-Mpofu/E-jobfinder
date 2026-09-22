@@ -24,7 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
-const ADMIN_EMAILS = ['giftmpofud@gmail.com', 'jordanhellsentgmail.com', 'jordanhellsent-dev@gmail.com'];
+const ADMIN_EMAIL = 'giftmpofud@gmail.com';
 
 type UserProfile = {
     id: string;
@@ -85,7 +85,7 @@ export default function AdminPage() {
         setMounted(true);
     }, []);
 
-    const isActualAdmin = Boolean(mounted && !isUserLoading && user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase()));
+    const isActualAdmin = Boolean(mounted && !isUserLoading && user?.email && user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase());
 
     const [users, setUsers] = useState<UserProfile[] | null>(null);
     const [isUsersLoading, setIsUsersLoading] = useState(true);
@@ -696,7 +696,7 @@ export default function AdminPage() {
                                                 size="sm"
                                                 className="h-8 text-[10px] font-bold uppercase"
                                                 onClick={() => handleUpdateUserField(selectedUser.id, 'status', selectedUser.status === 'suspended' ? 'active' : 'suspended')}
-                                                disabled={ADMIN_EMAILS.includes(selectedUser.email.toLowerCase())}
+                                                disabled={selectedUser.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase()}
                                             >
                                                 {selectedUser.status === 'suspended' ? <ShieldCheck className="h-3 w-3 mr-2" /> : <Ban className="h-3 w-3 mr-2" />}
                                                 {selectedUser.status === 'suspended' ? 'RESTORE' : 'SUSPEND'}
@@ -708,7 +708,7 @@ export default function AdminPage() {
                                             <Select
                                                 value={selectedUser.role || 'user'}
                                                 onValueChange={(val) => handleUpdateUserField(selectedUser.id, 'role', val)}
-                                                disabled={ADMIN_EMAILS.includes(selectedUser.email.toLowerCase())}
+                                                disabled={selectedUser.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase()}
                                             >
                                                 <SelectTrigger className="w-[120px] h-8 text-[10px] font-bold">
                                                     <SelectValue />

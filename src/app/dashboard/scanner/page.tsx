@@ -120,6 +120,55 @@ export default function ScannerPage() {
   const { scansUsed, usageLimit, addScan, addNotification, isLimitActive } =
     useDashboard();
 
+  // Restore scanner session from sessionStorage on mount
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem("scanner_session_v1");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.cvText) setCvText(parsed.cvText);
+        if (parsed.jobDescription) setJobDescription(parsed.jobDescription);
+        if (parsed.analysisResult) setAnalysisResult(parsed.analysisResult);
+        if (parsed.scanType) setScanType(parsed.scanType);
+      }
+    } catch (e) {
+      console.warn("Failed to load scanner session:", e);
+    }
+  }, []);
+
+  // Persist scanner session to sessionStorage on state changes
+  useEffect(() => {
+    try {
+      if (cvText || jobDescription || analysisResult) {
+        sessionStorage.setItem(
+          "scanner_session_v1",
+          JSON.stringify({
+            cvText,
+            jobDescription,
+            analysisResult,
+            scanType,
+          })
+        );
+      }
+    } catch (e) {
+      console.warn("Failed to save scanner session:", e);
+    }
+  }, [cvText, jobDescription, analysisResult, scanType]);
+
+  const handleClearSession = () => {
+    setCvFile(null);
+    setCvText("");
+    setJobDescription("");
+    setAnalysisResult(null);
+    try {
+      sessionStorage.removeItem("scanner_session_v1");
+    } catch (e) {}
+    toast({
+      title: "Scanner Reset",
+      description: "Cleared previous scan inputs and results.",
+    });
+  };
+
   const handleFileChange = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -279,10 +328,7 @@ export default function ScannerPage() {
     }
 
     const userEmail = user?.email?.toLowerCase() || '';
-    const isAdminUser =
-      userEmail === 'giftmpofud@gmail.com' ||
-      userEmail === 'jordanhellsent@gmail.com' ||
-      userEmail === 'jordanhellsent-dev@gmail.com';
+    const isAdminUser = userEmail === 'giftmpofud@gmail.com';
 
     if (!isAdminUser && scansUsed >= usageLimit && isLimitActive) {
       toast({
@@ -421,25 +467,38 @@ export default function ScannerPage() {
   return (
     <div className="max-w-[1100px] mx-auto px-4 py-8">
       {/* Page Header */}
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-2">
-          <div
-            className="flex items-center justify-center rounded-xl"
-            style={{ width: 40, height: 40, backgroundColor: "#FFF3EB" }}
-          >
-            <ScanLine className="h-5 w-5" style={{ color: "#FF6B00" }} />
+      <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-3 mb-2">
+            <div
+              className="flex items-center justify-center rounded-xl"
+              style={{ width: 40, height: 40, backgroundColor: "#FFF3EB" }}
+            >
+              <ScanLine className="h-5 w-5" style={{ color: "#FF6B00" }} />
+            </div>
+            <h1
+              className="font-bold tracking-tight"
+              style={{ fontSize: 28, color: "#1D1D1F" }}
+            >
+              CV Scanner
+            </h1>
           </div>
-          <h1
-            className="font-bold tracking-tight"
-            style={{ fontSize: 28, color: "#1D1D1F" }}
-          >
-            CV Scanner
-          </h1>
+          <p style={{ fontSize: 15, color: "#6E6E73" }}>
+            Paste a job description and see how well your CV matches — with
+            AI-powered gap analysis.
+          </p>
         </div>
-        <p style={{ fontSize: 15, color: "#6E6E73" }}>
-          Paste a job description and see how well your CV matches — with
-          AI-powered gap analysis.
-        </p>
+
+        {(cvText || jobDescription || analysisResult) && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleClearSession}
+            className="self-start md:self-auto rounded-full border-zinc-200 text-xs font-medium hover:bg-zinc-100"
+          >
+            Reset / New Scan
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-8">

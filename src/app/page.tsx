@@ -69,6 +69,13 @@ export default function LandingPage() {
               Sign in
             </Link>
             <Link
+              href="/login?admin=true"
+              className="text-xs transition-colors duration-200 hover:opacity-80 px-3 py-1 rounded-full border border-[#D2D2D7] text-[#6E6E73] hover:text-[#1D1D1F]"
+              title="Only admins have power to enter this"
+            >
+              Developer Sign In
+            </Link>
+            <Link
               href="/signup"
               className="text-sm font-semibold px-5 py-2 rounded-full transition-all duration-200 hover:opacity-90 hover:scale-105"
               style={{ backgroundColor: "#FF6B00", color: "#FFFFFF" }}
@@ -101,6 +108,9 @@ export default function LandingPage() {
             </button>
             <Link href="/login" className="text-base font-medium" style={{ color: "#0D0D0D" }}>
               Sign in
+            </Link>
+            <Link href="/login?admin=true" className="text-sm font-semibold text-[#FF6B00]">
+              Developer Sign In (Admins Only)
             </Link>
             <Link
               href="/signup"
