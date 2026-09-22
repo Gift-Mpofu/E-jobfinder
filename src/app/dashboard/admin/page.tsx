@@ -102,7 +102,7 @@ export default function AdminPage() {
         const fetchAllData = async () => {
             try {
                 const [profilesRes, cvsRes, jobsRes, matchesRes] = await Promise.all([
-                    supabase.from('profiles').select('*').order('email'),
+                    supabase.from('profiles').select('*'),
                     supabase.from('cvs').select('*').order('upload_date', { ascending: false }),
                     supabase.from('job_descriptions').select('*').order('creation_date', { ascending: false }),
                     supabase.from('match_results').select('*').order('analysis_date', { ascending: false })
@@ -113,7 +113,7 @@ export default function AdminPage() {
                 if (profilesRes.data) {
                     setUsers(profilesRes.data.map((p: any) => ({
                         id: p.id,
-                        email: p.email || 'unknown@example.com',
+                        email: p.email || `User (${p.id.slice(0, 8)})`,
                         targetRole: p.target_role,
                         scansUsed: p.scans_used || 0,
                         photoURL: p.photo_url,
