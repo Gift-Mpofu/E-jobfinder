@@ -20,6 +20,13 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  webpack: (config) => {
+    config.ignoreWarnings = [
+      { module: /opentelemetry/ },
+      { module: /require-in-the-middle/ },
+    ];
+    return config;
+  },
 };
 
 export default nextConfig;

@@ -10,9 +10,9 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { 
-    ShieldCheck, User, Search, Loader2, Settings, AlertTriangle, 
-    Users, FileText, ClipboardList, Activity, TrendingUp, 
+import {
+    ShieldCheck, User, Search, Loader2, Settings, AlertTriangle,
+    Users, FileText, ClipboardList, Activity, TrendingUp,
     Eye, Ban, KeyRound, Download, Trash2, Flag, Info, Server, AlertCircle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -24,7 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
-const ADMIN_EMAILS = ['giftmpofud@gmail.com', 'jordanhellsent@gmail.com', 'jordanhellsent-dev@gmail.com'];
+const ADMIN_EMAILS = ['giftmpofud@gmail.com', 'jordanhellsentgmail.com', 'jordanhellsent-dev@gmail.com'];
 
 type UserProfile = {
     id: string;
@@ -97,7 +97,7 @@ export default function AdminPage() {
 
     useEffect(() => {
         if (!isActualAdmin) return;
-        
+
         let isMounted = true;
         const fetchAllData = async () => {
             try {
@@ -175,7 +175,7 @@ export default function AdminPage() {
         if (!users || !mounted) return { total: 0, active: 0, totalScans: 0, totalCvs: 0, totalJobs: 0 };
         const now = new Date();
         const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        
+
         return {
             total: users.length,
             active: users.filter(u => u.lastActive && new Date(u.lastActive) > sevenDaysAgo).length,
@@ -205,12 +205,12 @@ export default function AdminPage() {
         }
     };
 
-    
+
     const handleDeleteMatch = async (matchId: string) => {
         if (!window.confirm("Delete this document forever?")) return;
         try {
             const { error: delError } = await supabase.from('match_results').delete().eq('id', matchId);
-            if(delError) throw delError;
+            if (delError) throw delError;
             setAllMatches(prev => prev?.filter(m => m.id !== matchId) || null);
             toast({ title: "Removed", description: "Entry purged from database." });
         } catch (error: any) {
@@ -222,7 +222,7 @@ export default function AdminPage() {
         if (!window.confirm("Delete this document forever?")) return;
         try {
             const { error: delError } = await supabase.from('cvs').delete().eq('id', cvId);
-            if(delError) throw delError;
+            if (delError) throw delError;
             setAllCvs(prev => prev?.filter(c => c.id !== cvId) || null);
             toast({ title: "Removed", description: "Entry purged from database." });
         } catch (error: any) {
@@ -231,11 +231,11 @@ export default function AdminPage() {
     };
 
 
-    
+
     const handleFlagCv = async (cvId: string, currentlyFlagged: boolean) => {
         try {
             const { error: updError } = await supabase.from('cvs').update({ flagged: !currentlyFlagged }).eq('id', cvId);
-            if(updError) throw updError;
+            if (updError) throw updError;
             setAllCvs(prev => prev?.map(c => c.id === cvId ? { ...c, flagged: !currentlyFlagged } : c) || null);
             toast({ title: currentlyFlagged ? "Unflagged" : "Flagged" });
         } catch (error: any) {
@@ -254,13 +254,13 @@ export default function AdminPage() {
         window.URL.revokeObjectURL(url);
     };
 
-    
-    
-    
+
+
+
     const handleResetPassword = async (email: string) => {
         try {
             const { error: rsaError } = await supabase.auth.resetPasswordForEmail(email);
-            if(rsaError) throw rsaError;
+            if (rsaError) throw rsaError;
             toast({ title: "Email Sent", description: "Password reset instructions delivered." });
         } catch (error: any) {
             toast({ variant: "destructive", title: "Failed", description: error.message });
@@ -287,50 +287,50 @@ export default function AdminPage() {
 
     const userChartData = useMemo(() => {
         return [
-          { name: 'Active (7d)', value: metrics.active, fill: 'hsl(var(--primary))' },
-          { name: 'Inactive', value: metrics.total - metrics.active, fill: 'hsl(var(--muted))' }
+            { name: 'Active (7d)', value: metrics.active, fill: 'hsl(var(--primary))' },
+            { name: 'Inactive', value: metrics.total - metrics.active, fill: 'hsl(var(--muted))' }
         ];
     }, [metrics]);
 
     const cvsByDate = useMemo(() => {
         if (!allCvs || !mounted) return [];
         const dates: Record<string, number> = {};
-        const last14Days = Array.from({length: 14}).map((_, i) => {
+        const last14Days = Array.from({ length: 14 }).map((_, i) => {
             const d = new Date();
             d.setDate(d.getDate() - i);
             return d.toLocaleDateString();
         }).reverse();
-        
+
         last14Days.forEach(d => dates[d] = 0);
         allCvs.forEach(cv => {
             const dateStr = new Date(cv.uploadDate).toLocaleDateString();
             if (dates[dateStr] !== undefined) dates[dateStr]++;
         });
-        
+
         return last14Days.map(date => ({ date: date.split('/')[0] + '/' + date.split('/')[1], uploads: dates[date] }));
     }, [allCvs, mounted]);
 
     const matchesByDate = useMemo(() => {
         if (!allMatches || !mounted) return [];
         const dates: Record<string, { total: number, count: number }> = {};
-        const last14Days = Array.from({length: 14}).map((_, i) => {
+        const last14Days = Array.from({ length: 14 }).map((_, i) => {
             const d = new Date();
             d.setDate(d.getDate() - i);
             return d.toLocaleDateString();
         }).reverse();
-        
+
         last14Days.forEach(d => dates[d] = { total: 0, count: 0 });
         allMatches.forEach(m => {
             const dateStr = new Date(m.analysisDate).toLocaleDateString();
             if (dates[dateStr] !== undefined) {
-                 dates[dateStr].total += m.matchScore;
-                 dates[dateStr].count++;
+                dates[dateStr].total += m.matchScore;
+                dates[dateStr].count++;
             }
         });
-        
-        return last14Days.map(date => ({ 
-            date: date.split('/')[0] + '/' + date.split('/')[1], 
-            avgScore: dates[date].count > 0 ? Math.round(dates[date].total / dates[date].count) : 0 
+
+        return last14Days.map(date => ({
+            date: date.split('/')[0] + '/' + date.split('/')[1],
+            avgScore: dates[date].count > 0 ? Math.round(dates[date].total / dates[date].count) : 0
         }));
     }, [allMatches, mounted]);
 
@@ -347,7 +347,7 @@ export default function AdminPage() {
     const StatCard = ({ title, value, icon: Icon, description, colorClass = "text-primary", type }: any) => {
         const isActive = activeFilter === type;
         return (
-            <Card 
+            <Card
                 className={cn(
                     "cursor-pointer transition-all hover:ring-2 hover:ring-primary/50",
                     isActive ? "ring-2 ring-primary bg-primary/5" : "hover:shadow-md"
@@ -378,8 +378,8 @@ export default function AdminPage() {
                 </div>
                 <div className="relative w-full md:w-80">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                        placeholder="SEARCH SYSTEM NODES..." 
+                    <Input
+                        placeholder="SEARCH SYSTEM NODES..."
                         className="pl-9 h-11 bg-muted/20 border-primary/20 font-mono text-xs uppercase"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
@@ -442,53 +442,53 @@ export default function AdminPage() {
                                         </div>
                                     </div>
                                     <Table>
-                                    <TableHeader>
-                                        <TableRow className="bg-muted/10">
-                                            <TableHead className="text-[10px] font-black uppercase">Identifier</TableHead>
-                                            <TableHead className="text-[10px] font-black uppercase">Status</TableHead>
-                                            <TableHead className="text-[10px] font-black uppercase">Activity</TableHead>
-                                            <TableHead className="text-[10px] font-black uppercase">Usage</TableHead>
-                                            <TableHead className="text-right pr-6 text-[10px] font-black uppercase">Control</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {filteredUsers.map((u) => (
-                                            <TableRow key={u.id} className="hover:bg-muted/5 transition-colors">
-                                                <TableCell>
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="h-8 w-8 rounded-full border-2 border-primary/20 bg-muted flex items-center justify-center overflow-hidden">
-                                                            {u.photoURL ? <img src={u.photoURL} alt="" className="h-full w-full object-cover" /> : <User className="h-4 w-4 text-muted-foreground" />}
-                                                        </div>
-                                                        <div className="flex flex-col">
-                                                            <span className="font-bold text-sm">{u.email}</span>
-                                                            <span className="text-[8px] text-muted-foreground uppercase tracking-widest">{u.role || 'user'}</span>
-                                                        </div>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Badge variant={u.status === 'suspended' ? 'destructive' : 'outline'} className="text-[9px] font-bold uppercase">
-                                                        {u.status || 'active'}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <span className="text-[10px] font-mono text-muted-foreground">
-                                                        {u.lastActive ? formatDistanceToNow(new Date(u.lastActive), { addSuffix: true }) : 'OFFLINE'}
-                                                    </span>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <span className={cn("font-mono font-bold text-xs", u.scansUsed >= 3 ? "text-destructive" : "text-primary")}>
-                                                        {u.scansUsed}/3
-                                                    </span>
-                                                </TableCell>
-                                                <TableCell className="text-right pr-6">
-                                                    <Button variant="outline" size="sm" className="h-8 text-[10px] font-bold uppercase" onClick={() => { setSelectedUser(u); setIsUserDetailsOpen(true); }}>
-                                                        <Settings className="h-3 w-3 mr-2" /> Manage
-                                                    </Button>
-                                                </TableCell>
+                                        <TableHeader>
+                                            <TableRow className="bg-muted/10">
+                                                <TableHead className="text-[10px] font-black uppercase">Identifier</TableHead>
+                                                <TableHead className="text-[10px] font-black uppercase">Status</TableHead>
+                                                <TableHead className="text-[10px] font-black uppercase">Activity</TableHead>
+                                                <TableHead className="text-[10px] font-black uppercase">Usage</TableHead>
+                                                <TableHead className="text-right pr-6 text-[10px] font-black uppercase">Control</TableHead>
                                             </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {filteredUsers.map((u) => (
+                                                <TableRow key={u.id} className="hover:bg-muted/5 transition-colors">
+                                                    <TableCell>
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="h-8 w-8 rounded-full border-2 border-primary/20 bg-muted flex items-center justify-center overflow-hidden">
+                                                                {u.photoURL ? <img src={u.photoURL} alt="" className="h-full w-full object-cover" /> : <User className="h-4 w-4 text-muted-foreground" />}
+                                                            </div>
+                                                            <div className="flex flex-col">
+                                                                <span className="font-bold text-sm">{u.email}</span>
+                                                                <span className="text-[8px] text-muted-foreground uppercase tracking-widest">{u.role || 'user'}</span>
+                                                            </div>
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Badge variant={u.status === 'suspended' ? 'destructive' : 'outline'} className="text-[9px] font-bold uppercase">
+                                                            {u.status || 'active'}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <span className="text-[10px] font-mono text-muted-foreground">
+                                                            {u.lastActive ? formatDistanceToNow(new Date(u.lastActive), { addSuffix: true }) : 'OFFLINE'}
+                                                        </span>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <span className={cn("font-mono font-bold text-xs", u.scansUsed >= 3 ? "text-destructive" : "text-primary")}>
+                                                            {u.scansUsed}/3
+                                                        </span>
+                                                    </TableCell>
+                                                    <TableCell className="text-right pr-6">
+                                                        <Button variant="outline" size="sm" className="h-8 text-[10px] font-bold uppercase" onClick={() => { setSelectedUser(u); setIsUserDetailsOpen(true); }}>
+                                                            <Settings className="h-3 w-3 mr-2" /> Manage
+                                                        </Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
                                 </>
                             )}
                         </CardContent>
@@ -512,68 +512,68 @@ export default function AdminPage() {
                                         <ResponsiveContainer width="100%" height="80%">
                                             <LineChart data={cvsByDate} margin={{ top: 0, right: 10, left: -20, bottom: 0 }}>
                                                 <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="hsl(var(--muted-foreground)/0.2)" />
-                                                <XAxis dataKey="date" fontSize={10} axisLine={false} tickLine={false} tick={{fill: 'hsl(var(--muted-foreground))'}} />
-                                                <YAxis fontSize={10} axisLine={false} tickLine={false} tick={{fill: 'hsl(var(--muted-foreground))'}} allowDecimals={false} />
-                                                <Tooltip cursor={{fill: 'hsl(var(--muted)/0.5)'}} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                                                <XAxis dataKey="date" fontSize={10} axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                                                <YAxis fontSize={10} axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
+                                                <Tooltip cursor={{ fill: 'hsl(var(--muted)/0.5)' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
                                                 <Line type="monotone" dataKey="uploads" stroke="hsl(var(--primary))" strokeWidth={3} dot={{ r: 4, fill: 'hsl(var(--background))', strokeWidth: 2 }} activeDot={{ r: 6 }} />
                                             </LineChart>
                                         </ResponsiveContainer>
                                     </div>
                                     <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead className="text-[10px] font-black uppercase">Filename</TableHead>
-                                            <TableHead className="text-[10px] font-black uppercase">Owner</TableHead>
-                                            <TableHead className="text-[10px] font-black uppercase">Date</TableHead>
-                                            <TableHead className="text-[10px] font-black uppercase">Status</TableHead>
-                                            <TableHead className="text-right pr-6 text-[10px] font-black uppercase">Actions</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {allCvs?.map((cv) => {
-                                            const owner = users?.find(u => u.id === cv.userId);
-                                            return (
-                                                <TableRow key={cv.id}>
-                                                    <TableCell className="font-medium text-xs">{cv.fileName}</TableCell>
-                                                    <TableCell className="text-[10px] font-mono">{owner?.email || cv.userId}</TableCell>
-                                                    <TableCell className="text-[10px] text-muted-foreground">{new Date(cv.uploadDate).toLocaleDateString()}</TableCell>
-                                                    <TableCell>
-                                                        {cv.flagged && <Badge variant="destructive" className="text-[8px] gap-1"><AlertTriangle className="h-2 w-2" /> FLAG</Badge>}
-                                                    </TableCell>
-                                                    <TableCell className="text-right pr-6">
-                                                        <div className="flex justify-end gap-1">
-                                                            <Dialog>
-                                                                <DialogTrigger asChild>
-                                                                    <Button variant="ghost" size="icon" className="h-8 w-8"><Eye className="h-3 w-3" /></Button>
-                                                                </DialogTrigger>
-                                                                <DialogContent className="max-w-3xl">
-                                                                    <DialogHeader>
-                                                                        <DialogTitle className="text-sm font-bold">{cv.fileName}</DialogTitle>
-                                                                        <DialogDescription className="text-[10px] uppercase">Node: {cv.id}</DialogDescription>
-                                                                    </DialogHeader>
-                                                                    <ScrollArea className="h-[400px] border rounded-lg p-4 bg-muted/30 font-mono text-[11px] leading-relaxed">
-                                                                        <pre className="whitespace-pre-wrap">{cv.fileContent}</pre>
-                                                                    </ScrollArea>
-                                                                    <DialogFooter>
-                                                                        <Button variant="outline" size="sm" onClick={() => handleDownloadContent(cv.fileContent, cv.fileName)}>
-                                                                            <Download className="h-3 w-3 mr-2" /> Download Raw
-                                                                        </Button>
-                                                                    </DialogFooter>
-                                                                </DialogContent>
-                                                            </Dialog>
-                                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleFlagCv(cv.id, !!cv.flagged)}>
-                                                                <Flag className={cn("h-3 w-3", cv.flagged ? "text-destructive fill-destructive" : "")} />
-                                                            </Button>
-                                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteCv(cv.id)}>
-                                                                <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-                                                            </Button>
-                                                        </div>
-                                                    </TableCell>
-                                                </TableRow>
-                                            );
-                                        })}
-                                    </TableBody>
-                                </Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead className="text-[10px] font-black uppercase">Filename</TableHead>
+                                                <TableHead className="text-[10px] font-black uppercase">Owner</TableHead>
+                                                <TableHead className="text-[10px] font-black uppercase">Date</TableHead>
+                                                <TableHead className="text-[10px] font-black uppercase">Status</TableHead>
+                                                <TableHead className="text-right pr-6 text-[10px] font-black uppercase">Actions</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {allCvs?.map((cv) => {
+                                                const owner = users?.find(u => u.id === cv.userId);
+                                                return (
+                                                    <TableRow key={cv.id}>
+                                                        <TableCell className="font-medium text-xs">{cv.fileName}</TableCell>
+                                                        <TableCell className="text-[10px] font-mono">{owner?.email || cv.userId}</TableCell>
+                                                        <TableCell className="text-[10px] text-muted-foreground">{new Date(cv.uploadDate).toLocaleDateString()}</TableCell>
+                                                        <TableCell>
+                                                            {cv.flagged && <Badge variant="destructive" className="text-[8px] gap-1"><AlertTriangle className="h-2 w-2" /> FLAG</Badge>}
+                                                        </TableCell>
+                                                        <TableCell className="text-right pr-6">
+                                                            <div className="flex justify-end gap-1">
+                                                                <Dialog>
+                                                                    <DialogTrigger asChild>
+                                                                        <Button variant="ghost" size="icon" className="h-8 w-8"><Eye className="h-3 w-3" /></Button>
+                                                                    </DialogTrigger>
+                                                                    <DialogContent className="max-w-3xl">
+                                                                        <DialogHeader>
+                                                                            <DialogTitle className="text-sm font-bold">{cv.fileName}</DialogTitle>
+                                                                            <DialogDescription className="text-[10px] uppercase">Node: {cv.id}</DialogDescription>
+                                                                        </DialogHeader>
+                                                                        <ScrollArea className="h-[400px] border rounded-lg p-4 bg-muted/30 font-mono text-[11px] leading-relaxed">
+                                                                            <pre className="whitespace-pre-wrap">{cv.fileContent}</pre>
+                                                                        </ScrollArea>
+                                                                        <DialogFooter>
+                                                                            <Button variant="outline" size="sm" onClick={() => handleDownloadContent(cv.fileContent, cv.fileName)}>
+                                                                                <Download className="h-3 w-3 mr-2" /> Download Raw
+                                                                            </Button>
+                                                                        </DialogFooter>
+                                                                    </DialogContent>
+                                                                </Dialog>
+                                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleFlagCv(cv.id, !!cv.flagged)}>
+                                                                    <Flag className={cn("h-3 w-3", cv.flagged ? "text-destructive fill-destructive" : "")} />
+                                                                </Button>
+                                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteCv(cv.id)}>
+                                                                    <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                                                                </Button>
+                                                            </div>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                );
+                                            })}
+                                        </TableBody>
+                                    </Table>
                                 </>
                             )}
                         </CardContent>
@@ -597,70 +597,70 @@ export default function AdminPage() {
                                         <ResponsiveContainer width="100%" height="80%">
                                             <LineChart data={matchesByDate} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                                 <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="hsl(var(--muted-foreground)/0.2)" />
-                                                <XAxis dataKey="date" fontSize={10} axisLine={false} tickLine={false} tick={{fill: 'hsl(var(--muted-foreground))'}} />
-                                                <YAxis fontSize={10} axisLine={false} tickLine={false} domain={[0, 100]} tick={{fill: 'hsl(var(--muted-foreground))'}} />
+                                                <XAxis dataKey="date" fontSize={10} axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                                                <YAxis fontSize={10} axisLine={false} tickLine={false} domain={[0, 100]} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
                                                 <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
-                                                <Line type="monotone" dataKey="avgScore" stroke="hsl(var(--primary))" strokeWidth={3} dot={{r: 4, fill: 'hsl(var(--background))', strokeWidth: 2}} activeDot={{r: 6}} />
+                                                <Line type="monotone" dataKey="avgScore" stroke="hsl(var(--primary))" strokeWidth={3} dot={{ r: 4, fill: 'hsl(var(--background))', strokeWidth: 2 }} activeDot={{ r: 6 }} />
                                             </LineChart>
                                         </ResponsiveContainer>
                                     </div>
                                     <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead className="text-[10px] font-black uppercase">Role Identified</TableHead>
-                                            <TableHead className="text-[10px] font-black uppercase">User</TableHead>
-                                            <TableHead className="text-[10px] font-black uppercase">Score</TableHead>
-                                            <TableHead className="text-[10px] font-black uppercase">Timestamp</TableHead>
-                                            <TableHead className="text-right pr-6 text-[10px] font-black uppercase">Details</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {allMatches?.map((match) => {
-                                            const owner = users?.find(u => u.id === match.userId);
-                                            return (
-                                                <TableRow key={match.id}>
-                                                    <TableCell className="font-bold text-xs">{match.jobTitle}</TableCell>
-                                                    <TableCell className="text-[10px] font-mono">{owner?.email || match.userId}</TableCell>
-                                                    <TableCell>
-                                                        <Badge variant={match.matchScore > 75 ? 'default' : 'secondary'} className="text-[9px] font-bold">
-                                                            {match.matchScore}%
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell className="text-[10px] text-muted-foreground font-mono">
-                                                        {new Date(match.analysisDate).toLocaleDateString()}
-                                                    </TableCell>
-                                                    <TableCell className="text-right pr-6">
-                                                        <Dialog>
-                                                            <DialogTrigger asChild>
-                                                                <Button variant="ghost" size="icon" className="h-8 w-8"><Info className="h-3 w-3" /></Button>
-                                                            </DialogTrigger>
-                                                            <DialogContent className="max-w-2xl">
-                                                                <DialogHeader>
-                                                                    <DialogTitle className="text-sm font-bold">Analysis Feedback</DialogTitle>
-                                                                    <DialogDescription className="text-[10px] uppercase">Job Title: {match.jobTitle}</DialogDescription>
-                                                                </DialogHeader>
-                                                                <div className="space-y-4">
-                                                                    <div className="p-4 bg-muted/30 rounded-lg border">
-                                                                        <h4 className="text-[10px] font-black uppercase mb-2 text-primary">AI Reasoning</h4>
-                                                                        <p className="text-xs leading-relaxed text-muted-foreground">{match.reasoning || "No detailed reasoning available."}</p>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead className="text-[10px] font-black uppercase">Role Identified</TableHead>
+                                                <TableHead className="text-[10px] font-black uppercase">User</TableHead>
+                                                <TableHead className="text-[10px] font-black uppercase">Score</TableHead>
+                                                <TableHead className="text-[10px] font-black uppercase">Timestamp</TableHead>
+                                                <TableHead className="text-right pr-6 text-[10px] font-black uppercase">Details</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {allMatches?.map((match) => {
+                                                const owner = users?.find(u => u.id === match.userId);
+                                                return (
+                                                    <TableRow key={match.id}>
+                                                        <TableCell className="font-bold text-xs">{match.jobTitle}</TableCell>
+                                                        <TableCell className="text-[10px] font-mono">{owner?.email || match.userId}</TableCell>
+                                                        <TableCell>
+                                                            <Badge variant={match.matchScore > 75 ? 'default' : 'secondary'} className="text-[9px] font-bold">
+                                                                {match.matchScore}%
+                                                            </Badge>
+                                                        </TableCell>
+                                                        <TableCell className="text-[10px] text-muted-foreground font-mono">
+                                                            {new Date(match.analysisDate).toLocaleDateString()}
+                                                        </TableCell>
+                                                        <TableCell className="text-right pr-6">
+                                                            <Dialog>
+                                                                <DialogTrigger asChild>
+                                                                    <Button variant="ghost" size="icon" className="h-8 w-8"><Info className="h-3 w-3" /></Button>
+                                                                </DialogTrigger>
+                                                                <DialogContent className="max-w-2xl">
+                                                                    <DialogHeader>
+                                                                        <DialogTitle className="text-sm font-bold">Analysis Feedback</DialogTitle>
+                                                                        <DialogDescription className="text-[10px] uppercase">Job Title: {match.jobTitle}</DialogDescription>
+                                                                    </DialogHeader>
+                                                                    <div className="space-y-4">
+                                                                        <div className="p-4 bg-muted/30 rounded-lg border">
+                                                                            <h4 className="text-[10px] font-black uppercase mb-2 text-primary">AI Reasoning</h4>
+                                                                            <p className="text-xs leading-relaxed text-muted-foreground">{match.reasoning || "No detailed reasoning available."}</p>
+                                                                        </div>
+                                                                        <div className="flex flex-wrap gap-1">
+                                                                            {match.missingKeywords?.map(kw => <Badge key={kw} variant="outline" className="text-[8px] uppercase">{kw}</Badge>)}
+                                                                        </div>
                                                                     </div>
-                                                                    <div className="flex flex-wrap gap-1">
-                                                                        {match.missingKeywords?.map(kw => <Badge key={kw} variant="outline" className="text-[8px] uppercase">{kw}</Badge>)}
-                                                                    </div>
-                                                                </div>
-                                                                <DialogFooter>
-                                                                    <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10" onClick={() => handleDeleteMatch(match.id)}>
-                                                                        <Trash2 className="h-3 w-3 mr-2" /> Delete Log
-                                                                    </Button>
-                                                                </DialogFooter>
-                                                            </DialogContent>
-                                                        </Dialog>
-                                                    </TableCell>
-                                                </TableRow>
-                                            );
-                                        })}
-                                    </TableBody>
-                                </Table>
+                                                                    <DialogFooter>
+                                                                        <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10" onClick={() => handleDeleteMatch(match.id)}>
+                                                                            <Trash2 className="h-3 w-3 mr-2" /> Delete Log
+                                                                        </Button>
+                                                                    </DialogFooter>
+                                                                </DialogContent>
+                                                            </Dialog>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                );
+                                            })}
+                                        </TableBody>
+                                    </Table>
                                 </>
                             )}
                         </CardContent>
@@ -687,12 +687,12 @@ export default function AdminPage() {
                                     <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                                         <Settings className="h-3 w-3" /> ACCESS CONTROL
                                     </h4>
-                                    
+
                                     <div className="p-4 border-2 border-primary/10 rounded-xl bg-muted/30 space-y-4">
                                         <div className="flex items-center justify-between">
                                             <span className="text-xs font-bold uppercase">System Status</span>
-                                            <Button 
-                                                variant={selectedUser.status === 'suspended' ? 'default' : 'outline'} 
+                                            <Button
+                                                variant={selectedUser.status === 'suspended' ? 'default' : 'outline'}
                                                 size="sm"
                                                 className="h-8 text-[10px] font-bold uppercase"
                                                 onClick={() => handleUpdateUserField(selectedUser.id, 'status', selectedUser.status === 'suspended' ? 'active' : 'suspended')}
@@ -705,8 +705,8 @@ export default function AdminPage() {
 
                                         <div className="flex items-center justify-between">
                                             <span className="text-xs font-bold uppercase">Auth Role</span>
-                                            <Select 
-                                                value={selectedUser.role || 'user'} 
+                                            <Select
+                                                value={selectedUser.role || 'user'}
                                                 onValueChange={(val) => handleUpdateUserField(selectedUser.id, 'role', val)}
                                                 disabled={ADMIN_EMAILS.includes(selectedUser.email.toLowerCase())}
                                             >

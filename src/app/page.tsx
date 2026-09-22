@@ -115,7 +115,7 @@ export default function LandingPage() {
 
       <main>
         {/* ── SECTION 1: HERO ────────────────────────────────────────────── */}
-        <section className="min-h-screen flex flex-col items-center justify-center text-center px-6 pt-16">
+        <section className="min-h-screen flex flex-col items-center justify-center text-center px-6 pt-16 bg-[#0D0D0D] text-white">
           <p
             className="text-xs font-semibold tracking-widest uppercase mb-6"
             style={{ color: "#FF6B00", letterSpacing: "0.18em" }}
@@ -124,8 +124,8 @@ export default function LandingPage() {
           </p>
 
           <h1
-            className="font-bold leading-none tracking-tighter"
-            style={{ fontSize: "clamp(2.8rem, 8vw, 6.5rem)", lineHeight: 1.04, color: "#0D0D0D", maxWidth: "820px" }}
+            className="font-bold leading-none tracking-tighter text-white"
+            style={{ fontSize: "clamp(2.8rem, 8vw, 6.5rem)", lineHeight: 1.04, color: "#FFFFFF", maxWidth: "820px" }}
           >
             Your CV reads itself.
             <br />
@@ -135,8 +135,8 @@ export default function LandingPage() {
           </h1>
 
           <p
-            className="mt-8 text-lg leading-relaxed"
-            style={{ color: "#6E6E73", maxWidth: "520px" }}
+            className="mt-8 text-lg leading-relaxed text-zinc-400"
+            style={{ maxWidth: "520px" }}
           >
             E-Job Finder extracts your skills, ranks live job listings by
             compatibility, and applies on your behalf. Upload once. Let the
@@ -160,7 +160,7 @@ export default function LandingPage() {
             </button>
           </div>
 
-          <p className="mt-8 text-[13px]" style={{ color: "#6E6E73" }}>
+          <p className="mt-8 text-[13px] text-zinc-400">
             200+ live SA jobs&nbsp;&nbsp;·&nbsp;&nbsp;AI-matched in seconds&nbsp;&nbsp;·&nbsp;&nbsp;Free to start
           </p>
         </section>
@@ -506,6 +506,44 @@ export default function LandingPage() {
               Apply Credits available separately — R49 for 5 applications, R89 for 12, R299/month unlimited.
               Auto-apply without a monthly plan.
             </p>
+          </div>
+        </section>
+
+        {/* ── SECTION: TESTIMONIAL ────────────────────────────────────────── */}
+        <section className="py-20 bg-[#0D0D0D]">
+          <div className="max-w-3xl mx-auto px-6 text-center">
+            
+            <p className="text-[#FF6B00] text-xs font-medium tracking-widest uppercase mb-8">
+              REAL RESULTS
+            </p>
+            
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-10">
+              <p className="text-4xl text-[#FF6B00] font-serif mb-4">&quot;</p>
+              <p className="text-white text-xl font-medium leading-relaxed mb-6">
+                I used E-Job Finder to scan my CV against a job
+                description and got called for an interview the
+                same week. The match score told me exactly what
+                skills I was missing and what to highlight.
+              </p>
+              <div className="flex items-center justify-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-[#FF6B00] flex items-center justify-center text-white font-bold text-sm">
+                  JM
+                </div>
+                <div className="text-left">
+                  <p className="text-white text-sm font-medium">
+                    Jordan M.
+                  </p>
+                  <p className="text-zinc-500 text-xs">
+                    Full Stack Developer · Johannesburg
+                  </p>
+                </div>
+              </div>
+              <div className="flex justify-center gap-1 mt-4">
+                {[...Array(5)].map((_, i) => (
+                  <span key={i} className="text-[#FF6B00] text-lg">★</span>
+                ))}
+              </div>
+            </div>
           </div>
         </section>
 
