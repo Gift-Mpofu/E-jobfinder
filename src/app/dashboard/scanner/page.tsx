@@ -20,6 +20,7 @@ import {
   TrendingUp,
   MessageSquare,
   ScanLine,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -103,7 +104,18 @@ const LoadingAnalysis = () => {
   );
 };
 
+type SavedCv = {
+  id: string;
+  file_name: string;
+  file_content: string;
+  upload_date: string;
+};
+
 export default function ScannerPage() {
+  const [savedCvs, setSavedCvs] = useState<SavedCv[]>([]);
+  const [isSavedCvsLoading, setIsSavedCvsLoading] = useState(true);
+  const [selectedCvId, setSelectedCvId] = useState<string | null>(null);
+
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [cvText, setCvText] = useState<string>("");
   const [jobDescription, setJobDescription] = useState<string>("");
@@ -120,6 +132,52 @@ export default function ScannerPage() {
   const { scansUsed, usageLimit, addScan, addNotification, isLimitActive } =
     useDashboard();
 
+  // Fetch saved CVs for authenticated user
+  useEffect(() => {
+    if (!user) {
+      setIsSavedCvsLoading(false);
+      return;
+    }
+    let mounted = true;
+    supabase
+      .from("cvs")
+      .select("id, file_name, file_content, upload_date")
+      .eq("user_id", user.id)
+      .order("upload_date", { ascending: false })
+      .then(({ data, error }) => {
+        if (!mounted) return;
+        if (error) {
+          console.error("Error fetching saved CVs:", error);
+        } else if (data) {
+          setSavedCvs(data);
+
+          // Restore selectedCvId from sessionStorage if available
+          let restoredCvId: string | null = null;
+          try {
+            const saved = sessionStorage.getItem("scanner_session_v1");
+            if (saved) {
+              restoredCvId = JSON.parse(saved).selectedCvId || null;
+            }
+          } catch (e) {}
+
+          if (restoredCvId && data.some((item) => item.id === restoredCvId)) {
+            const found = data.find((item) => item.id === restoredCvId);
+            setSelectedCvId(restoredCvId);
+            if (found) setCvText(found.file_content);
+          } else if (data.length > 0 && !cvText) {
+            // Default to selecting the most recent CV if none active
+            setSelectedCvId(data[0].id);
+            setCvText(data[0].file_content);
+          }
+        }
+        setIsSavedCvsLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [user, supabase]);
+
   // Restore scanner session from sessionStorage on mount
   useEffect(() => {
     try {
@@ -130,6 +188,7 @@ export default function ScannerPage() {
         if (parsed.jobDescription) setJobDescription(parsed.jobDescription);
         if (parsed.analysisResult) setAnalysisResult(parsed.analysisResult);
         if (parsed.scanType) setScanType(parsed.scanType);
+        if (parsed.selectedCvId) setSelectedCvId(parsed.selectedCvId);
       }
     } catch (e) {
       console.warn("Failed to load scanner session:", e);
@@ -139,7 +198,7 @@ export default function ScannerPage() {
   // Persist scanner session to sessionStorage on state changes
   useEffect(() => {
     try {
-      if (cvText || jobDescription || analysisResult) {
+      if (cvText || jobDescription || analysisResult || selectedCvId) {
         sessionStorage.setItem(
           "scanner_session_v1",
           JSON.stringify({
@@ -147,19 +206,23 @@ export default function ScannerPage() {
             jobDescription,
             analysisResult,
             scanType,
+            selectedCvId,
           })
         );
       }
     } catch (e) {
       console.warn("Failed to save scanner session:", e);
     }
-  }, [cvText, jobDescription, analysisResult, scanType]);
+  }, [cvText, jobDescription, analysisResult, scanType, selectedCvId]);
 
   const handleClearSession = () => {
     setCvFile(null);
     setCvText("");
+    setSelectedCvId(null);
     setJobDescription("");
     setAnalysisResult(null);
+    const fileInput = document.getElementById("cv-upload") as HTMLInputElement;
+    if (fileInput) fileInput.value = "";
     try {
       sessionStorage.removeItem("scanner_session_v1");
     } catch (e) {}
@@ -167,6 +230,14 @@ export default function ScannerPage() {
       title: "Scanner Reset",
       description: "Cleared previous scan inputs and results.",
     });
+  };
+
+  const handleSelectSavedCv = (cv: SavedCv) => {
+    setSelectedCvId(cv.id);
+    setCvText(cv.file_content);
+    setCvFile(null);
+    const fileInput = document.getElementById("cv-upload") as HTMLInputElement;
+    if (fileInput) fileInput.value = "";
   };
 
   const handleFileChange = async (
@@ -186,6 +257,7 @@ export default function ScannerPage() {
         return;
       }
 
+      setSelectedCvId(null);
       setCvFile(file);
       setCvText("Extracting text from document, please wait...");
 
@@ -225,6 +297,7 @@ export default function ScannerPage() {
   const handleCvTextAreaChange = (
     e: React.ChangeEvent<HTMLTextAreaElement>
   ) => {
+    setSelectedCvId(null);
     setCvText(e.target.value);
     if (e.target.value) {
       setCvFile(null);
@@ -240,22 +313,30 @@ export default function ScannerPage() {
     cvContent: string,
     fileName: string,
     jobDesc: string,
-    analysis: CvAnalysisOutput
+    analysis: CvAnalysisOutput,
+    existingCvId: string | null
   ) => {
     try {
       const cleanCvContent = cvContent.replace(/\0/g, "");
       const cleanJobDesc = jobDesc.replace(/\0/g, "");
+      let targetCvId = existingCvId;
 
-      const { data: cvData, error: cvError } = await supabase
-        .from("cvs")
-        .insert({
-          user_id: userId,
-          file_name: fileName,
-          file_content: cleanCvContent,
-        })
-        .select("id")
-        .single();
-      if (cvError) throw cvError;
+      if (!targetCvId) {
+        // Save newly uploaded or pasted CV into cvs table
+        const { data: cvData, error: cvError } = await supabase
+          .from("cvs")
+          .insert({
+            user_id: userId,
+            file_name: fileName,
+            file_content: cleanCvContent,
+          })
+          .select("id, file_name, file_content, upload_date")
+          .single();
+        if (cvError) throw cvError;
+        targetCvId = cvData.id;
+        setSelectedCvId(cvData.id);
+        setSavedCvs((prev) => [cvData, ...prev]);
+      }
 
       const { data: jdData, error: jdError } = await supabase
         .from("job_descriptions")
@@ -269,7 +350,7 @@ export default function ScannerPage() {
 
       const { error: matchError } = await supabase.from("match_results").insert({
         user_id: userId,
-        cv_id: cvData.id,
+        cv_id: targetCvId,
         job_description_id: jdData.id,
         job_title: analysis.jobTitle,
         match_score: analysis.matchScore,
@@ -375,7 +456,7 @@ export default function ScannerPage() {
         data: result,
       });
       if (user.id) {
-        saveAnalysisData(user.id, cvContent, cvFileName, jobDescription, result);
+        saveAnalysisData(user.id, cvContent, cvFileName, jobDescription, result, selectedCvId);
       }
     } catch (error: any) {
       console.error("Analysis failed:", error);
@@ -545,52 +626,175 @@ export default function ScannerPage() {
               </TabsContent>
             </Tabs>
 
-            <div className="space-y-2">
-              <Label htmlFor="cv-upload">CV Upload</Label>
-              <div className="flex items-center gap-3">
-                <Label htmlFor="cv-upload" className="flex-1">
-                  <Input
-                    id="cv-upload"
-                    type="file"
-                    accept="text/plain,text/markdown,application/pdf"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                  <Button asChild variant="outline">
-                    <span className="cursor-pointer flex items-center gap-2">
-                      <Upload size={16} />
-                      Choose File
-                    </span>
-                  </Button>
+            {/* ── Saved CV Selection & Upload Section ───────────────────────────── */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-base font-semibold text-[#1D1D1F]">
+                  Select Your CV
                 </Label>
-                {cvFile && (
-                  <span className="text-sm text-muted-foreground truncate">
-                    {cvFile.name}
+                {savedCvs.length > 0 && (
+                  <span className="text-xs text-muted-foreground font-normal">
+                    {savedCvs.length} saved {savedCvs.length === 1 ? "CV" : "CVs"} in CV Manager
                   </span>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Upload your CV as a .txt, .md, or .pdf file.
-              </p>
-            </div>
 
-            <div className="flex items-center text-center">
-              <div className="flex-grow border-t border-border" />
-              <span className="flex-shrink mx-4 text-muted-foreground text-sm">
-                OR
-              </span>
-              <div className="flex-grow border-t border-border" />
-            </div>
+              {isSavedCvsLoading ? (
+                <div className="p-4 border rounded-xl animate-pulse flex items-center justify-center text-sm text-muted-foreground">
+                  Loading your saved CVs...
+                </div>
+              ) : savedCvs.length > 0 ? (
+                <div className="space-y-3">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Your Saved CVs
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {savedCvs.map((cv) => {
+                      const isSelected = selectedCvId === cv.id;
+                      const ext = cv.file_name.endsWith(".pdf")
+                        ? "PDF"
+                        : cv.file_name.endsWith(".md")
+                        ? "MD"
+                        : "TXT";
+                      const formattedDate = new Date(
+                        cv.upload_date
+                      ).toLocaleDateString("en-ZA", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      });
 
-            <div className="space-y-2">
-              <Label htmlFor="cv-text">Paste CV</Label>
-              <Textarea
-                id="cv-text"
-                placeholder="Paste your CV content here (you can also paste text from a PDF)..."
-                className="bg-white text-[#1D1D1F] border border-[#E5E5EA] rounded-xl p-5 text-sm leading-relaxed whitespace-pre-wrap overflow-y-auto max-h-[500px]"
-                value={cvText}
-                onChange={handleCvTextAreaChange}
-              />
+                      return (
+                        <div
+                          key={cv.id}
+                          onClick={() => handleSelectSavedCv(cv)}
+                          className={`cursor-pointer rounded-xl p-4 border-2 transition-all flex items-start justify-between gap-3 ${
+                            isSelected
+                              ? "border-[#FF6B00] bg-[#FFF3EB] shadow-sm"
+                              : "border-zinc-200 bg-white hover:border-zinc-300"
+                          }`}
+                        >
+                          <div className="flex items-start gap-3 min-w-0">
+                            <div
+                              className={`p-2 rounded-lg ${
+                                isSelected
+                                  ? "bg-[#FF6B00] text-white"
+                                  : "bg-zinc-100 text-zinc-600"
+                              }`}
+                            >
+                              <FileText className="h-5 w-5 flex-shrink-0" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-[#1D1D1F] truncate">
+                                {cv.file_name}
+                              </p>
+                              <p className="text-xs text-zinc-500 mt-0.5">
+                                Updated {formattedDate} ·{" "}
+                                <span className="font-semibold text-zinc-700">
+                                  {ext}
+                                </span>
+                              </p>
+                            </div>
+                          </div>
+                          <div
+                            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                              isSelected
+                                ? "border-[#FF6B00] bg-[#FF6B00]"
+                                : "border-zinc-300"
+                            }`}
+                          >
+                            {isSelected && (
+                              <Check className="w-3 h-3 text-white stroke-[3]" />
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 bg-muted/40 border border-border rounded-xl text-sm text-muted-foreground">
+                  <p className="font-medium text-foreground">
+                    You don&apos;t have any saved CVs yet. Upload your first CV to get started.
+                  </p>
+                </div>
+              )}
+
+              {/* Upload or Paste New CV Section */}
+              <div className="pt-2 border-t border-border">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    OR Upload / Paste New CV
+                  </span>
+                  {selectedCvId && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedCvId(null);
+                        setCvText("");
+                        setCvFile(null);
+                      }}
+                      className="text-xs text-[#FF6B00] hover:text-[#E55F00] p-0 h-auto font-medium"
+                    >
+                      + Switch to New CV Input
+                    </Button>
+                  )}
+                </div>
+
+                {(!selectedCvId || savedCvs.length === 0) && (
+                  <div className="space-y-4 p-4 border border-dashed border-zinc-300 rounded-xl bg-zinc-50/50">
+                    <div className="space-y-2">
+                      <Label htmlFor="cv-upload">Upload CV File</Label>
+                      <div className="flex items-center gap-3">
+                        <Label htmlFor="cv-upload" className="flex-1">
+                          <Input
+                            id="cv-upload"
+                            type="file"
+                            accept="text/plain,text/markdown,application/pdf"
+                            onChange={handleFileChange}
+                            className="hidden"
+                          />
+                          <Button asChild variant="outline" className="w-full sm:w-auto">
+                            <span className="cursor-pointer flex items-center gap-2">
+                              <Upload size={16} />
+                              Choose File (.pdf, .txt, .md)
+                            </span>
+                          </Button>
+                        </Label>
+                        {cvFile && (
+                          <span className="text-sm font-medium text-[#FF6B00] truncate">
+                            {cvFile.name}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Upload your CV as a .txt, .md, or .pdf file.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center text-center">
+                      <div className="flex-grow border-t border-border" />
+                      <span className="flex-shrink mx-4 text-muted-foreground text-xs font-medium uppercase">
+                        OR Paste Text
+                      </span>
+                      <div className="flex-grow border-t border-border" />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="cv-text">Paste CV Content</Label>
+                      <Textarea
+                        id="cv-text"
+                        placeholder="Paste your CV content here (you can also paste text from a PDF)..."
+                        className="bg-white text-[#1D1D1F] border border-[#E5E5EA] rounded-xl p-4 text-sm leading-relaxed whitespace-pre-wrap max-h-[300px]"
+                        value={cvText}
+                        onChange={handleCvTextAreaChange}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="space-y-2">
