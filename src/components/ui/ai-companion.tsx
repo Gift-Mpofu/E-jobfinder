@@ -1,5 +1,6 @@
 "use client";
 
+import ReactMarkdown from 'react-markdown';
 import { useState, useRef, useEffect } from "react";
 import { MessageSquare, X, Send, User, Bot, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -89,7 +90,11 @@ export function AiCompanion() {
                           ? 'bg-primary text-primary-foreground rounded-tr-sm' 
                           : 'bg-muted text-foreground rounded-tl-sm'
                     }`}>
-                      {msg.content}
+                      {msg.role === 'model' ? (
+                        <div className="space-y-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5">
+                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        </div>
+                      ) : msg.content}
                     </div>
                   </div>
                 ))}

@@ -751,7 +751,7 @@ export default function CvBuilderPage() {
                     cvTemplate === 'jordan' ? 'bg-white text-[#FF6B00] shadow-sm' : 'text-[#6E6E73] hover:text-[#1D1D1F]'
                   }`}
                 >
-                  Jordan SA (Tech Grad)
+                  SA Graduate
                 </button>
                 <button
                   type="button"
@@ -795,19 +795,19 @@ export default function CvBuilderPage() {
                 </div>
               ) : (
                 <>
-                  {/* Template 4: Jordan SA (Tech Graduate & Executive Layout) */}
+                  {/* Template 4: SA Graduate (single-column layout) */}
                   {cvTemplate === 'jordan' && (
                     <div className="space-y-4 text-xs font-sans text-[#1D1D1F]">
                       {/* Header */}
                       <div className="text-center border-b border-[#1D1D1F] pb-3">
                         <h1 className="text-lg font-extrabold uppercase tracking-tight text-[#1D1D1F]">
-                          {cvData.fullName || 'JORDAN MPOFU'}
+                          {cvData.fullName || 'YOUR NAME'}
                         </h1>
                         <p className="text-xs font-bold text-[#FF6B00] mt-0.5">
-                          {cvData.targetRole || 'IT Graduate | Software Developer | Cloud & DevOps | AI & SaaS'}
+                          {cvData.targetRole || 'Your target role'}
                         </p>
                         <p className="text-[10px] text-[#6E6E73] mt-1 font-medium">
-                          {cvData.contactInfo || 'Johannesburg, South Africa | 072 886 3781 | andrewsleighton023@gmail.com | linkedin.com/in/leighton-andrews-43729426b/'}
+                          {cvData.contactInfo || 'City | Phone | Email | LinkedIn'}
                         </p>
                       </div>
 
