@@ -33,19 +33,31 @@ export async function updateSession(request: NextRequest) {
 
     const {
       data: { user },
+      error,
     } = await supabase.auth.getUser()
+
+    if (error) {
+      const msg = (error.message || '').toLowerCase()
+      if (msg.includes('refresh token') || msg.includes('invalid_grant') || msg.includes('token not found')) {
+        request.cookies.getAll().forEach(cookie => {
+          if (cookie.name.includes('auth-token') || cookie.name.startsWith('sb-')) {
+            supabaseResponse.cookies.set(cookie.name, '', { maxAge: 0, path: '/' })
+          }
+        })
+      }
+    }
 
     const isAuthPage =
       request.nextUrl.pathname.startsWith('/login') ||
       request.nextUrl.pathname.startsWith('/signup')
 
-    // Protect the dashboard - redirect to login if not authenticated
-    if (!user && request.nextUrl.pathname.startsWith('/dashboard')) {
+    // Protect the dashboard - redirect to login if not authenticated or invalid token
+    if ((!user || error) && request.nextUrl.pathname.startsWith('/dashboard')) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
 
     // Prevent logged-in users from seeing the login/signup pages
-    if (user && isAuthPage) {
+    if (user && !error && isAuthPage) {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
   } catch (error) {

@@ -25,6 +25,18 @@ export function SupabaseProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
+    const isInvalidTokenError = (err: any) => {
+      if (!err) return false;
+      const msg = (err.message || '').toLowerCase();
+      const code = (err.code || '').toLowerCase();
+      return (
+        msg.includes('refresh token') ||
+        msg.includes('invalid_grant') ||
+        msg.includes('token not found') ||
+        code.includes('refresh_token')
+      );
+    };
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event: AuthChangeEvent, session: Session | null) => {
         if (mounted) {
@@ -39,16 +51,33 @@ export function SupabaseProvider({ children }: { children: ReactNode }) {
       .then(({ data: { session }, error }: { data: { session: Session | null }, error: any }) => {
         if (mounted) {
           if (error) {
-            console.warn('Supabase getSession warning:', error.message);
+            if (isInvalidTokenError(error)) {
+              console.warn('Invalid refresh token detected. Clearing local auth session.');
+              supabase.auth.signOut().catch(() => {});
+              setSession(null);
+              setUser(null);
+            } else {
+              console.warn('Supabase getSession warning:', error.message);
+              setSession(session);
+              setUser(session?.user ?? null);
+            }
+          } else {
+            setSession(session);
+            setUser(session?.user ?? null);
           }
-          setSession(session);
-          setUser(session?.user ?? null);
           setIsUserLoading(false);
         }
       })
-      .catch((err: unknown) => {
-        console.warn('Supabase getSession network error:', err);
+      .catch((err: any) => {
         if (mounted) {
+          if (isInvalidTokenError(err)) {
+            console.warn('Invalid refresh token caught. Clearing local session.');
+            supabase.auth.signOut().catch(() => {});
+            setSession(null);
+            setUser(null);
+          } else {
+            console.warn('Supabase getSession error:', err);
+          }
           setIsUserLoading(false);
         }
       });

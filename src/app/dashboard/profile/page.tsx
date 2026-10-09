@@ -206,20 +206,34 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!user) { if (!authLoading) setIsApplicationsLoading(false); return; }
     let mounted = true;
-    supabase
-      .from('applications')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('applied_at', { ascending: false })
-      .then(({ data, error }) => {
+
+    async function fetchApplications() {
+      try {
+        const { data, error } = await supabase
+          .from('applications')
+          .select('*')
+          .eq('user_id', user!.id)
+          .order('applied_at', { ascending: false });
+
         if (!mounted) return;
+
         if (error) {
-          console.error('Error fetching applications:', error);
+          const msg = error.message || error.details || error.code || 'Unable to load applications table';
+          console.warn('Applications fetch warning:', msg);
+          setApplications([]);
         } else if (data) {
           setApplications(data as Application[]);
         }
-        setIsApplicationsLoading(false);
-      });
+      } catch (err: any) {
+        if (!mounted) return;
+        console.warn('Applications fetch exception:', err?.message || err);
+        setApplications([]);
+      } finally {
+        if (mounted) setIsApplicationsLoading(false);
+      }
+    }
+
+    fetchApplications();
     return () => { mounted = false; };
   }, [user, supabase, authLoading]);
 
