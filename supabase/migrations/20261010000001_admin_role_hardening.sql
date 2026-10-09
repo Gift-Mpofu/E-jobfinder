@@ -78,3 +78,7 @@ DROP TRIGGER IF EXISTS default_profile_role ON public.profiles;
 CREATE TRIGGER default_profile_role
   BEFORE INSERT ON public.profiles
   FOR EACH ROW EXECUTE FUNCTION public.default_profile_role();
+
+-- 3. Any signed-in user could insert rows into live_jobs. Ingestion runs
+--    in edge functions with the service role, which bypasses RLS anyway.
+DROP POLICY IF EXISTS "Admins can insert live jobs" ON public.live_jobs;

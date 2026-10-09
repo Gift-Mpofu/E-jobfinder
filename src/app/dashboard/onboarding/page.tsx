@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { useUser } from '@/supabase/provider';
@@ -12,6 +12,7 @@ import { Progress } from '@/components/ui/progress';
 import { ArrowRight, Briefcase, Star, Award, Target, Rocket, MapPin, UploadCloud, BrainCircuit, LineChart, Sparkles, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
+import { useDashboard } from '../layout';
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -28,6 +29,19 @@ export default function OnboardingPage() {
     location: '',
     careerGoals: ''
   });
+
+  // "Edit Snapshot" lands here too, so start from what is already saved.
+  const { userProfile } = useDashboard();
+  useEffect(() => {
+    if (!userProfile) return;
+    setData((prev) => ({
+      targetRole: prev.targetRole || userProfile.target_role || '',
+      experienceLevel: prev.experienceLevel || userProfile.experience_level || '',
+      skills: prev.skills || (userProfile.skills ?? []).join(', '),
+      location: prev.location || userProfile.location || '',
+      careerGoals: prev.careerGoals || userProfile.career_goals || '',
+    }));
+  }, [userProfile]);
 
   const totalSteps = 4;
   const progress = ((step) / (totalSteps - 1)) * 100;
@@ -56,7 +70,7 @@ export default function OnboardingPage() {
       target_role: data.targetRole,
       experience_level: data.experienceLevel,
       location: data.location,
-      skills: data.skills ? data.skills.split(',').map((s) => s.trim()) : [],
+      skills: data.skills ? data.skills.split(',').map((s) => s.trim()).filter(Boolean) : [],
       career_goals: data.careerGoals,
     };
     

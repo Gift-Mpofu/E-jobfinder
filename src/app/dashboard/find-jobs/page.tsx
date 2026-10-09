@@ -11,6 +11,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useDashboard } from '../layout';
+import { calcMatchScore } from '@/lib/match-score';
 
 type LiveJob = {
   id: string;
@@ -46,7 +47,14 @@ function CompanyAvatar({ name }: { name: string }) {
   );
 }
 
-function MatchBadge({ score }: { score: number }) {
+function MatchBadge({ score }: { score: number | null }) {
+  if (score === null) {
+    return (
+      <span title="Add skills to your profile to see match scores" className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F5F5F7] text-[#6E6E73]">
+        No match data
+      </span>
+    );
+  }
   const cls = score >= 70
     ? 'bg-[#E8F8EE] text-[#1A7A3A]'
     : score >= 40
@@ -268,45 +276,8 @@ export default function FindJobsPage() {
     }
   };
 
-function calculateMatchScore(
-  userSkills: string[],
-  jobSkills: string[]
-): number {
-  if (!jobSkills?.length || !userSkills?.length) return 0;
-  
-  // If job only has 1-2 skills it's likely miscategorised
-  // Cap the score to prevent false 99% matches
-  if (jobSkills.length <= 2) {
-    const matched = jobSkills.filter(js =>
-      userSkills.some(us => 
-        us.toLowerCase().trim() === js.toLowerCase().trim()
-      )
-    ).length;
-    // Cap at 65% for jobs with very few required skills
-    return Math.min(65, Math.round((matched / jobSkills.length) * 100));
-  }
-  
-  const matched = jobSkills.filter(js =>
-    userSkills.some(us =>
-      us.toLowerCase().trim() === js.toLowerCase().trim()
-    )
-  ).length;
-  
-  return Math.round((matched / jobSkills.length) * 100);
-}
-
-  const calcScore = (job: LiveJob) => {
-    if (!profile?.skills?.length) return 0;
-    const userSkills = profile.skills;
-    const jobSkills = job.skills_required || [];
-    let score = calculateMatchScore(userSkills, jobSkills);
-    if (profile.experience_level && job.seniority) {
-      const e = profile.experience_level.toLowerCase(), s2 = job.seniority.toLowerCase();
-      if (e.includes('senior') && s2.includes('junior')) score -= 20;
-      else if (e.includes('junior') && s2.includes('senior')) score -= 20;
-    }
-    return Math.min(Math.max(score, 5), 99);
-  };
+  const calcScore = (job: LiveJob) =>
+    calcMatchScore(profile?.skills, job.skills_required, job.seniority, profile?.experience_level);
 
   const filterByDate = (j: LiveJob) => {
     if (dateFilter === 'all') return true;
@@ -325,11 +296,11 @@ function calculateMatchScore(
     filterByDate(j);
 
   const allJobs = jobs.filter(fq).sort((a, b) => new Date(b.posted_at || b.creation_date).getTime() - new Date(a.posted_at || a.creation_date).getTime());
-  const bestMatches = [...jobs].filter(fq).map(j => ({ job: j, score: calcScore(j) })).filter(j => j.score >= 60).sort((a, b) => b.score - a.score);
+  const bestMatches = [...jobs].filter(fq).map(j => ({ job: j, score: calcScore(j) })).filter(j => (j.score ?? 0) >= 60).sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
   const remoteJobs = jobs.filter(j => fq(j) && (j.location?.toLowerCase().includes('remote') || j.title?.toLowerCase().includes('remote')));
   const savedJobs = jobs.filter(j => savedJobIds.has(j.id) && fq(j));
 
-  const tabJobs: Record<TabKey, { job: LiveJob; score: number }[]> = {
+  const tabJobs: Record<TabKey, { job: LiveJob; score: number | null }[]> = {
     'All Jobs': allJobs.map(j => ({ job: j, score: calcScore(j) })),
     'Best Matches': bestMatches,
     'Remote': remoteJobs.map(j => ({ job: j, score: calcScore(j) })),

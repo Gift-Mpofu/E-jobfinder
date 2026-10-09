@@ -27,6 +27,7 @@ import {
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { useUser } from "@/supabase/provider";
 import { useDashboard } from "@/app/dashboard/layout";
+import { calcMatchScore } from "@/lib/match-score";
 import { formatDistanceToNow, subDays, startOfDay, format, subWeeks, nextMonday, startOfWeek } from "date-fns";
 
 // ─── Shared helpers (mirrors find-jobs page) ───────────────────────────────
@@ -59,7 +60,14 @@ function CompanyAvatar({ name, size = 44 }: { name: string; size?: number }) {
   );
 }
 
-function MatchBadge({ score }: { score: number }) {
+function MatchBadge({ score }: { score: number | null }) {
+  if (score === null) {
+    return (
+      <span title="Add skills to your profile to see match scores" className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#F5F5F7] text-[#6E6E73]">
+        No match data
+      </span>
+    );
+  }
   const cls =
     score >= 70
       ? "bg-[#E8F8EE] text-[#1A7A3A]"
@@ -73,41 +81,85 @@ function MatchBadge({ score }: { score: number }) {
   );
 }
 
-// ─── Static curated news data ──────────────────────────────────────────────
+// ─── Career insights built from live job listings ──────────────────────────
 
-type NewsItem = { tag: string; title: string; body: string; timeAgo: string; color: string };
+type NewsItem = { tag: string; title: string; body: string; color: string };
 
-const TECH_NEWS: NewsItem[] = [
-  { tag: "SA Tech", title: "SA tech jobs grew 18% in Q1 2026", body: "Demand for React and Python developers continues to outpace supply across Johannesburg and Cape Town.", timeAgo: "2 days ago", color: "#007AFF" },
-  { tag: "AI", title: "Gemini integration now standard in SA enterprise hiring", body: "Companies are screening for AI tool proficiency as a baseline skill, even for junior roles.", timeAgo: "4 days ago", color: "#34C759" },
-  { tag: "Salary", title: "Junior dev salaries up R8K avg since Jan 2026", body: "Remote-first roles now paying R22K–R35K/month for 1–3 years experience in Gauteng.", timeAgo: "1 week ago", color: "#FF9F0A" },
-  { tag: "Tip", title: "GitHub activity now checked by 73% of SA tech recruiters", body: "Keep at least 3 pinned repos with README files. Blank profiles are filtered out in early screening.", timeAgo: "1 week ago", color: "#FF6B00" },
-  { tag: "Remote", title: "38% of SA tech roles now fully remote post-2025", body: "Cape Town and Joburg still dominate, but remote has opened access to candidates in other provinces.", timeAgo: "2 weeks ago", color: "#AF52DE" },
-];
+type MarketJob = {
+  title: string;
+  location: string | null;
+  skills_required: string[] | null;
+  salary_min: number | null;
+  salary_max: number | null;
+};
 
-const FINANCE_NEWS: NewsItem[] = [
-  { tag: "Finance SA", title: "CFA demand surged 22% in SA financial sector", body: "JSE-listed firms prioritising candidates with CFA or CIMA alongside degree qualifications.", timeAgo: "3 days ago", color: "#34C759" },
-  { tag: "Salary", title: "Financial analyst avg salary hits R28K/month in Sandton", body: "Entry-level roles starting at R18K with Big4 exposure commanding 40% premium.", timeAgo: "5 days ago", color: "#FF9F0A" },
-  { tag: "Tip", title: "Excel and Power BI now minimum requirements for SA finance roles", body: "Candidates without Power BI skills are screened out early at 68% of corporate finance postings.", timeAgo: "1 week ago", color: "#FF6B00" },
-  { tag: "Market", title: "SA fintech hiring accelerating in 2026", body: "Capitec, TymeBank, and Discovery continue aggressive junior hiring across Cape Town.", timeAgo: "1 week ago", color: "#007AFF" },
-  { tag: "Remote", title: "Remote finance roles now 15% of SA postings", body: "Management accounts and FP&A roles leading the remote shift in financial services.", timeAgo: "2 weeks ago", color: "#AF52DE" },
-];
+function topCounts(values: string[], n: number): [string, number][] {
+  const counts = new Map<string, number>();
+  values.forEach((v) => counts.set(v, (counts.get(v) ?? 0) + 1));
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, n);
+}
 
-const SALES_NEWS: NewsItem[] = [
-  { tag: "SA Sales", title: "B2B SaaS sales roles up 31% in SA — highest growth sector", body: "Tech companies scaling in SA are paying R25K–R45K base plus uncapped commission for SDRs with 1–2 years experience.", timeAgo: "2 days ago", color: "#34C759" },
-  { tag: "Tip", title: "LinkedIn SSI score now reviewed by 54% of SA sales recruiters", body: "A score above 65 puts you in the top 25% of SA sales candidates. Update yours weekly.", timeAgo: "4 days ago", color: "#FF6B00" },
-  { tag: "Salary", title: "OTE for SA SaaS SDRs now R480K–R720K annually", body: "Base R25–35K plus commission structures competitive with UK and UAE remote roles.", timeAgo: "1 week ago", color: "#FF9F0A" },
-  { tag: "Market", title: "Recruitment sales and HR tech fastest growing verticals in SA", body: "Candidates with SaaS + HR or legal tech experience seeing 3x more inbound recruiter contact than 2024.", timeAgo: "1 week ago", color: "#007AFF" },
-  { tag: "Remote", title: "Remote SDR roles in SA now paying USD — how to position yourself", body: "Register on Wise or Payoneer before applying. USD remote roles need proof of payment method.", timeAgo: "2 weeks ago", color: "#AF52DE" },
-];
+function buildInsights(jobs: MarketJob[], role: string | undefined, userSkills: string[]): NewsItem[] {
+  const words = (role ?? "").toLowerCase().split(/[^a-z]+/).filter((w) => w.length >= 4);
+  const roleJobs = words.length
+    ? jobs.filter((j) => words.some((w) => j.title.toLowerCase().includes(w)))
+    : [];
+  const pool = roleJobs.length >= 3 ? roleJobs : jobs;
+  const scope = pool === roleJobs ? `${role} roles` : "open roles";
+  const items: NewsItem[] = [];
 
-function getNewsForRole(role?: string): NewsItem[] {
-  if (!role) return SALES_NEWS;
-  const r = role.toLowerCase();
-  if (/dev|engineer|software|tech|code|program/.test(r)) return TECH_NEWS;
-  if (/finance|accounting|analyst|account|audit|tax/.test(r)) return FINANCE_NEWS;
-  if (/sales|bd|business dev/.test(r)) return SALES_NEWS;
-  return SALES_NEWS;
+  items.push({
+    tag: "Openings",
+    title: roleJobs.length
+      ? `${roleJobs.length} open listings match "${role}"`
+      : `${jobs.length} open listings on E-Job Finder`,
+    body: roleJobs.length
+      ? "Counted from the live listings we ingest daily."
+      : role
+      ? `None of the latest listings mention "${role}" in the title yet, so these insights cover all open roles.`
+      : "Set a target role in your Career Snapshot to see insights for it.",
+    color: "#34C759",
+  });
+
+  const locations = topCounts(pool.map((j) => (j.location ?? "").split(",")[0].trim()).filter(Boolean), 3);
+  if (locations.length) {
+    items.push({
+      tag: "Locations",
+      title: `Most ${scope} are in ${locations[0][0]}`,
+      body: locations.map(([l, c]) => `${l} (${c})`).join(" · "),
+      color: "#007AFF",
+    });
+  }
+
+  const skills = topCounts(pool.flatMap((j) => (j.skills_required ?? []).map((s) => s.trim())).filter(Boolean), 5);
+  if (skills.length) {
+    const have = new Set(userSkills.map((s) => s.toLowerCase().trim()));
+    const missing = skills.map(([s]) => s).filter((s) => !have.has(s.toLowerCase()));
+    items.push({
+      tag: "Skills",
+      title: `Most requested: ${skills.map(([s]) => s).slice(0, 3).join(", ")}`,
+      body: missing.length
+        ? `Not yet on your profile: ${missing.join(", ")}.`
+        : "You already list all of the most requested skills.",
+      color: "#FF6B00",
+    });
+  }
+
+  const salaries = pool
+    .map((j) => j.salary_max ?? j.salary_min)
+    .filter((v): v is number => typeof v === "number" && v > 0)
+    .sort((a, b) => a - b);
+  if (salaries.length >= 3) {
+    const median = salaries[Math.floor(salaries.length / 2)];
+    items.push({
+      tag: "Salary",
+      title: `Median advertised salary: R${Math.round(median).toLocaleString("en-ZA")}`,
+      body: `Based on ${salaries.length} ${scope} that list a salary.`,
+      color: "#FF9F0A",
+    });
+  }
+
+  return items;
 }
 
 function DashboardSkeleton() {
@@ -137,21 +189,6 @@ function Shimmer({ className }: { className?: string }) {
 
 // ─── Score calc (mirrors find-jobs) ───────────────────────────────────────
 
-function calcScore(userSkills: string[], jobSkills: string[], seniority?: string, experienceLevel?: string): number {
-  if (!userSkills.length) return 0;
-  const us = userSkills.map((s) => s.toLowerCase().trim());
-  const js = (jobSkills || []).map((s) => s.toLowerCase().trim());
-  if (!js.length) return 50;
-  const matched = js.filter((j) => us.some((u) => j.includes(u) || u.includes(j))).length;
-  let score = 40 + Math.ceil((matched / js.length) * 60);
-  if (experienceLevel && seniority) {
-    const e = experienceLevel.toLowerCase(), s2 = seniority.toLowerCase();
-    if (e.includes("senior") && s2.includes("junior")) score -= 20;
-    else if (e.includes("junior") && s2.includes("senior")) score -= 20;
-    else if (e.includes(s2) || s2.includes(e)) score += 10;
-  }
-  return Math.min(Math.max(score, 10), 99);
-}
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -175,7 +212,7 @@ type MatchResult = {
 type Application = {
   id: string;
   status: string;
-  created_at: string;
+  applied_at: string;
 };
 
 // ─── Main dashboard ────────────────────────────────────────────────────────
@@ -194,6 +231,7 @@ export default function DashboardPage() {
   const [savedCount, setSavedCount] = useState(0);
   const [newJobsThisWeek, setNewJobsThisWeek] = useState(0);
   const [allTopJobSkills, setAllTopJobSkills] = useState<string[][]>([]);
+  const [marketJobs, setMarketJobs] = useState<MarketJob[]>([]);
 
   // Redirect admin
   useEffect(() => {
@@ -220,6 +258,7 @@ export default function DashboardPage() {
           newJobsRes,
           matchResultsRes,
           savedRes,
+          marketRes,
         ] = await Promise.all([
           // Top 4 open jobs
           supabase
@@ -266,6 +305,14 @@ export default function DashboardPage() {
             .select("*", { count: "exact", head: true })
             .eq("user_id", userId)
             .eq("action_type", "saved"),
+
+          // Recent open jobs for the Career Insights card
+          supabase
+            .from("live_jobs")
+            .select("title,location,skills_required,salary_min,salary_max")
+            .eq("status", "open")
+            .order("posted_at", { ascending: false, nullsFirst: false })
+            .limit(300),
         ]);
 
         if (latestJobsRes.error) console.error("Dashboard fetch error (latest jobs):", latestJobsRes.error);
@@ -283,13 +330,16 @@ export default function DashboardPage() {
 
         setSavedCount(savedRes.count ?? 0);
 
+        if (marketRes.error) console.error("Dashboard fetch error (market jobs):", marketRes.error);
+        else setMarketJobs(marketRes.data ?? []);
+
         // Applications — completely isolated, graceful if table missing
         try {
           const appsRes = await supabase
             .from("applications")
-            .select("id,status,created_at")
+            .select("id,status,applied_at")
             .eq("user_id", userId)
-            .gte("created_at", sevenDaysAgo);
+            .gte("applied_at", sevenDaysAgo);
           if (!appsRes.error && appsRes.data) {
             setApplications(appsRes.data);
           }
@@ -328,7 +378,7 @@ export default function DashboardPage() {
     const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
     const counts: Record<string, number> = Object.fromEntries(days.map((d) => [d, 0]));
     applications.forEach((app) => {
-      const d = new Date(app.created_at);
+      const d = new Date(app.applied_at);
       const dayLabel = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getDay()];
       if (counts[dayLabel] !== undefined) counts[dayLabel]++;
     });
@@ -369,7 +419,10 @@ export default function DashboardPage() {
   );
 
   const userSkills = userProfile?.skills || [];
-  const news = getNewsForRole(userProfile?.target_role);
+  const news = useMemo(
+    () => buildInsights(marketJobs, userProfile?.target_role, userSkills),
+    [marketJobs, userProfile?.target_role, userSkills]
+  );
 
   // ─── Render helpers ───────────────────────────────────────────
 
@@ -466,7 +519,7 @@ export default function DashboardPage() {
                 <p style={{ fontSize: 13, color: "#6E6E73" }}>No open jobs found.</p>
               ) : (
                 latestJobs.map((job, idx) => {
-                  const score = calcScore(userSkills, job.skills_required, job.seniority, userProfile?.experience_level);
+                  const score = calcMatchScore(userSkills, job.skills_required, job.seniority, userProfile?.experience_level);
                   return (
                     <div
                       key={job.id}
@@ -615,7 +668,6 @@ export default function DashboardPage() {
                     >
                       {item.tag}
                     </span>
-                    <span style={{ fontSize: 11, color: "#AEAEB2" }}>{item.timeAgo}</span>
                   </div>
                   <p style={{ fontSize: 13, fontWeight: 600, color: "#1D1D1F", marginTop: 4 }}>
                     {item.title}
@@ -694,7 +746,9 @@ export default function DashboardPage() {
             {scoreTrendData.length < 2 ? (
               <div className="py-4 text-center">
                 <p style={{ fontSize: 13, color: "#6E6E73" }}>
-                  Run your first CV scan to start tracking progress.
+                  {scoreTrendData.length === 0
+                    ? "Run your first CV scan to start tracking progress."
+                    : `Your last scan scored ${scoreTrendData[0].score}%. Run one more to see your trend.`}
                 </p>
                 <Link
                   href="/dashboard/scanner"
@@ -764,7 +818,7 @@ export default function DashboardPage() {
             style={{ scrollbarWidth: "none" }}
           >
             {recentJobs.map((job) => {
-              const score = calcScore(userSkills, job.skills_required, job.seniority, userProfile?.experience_level);
+              const score = calcMatchScore(userSkills, job.skills_required, job.seniority, userProfile?.experience_level);
               const postedDate = job.posted_at ? new Date(job.posted_at) : new Date();
               return (
                 <Link

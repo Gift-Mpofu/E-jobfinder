@@ -21,6 +21,7 @@ export type CvAnalysisInput = z.infer<typeof CvAnalysisInputSchema>;
 const CvAnalysisOutputSchema = z.object({
   matchScore: z.number().min(0).max(100).describe('A score from 0-100 representing how well the CV matches the job description.'),
   strengths: z.array(z.string()).describe('A list of key strengths and skills from the CV that are relevant to the job.'),
+  cvSkills: z.array(z.string()).describe('Up to 15 concrete skills, tools or qualifications found in the CV, each 1-3 words (e.g. "Salesforce", "Negotiation", "Python").'),
   missingKeywords: z.array(z.string()).describe('A list of critical keywords and skills mentioned in the job description that are missing from the CV.'),
   improvementSuggestions: z.string().describe('Actionable suggestions for improving the CV to better match the job description.'),
   reasoning: z.string().describe('The detailed reasoning behind the analysis, especially for a deep scan.'),
@@ -81,6 +82,7 @@ Analyze the provided CV against the job description.
 **Instructions:**
 1.  **Match Score:** Calculate a percentage score representing the CV's compatibility with the job description.
 2.  **Strengths:** Identify the most relevant skills and experiences from the CV that align with the job.
+2b. **CV Skills:** List the concrete skills, tools and qualifications in the CV as short keywords (1-3 words each), not sentences.
 3.  **Missing Keywords:** Pinpoint crucial keywords from the job description that are absent in the CV. This is vital for passing ATS (Applicant Tracking Systems).
 4.  **Improvement Suggestions:** Provide a direct, actionable list of how to improve the CV. Do not include conversational filler like "Here are some suggestions...". Start directly with the suggestions.
 5.  **Hiring Rate Analysis:** Identify the job title from the description. Then, provide estimated hiring rate data for different seniority levels (e.g., Junior, Mid-Level, Senior) for that job title. This data should be returned in the 'hireRateData' field.

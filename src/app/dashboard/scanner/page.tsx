@@ -372,8 +372,8 @@ export default function ScannerPage() {
       });
       if (matchError) throw matchError;
 
-      // Merge AI-extracted strengths into profile skills for job matching
-      if (analysis.strengths?.length) {
+      // Merge AI-extracted CV skills into profile skills for job matching
+      if (analysis.cvSkills?.length) {
         const { data: profileRow } = await supabase
           .from("profiles")
           .select("skills")
@@ -383,7 +383,7 @@ export default function ScannerPage() {
         const merged = [
           ...new Set([
             ...existing,
-            ...analysis.strengths.map((s) => s.trim()).filter(Boolean),
+            ...analysis.cvSkills.map((s) => s.trim()).filter(Boolean),
           ]),
         ];
         const { error: skillsError } = await supabase

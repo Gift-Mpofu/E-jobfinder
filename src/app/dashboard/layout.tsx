@@ -150,7 +150,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [user, isAdminUser, userProfile?.scans_used, usageLimit, addNotification, supabase]);
 
   useEffect(() => {
-    if (!user) return;
+    // Wait for the profile: before it loads last_scan_reset looks empty and the
+    // weekly counter would be wiped on every page load.
+    if (!user || isProfileLoading || !userProfile) return;
     if (isAdminUser) {
       setIsLimitActive(false);
       setResetTimeLeft('');
@@ -179,7 +181,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       }, 1000);
       return () => clearInterval(interval);
     } else { setIsLimitActive(false); setResetTimeLeft(''); }
-  }, [user, isAdminUser, userProfile?.last_scan_reset, userProfile?.scans_used, usageLimit, supabase]);
+  }, [user, isAdminUser, isProfileLoading, userProfile, userProfile?.last_scan_reset, userProfile?.scans_used, usageLimit, supabase]);
 
   useEffect(() => {
     if (mounted && !isUserLoading && user && !isAdminUser) {

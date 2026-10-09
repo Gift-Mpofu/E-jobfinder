@@ -1,5 +1,7 @@
 'use client';
 
+import { calcMatchScore } from '@/lib/match-score';
+
 import { useState, useEffect, useCallback } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { useUser } from '@/supabase/provider';
@@ -98,14 +100,8 @@ export default function SwipePage() {
     }, 300);
   };
 
-  const calcScore = (job: LiveJob) => {
-    if (!profile?.skills?.length) return 50;
-    const us = profile.skills.map((s) => s.toLowerCase().trim());
-    const js = (job.skills_required || []).map((s) => s.toLowerCase().trim());
-    if (!js.length) return 50;
-    const matched = js.filter((j) => us.some((u) => j.includes(u) || u.includes(j))).length;
-    return Math.min(Math.max(40 + Math.ceil((matched / js.length) * 60), 10), 99);
-  };
+  const calcScore = (job: LiveJob) =>
+    calcMatchScore(profile?.skills, job.skills_required, job.seniority, profile?.experience_level);
 
   if (isLoading) {
     return (
@@ -172,7 +168,7 @@ export default function SwipePage() {
               </div>
             </div>
             <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-[#FFF3EB] text-[#CC5200]">
-              {score}% match
+              {score === null ? 'No match data' : `${score}% match`}
             </span>
           </div>
 
