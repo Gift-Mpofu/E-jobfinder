@@ -479,8 +479,23 @@ export default function ScannerPage() {
     }
   };
 
-  const handleFeedbackSubmit = () => {
-    console.log("Feedback submitted:", feedbackText);
+  const handleFeedbackSubmit = async () => {
+    if (!user) return;
+    const { error } = await supabase.from("scan_feedback").insert({
+      user_id: user.id,
+      job_title: analysisResult?.jobTitle ?? null,
+      match_score: analysisResult?.matchScore ?? null,
+      message: feedbackText.trim(),
+    });
+    if (error) {
+      console.error("Feedback save failed:", error.message);
+      toast({
+        variant: "destructive",
+        title: "Feedback Not Sent",
+        description: "We couldn't save your feedback. Please try again.",
+      });
+      return;
+    }
     toast({
       title: "Feedback Submitted",
       description: "Thank you for helping us improve E-Job Finder!",
@@ -1139,7 +1154,7 @@ export default function ScannerPage() {
                       <DialogFooter>
                         <Button
                           onClick={handleFeedbackSubmit}
-                          disabled={!feedbackText}
+                          disabled={!feedbackText.trim()}
                         >
                           Submit Feedback
                         </Button>

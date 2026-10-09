@@ -457,7 +457,7 @@ export default function LandingPage() {
                     "Dedicated support",
                   ],
                   cta: "Contact us",
-                  ctaHref: "/contact",
+                  ctaHref: "mailto:support@e-jobfinder.co.za?subject=E-Job%20Finder%20for%20employers",
                   solid: false,
                   note: null,
                 },

@@ -10,7 +10,8 @@ export async function GET() {
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
       { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } }
     )
-    await supabase.from('live_jobs').select('id').limit(1)
+    const { error } = await supabase.from('live_jobs').select('id').limit(1)
+    if (error) throw error
     return NextResponse.json({ status: 'alive', timestamp: new Date().toISOString() })
   } catch {
     return NextResponse.json({ status: 'error' }, { status: 500 })
