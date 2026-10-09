@@ -212,6 +212,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (!mounted) return <div className="min-h-screen bg-[#F5F5F7]" />;
 
+  if (userProfile?.status === 'suspended') {
+    return (
+      <div className="min-h-screen bg-[#F5F5F7] flex items-center justify-center p-6">
+        <div className="bg-white rounded-2xl border border-[#E5E5EA] p-8 max-w-md text-center space-y-4">
+          <h1 className="text-xl font-semibold text-[#1D1D1F]">Your account is suspended</h1>
+          <p className="text-sm text-[#6E6E73]">
+            Please contact <a href="mailto:support@e-jobfinder.co.za" className="text-[#FF6B00] underline">support@e-jobfinder.co.za</a> if you think this is a mistake.
+          </p>
+          <Button onClick={onSignOut} variant="outline">Log out</Button>
+        </div>
+      </div>
+    );
+  }
+
   const contextValue = {
     scansUsed: userProfile?.scans_used ?? 0,
     usageLimit, addScan, notifications, addNotification, clearNotifications,

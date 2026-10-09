@@ -85,7 +85,7 @@ export default function AdminPage() {
         setMounted(true);
     }, []);
 
-    const { isAdmin, isProfileLoading } = useDashboard();
+    const { isAdmin, isProfileLoading, usageLimit } = useDashboard();
     const isActualAdmin = Boolean(mounted && !isUserLoading && isAdmin);
 
     const [users, setUsers] = useState<UserProfile[] | null>(null);
@@ -210,8 +210,10 @@ export default function AdminPage() {
         setIsUpdating(userId);
         try {
             const mappedField = field === 'targetRole' ? 'target_role' : field === 'scansUsed' ? 'scans_used' : field === 'photoURL' ? 'photo_url' : field === 'lastActive' ? 'last_active' : field === 'experienceLevel' ? 'experience_level' : field;
-            await supabase.from('profiles').update({ [mappedField]: value }).eq('id', userId);
+            const { error } = await supabase.from('profiles').update({ [mappedField]: value }).eq('id', userId);
+            if (error) throw error;
             setUsers(prev => prev?.map(u => u.id === userId ? { ...u, [field]: value } : u) || null);
+            setSelectedUser(prev => prev && prev.id === userId ? { ...prev, [field]: value } : prev);
             toast({ title: "Updated", description: "Property changed successfully." });
         } catch (error: any) {
             toast({ variant: "destructive", title: "Error", description: error.message });
@@ -491,8 +493,8 @@ export default function AdminPage() {
                                                         </span>
                                                     </TableCell>
                                                     <TableCell>
-                                                        <span className={cn("font-mono font-bold text-xs", u.scansUsed >= 3 ? "text-destructive" : "text-primary")}>
-                                                            {u.scansUsed}/3
+                                                        <span className={cn("font-mono font-bold text-xs", u.scansUsed >= usageLimit ? "text-destructive" : "text-primary")}>
+                                                            {u.scansUsed}/{usageLimit}
                                                         </span>
                                                     </TableCell>
                                                     <TableCell className="text-right pr-6">

@@ -51,7 +51,7 @@ export async function analyzeCv(input: CvAnalysisInput): Promise<CvAnalysisResul
 
 function friendlyAiError(err: any): string {
   const msg: string = err?.message || String(err);
-  if (/signed in/i.test(msg)) return msg;
+  if (/signed in|suspended/i.test(msg)) return msg;
   if (/API key|PERMISSION_DENIED|403/i.test(msg)) return 'The AI service rejected the API key. Check GOOGLE_AI_KEY on the server.';
   if (/429|quota|RESOURCE_EXHAUSTED/i.test(msg)) return 'The AI service is over its quota right now. Please try again in a minute.';
   if (/503|overloaded|UNAVAILABLE|high demand/i.test(msg)) return 'The AI service is busy right now. Please try again in a moment.';

@@ -9,6 +9,10 @@ export async function POST(req: Request) {
     if (!user) {
       return NextResponse.json({ error: 'Please sign in to auto-apply.' }, { status: 401 });
     }
+    const { data: profile } = await supabase.from('profiles').select('status').eq('id', user.id).single();
+    if (profile?.status === 'suspended') {
+      return NextResponse.json({ error: 'Your account is suspended.' }, { status: 403 });
+    }
 
     const body = await req.json();
     const { jobTitle, company, description, userSkills, cvText, userName } = body;
