@@ -15,25 +15,35 @@ $$;
 REVOKE ALL ON FUNCTION public.is_admin() FROM public;
 GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated;
 
+-- Profiles: users see and edit their own row, admins see and edit all.
+DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
 DROP POLICY IF EXISTS "Admins can view all profiles" ON public.profiles;
 CREATE POLICY "Admins can view all profiles" ON public.profiles FOR SELECT
 USING (auth.uid() = id OR public.is_admin());
 
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 DROP POLICY IF EXISTS "Admins can update all profiles" ON public.profiles;
 CREATE POLICY "Admins can update all profiles" ON public.profiles FOR UPDATE
 USING (auth.uid() = id OR public.is_admin());
 
+-- CVs, job descriptions, match results: owner or admin.
+DROP POLICY IF EXISTS "Users can manage own CVs" ON public.cvs;
 DROP POLICY IF EXISTS "Admins can view all cvs" ON public.cvs;
 CREATE POLICY "Admins can view all cvs" ON public.cvs FOR ALL
-USING (auth.uid() = user_id OR public.is_admin());
+USING (auth.uid() = user_id OR public.is_admin())
+WITH CHECK (auth.uid() = user_id OR public.is_admin());
 
+DROP POLICY IF EXISTS "Users can manage own JDs" ON public.job_descriptions;
 DROP POLICY IF EXISTS "Admins can view all job_descriptions" ON public.job_descriptions;
 CREATE POLICY "Admins can view all job_descriptions" ON public.job_descriptions FOR ALL
-USING (auth.uid() = user_id OR public.is_admin());
+USING (auth.uid() = user_id OR public.is_admin())
+WITH CHECK (auth.uid() = user_id OR public.is_admin());
 
+DROP POLICY IF EXISTS "Users can manage own match results" ON public.match_results;
 DROP POLICY IF EXISTS "Admins can view all match_results" ON public.match_results;
 CREATE POLICY "Admins can view all match_results" ON public.match_results FOR ALL
-USING (auth.uid() = user_id OR public.is_admin());
+USING (auth.uid() = user_id OR public.is_admin())
+WITH CHECK (auth.uid() = user_id OR public.is_admin());
 
 -- 2. The update policy lets users edit their own row, which included `role`
 --    and `status`, so any user could make themselves admin. Only admins (or
@@ -59,7 +69,7 @@ CREATE TRIGGER protect_profile_role
   BEFORE UPDATE ON public.profiles
   FOR EACH ROW EXECUTE FUNCTION public.protect_profile_role();
 
--- New rows inserted by a signed-in user always start as a plain user.
+-- New rows inserted by a signed-in user always start as a plain, active user.
 CREATE OR REPLACE FUNCTION public.default_profile_role()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -69,6 +79,7 @@ AS $$
 BEGIN
   IF auth.uid() IS NOT NULL AND NOT public.is_admin() THEN
     NEW.role := 'user';
+    NEW.status := 'active';
   END IF;
   RETURN NEW;
 END;

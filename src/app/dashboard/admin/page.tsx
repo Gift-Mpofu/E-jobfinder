@@ -95,6 +95,8 @@ export default function AdminPage() {
     const [allMatches, setAllMatches] = useState<MatchResult[] | null>(null);
     const [isAllCvsLoading, setIsAllCvsLoading] = useState(true);
     const [isAllJobsLoading, setIsAllJobsLoading] = useState(true);
+    const [serverStatus, setServerStatus] = useState<'...' | 'ONLINE' | 'DEGRADED'>('...');
+    const [feedbackCount, setFeedbackCount] = useState<number | null>(null);
 
     useEffect(() => {
         if (!isActualAdmin) return;
@@ -102,6 +104,12 @@ export default function AdminPage() {
         let isMounted = true;
         const fetchAllData = async () => {
             try {
+                fetch('/api/ping')
+                    .then(res => isMounted && setServerStatus(res.ok ? 'ONLINE' : 'DEGRADED'))
+                    .catch(() => isMounted && setServerStatus('DEGRADED'));
+                supabase.from('scan_feedback').select('*', { count: 'exact', head: true })
+                    .then(({ count, error }) => isMounted && setFeedbackCount(error ? null : count ?? 0));
+
                 const [profilesRes, cvsRes, jobsRes, matchesRes] = await Promise.all([
                     supabase.from('profiles').select('*'),
                     supabase.from('cvs').select('*').order('upload_date', { ascending: false }),
@@ -397,11 +405,11 @@ export default function AdminPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard title="Total Users" value={isUsersLoading ? "..." : metrics.total} icon={Users} type="all" description="Registered accounts" />
                 <StatCard title="Active Users" value={isUsersLoading ? "..." : metrics.active} icon={Activity} colorClass="text-green-500" type="active" description="Active last 7 days" />
-                <StatCard title="AI Analyses" value={isUsersLoading ? "..." : metrics.totalScans} icon={TrendingUp} colorClass="text-blue-500" type="scans" description="Total scan throughput" />
-                <StatCard title="Server Status" value="OPTIMAL" icon={Server} colorClass="text-emerald-500" type="all" description="Global instance health" />
+                <StatCard title="AI Analyses" value={allMatches === null ? "..." : allMatches.length} icon={TrendingUp} colorClass="text-blue-500" type="scans" description="CV scans saved" />
+                <StatCard title="Server Status" value={serverStatus} icon={Server} colorClass={serverStatus === 'DEGRADED' ? "text-red-500" : "text-emerald-500"} type="all" description="App and database health check" />
                 <StatCard title="CVs Uploaded" value={isAllCvsLoading ? "..." : metrics.totalCvs} icon={FileText} colorClass="text-orange-500" type="cvs" description="Total document count" />
                 <StatCard title="Job Descs" value={isAllJobsLoading ? "..." : metrics.totalJobs} icon={ClipboardList} colorClass="text-purple-500" type="jds" description="Descriptions submitted" />
-                <StatCard title="Error Logs" value="0" icon={AlertCircle} colorClass="text-muted-foreground" type="errors" description="Exceptions today" />
+                <StatCard title="Scan Feedback" value={feedbackCount === null ? "—" : feedbackCount} icon={AlertCircle} colorClass="text-muted-foreground" type="errors" description="Notes left on scan results" />
             </div>
 
             <Tabs defaultValue="users" className="w-full">

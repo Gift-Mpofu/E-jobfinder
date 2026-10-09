@@ -140,7 +140,7 @@ Deno.serve(async (req) => {
     if (fetchError) {
       console.error("Failed to fetch jobs for processing:", fetchError.message);
     } else if (unprocessedJobs && unprocessedJobs.length > 0) {
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent`;
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`;
 
       for (const job of unprocessedJobs) {
         // Added brief delay to respect basic rate limits where needed

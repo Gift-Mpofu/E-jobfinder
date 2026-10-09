@@ -2,7 +2,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const SKILL_KEYWORDS: Record<string, string[]> = {
   'JavaScript': ['javascript','js','node.js','nodejs','react','vue','angular','next.js'],
-  'TypeScript': ['typescript', ' ts,', ' ts.', '(ts)'],
+  'TypeScript': ['typescript'],
   'Python': ['python','django','flask','fastapi','pandas','numpy'],
   'React': ['react','reactjs','react.js','next.js','nextjs'],
   'SQL': ['sql server', 'postgresql', 'mysql', 'supabase postgres', ' sql ', 'database queries', 'relational database'],
