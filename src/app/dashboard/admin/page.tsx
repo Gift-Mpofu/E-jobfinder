@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { useUser } from '@/supabase/provider';
+import { useDashboard } from '../layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,7 +25,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
-const ADMIN_EMAIL = 'giftmpofud@gmail.com';
 
 type UserProfile = {
     id: string;
@@ -85,7 +85,8 @@ export default function AdminPage() {
         setMounted(true);
     }, []);
 
-    const isActualAdmin = Boolean(mounted && !isUserLoading && user?.email && user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase());
+    const { isAdmin, isProfileLoading } = useDashboard();
+    const isActualAdmin = Boolean(mounted && !isUserLoading && isAdmin);
 
     const [users, setUsers] = useState<UserProfile[] | null>(null);
     const [isUsersLoading, setIsUsersLoading] = useState(true);
@@ -192,10 +193,10 @@ export default function AdminPage() {
     }, [users, allCvs, allJobs, mounted]);
 
     useEffect(() => {
-        if (mounted && !isUserLoading && !isActualAdmin) {
+        if (mounted && !isUserLoading && !isProfileLoading && !isActualAdmin) {
             router.push('/dashboard');
         }
-    }, [mounted, isUserLoading, isActualAdmin, router]);
+    }, [mounted, isUserLoading, isProfileLoading, isActualAdmin, router]);
 
     const handleUpdateUserField = async (userId: string, field: string, value: any) => {
         setIsUpdating(userId);
@@ -702,7 +703,7 @@ export default function AdminPage() {
                                                 size="sm"
                                                 className="h-8 text-[10px] font-bold uppercase"
                                                 onClick={() => handleUpdateUserField(selectedUser.id, 'status', selectedUser.status === 'suspended' ? 'active' : 'suspended')}
-                                                disabled={selectedUser.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase()}
+                                                disabled={selectedUser.id === user?.id}
                                             >
                                                 {selectedUser.status === 'suspended' ? <ShieldCheck className="h-3 w-3 mr-2" /> : <Ban className="h-3 w-3 mr-2" />}
                                                 {selectedUser.status === 'suspended' ? 'RESTORE' : 'SUSPEND'}
@@ -714,7 +715,7 @@ export default function AdminPage() {
                                             <Select
                                                 value={selectedUser.role || 'user'}
                                                 onValueChange={(val) => handleUpdateUserField(selectedUser.id, 'role', val)}
-                                                disabled={selectedUser.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase()}
+                                                disabled={selectedUser.id === user?.id}
                                             >
                                                 <SelectTrigger className="w-[120px] h-8 text-[10px] font-bold">
                                                     <SelectValue />

@@ -139,7 +139,7 @@ export default function ScannerPage() {
   const router = useRouter();
   const { user } = useUser();
   const supabase = getSupabaseClient();
-  const { scansUsed, usageLimit, addScan, addNotification, isLimitActive } =
+  const { scansUsed, usageLimit, addScan, addNotification, isLimitActive, isAdmin } =
     useDashboard();
 
   // Fetch saved CVs for authenticated user
@@ -418,10 +418,7 @@ export default function ScannerPage() {
       return;
     }
 
-    const userEmail = user?.email?.toLowerCase() || '';
-    const isAdminUser = userEmail === 'giftmpofud@gmail.com';
-
-    if (!isAdminUser && scansUsed >= usageLimit && isLimitActive) {
+    if (!isAdmin && scansUsed >= usageLimit && isLimitActive) {
       toast({
         variant: "destructive",
         title: "Usage Limit Reached",
@@ -452,11 +449,13 @@ export default function ScannerPage() {
     });
 
     try {
-      const result = await analyzeCv({
+      const response = await analyzeCv({
         cvContent,
         jobDescription,
         scanType,
       });
+      if (!response.ok) throw new Error(response.error);
+      const result = response.data;
       setAnalysisResult(result);
       await addScan();
       addNotification({

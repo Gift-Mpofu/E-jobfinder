@@ -1,6 +1,7 @@
 'use server';
 
 import { ai } from '@/ai/genkit';
+import { requireUser } from '@/ai/require-user';
 import { z } from 'genkit';
 
 const CoverLetterInputSchema = z.object({
@@ -19,6 +20,7 @@ const CoverLetterOutputSchema = z.object({
 export type CoverLetterOutput = z.infer<typeof CoverLetterOutputSchema>;
 
 export async function generateCoverLetter(input: CoverLetterInput): Promise<CoverLetterOutput> {
+  await requireUser();
   return coverLetterFlow(input);
 }
 

@@ -1,6 +1,7 @@
 'use server';
 
 import { ai } from '@/ai/genkit';
+import { requireUser } from '@/ai/require-user';
 import { z } from 'genkit';
 
 const MessageSchema = z.object({
@@ -54,5 +55,6 @@ Be encouraging, concise, and highly professional.`;
 );
 
 export async function askBubbl(history: CompanionMessage[], prompt: string): Promise<string> {
+  await requireUser();
     return companionFlow({ history, prompt });
 }

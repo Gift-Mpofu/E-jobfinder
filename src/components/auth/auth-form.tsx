@@ -8,7 +8,6 @@ import { Eye, EyeOff, Loader2, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
 type Mode = 'login' | 'signup';
-const ADMIN_EMAIL = 'giftmpofud@gmail.com';
 
 export default function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
@@ -30,12 +29,10 @@ export default function AuthForm({ mode }: { mode: Mode }) {
     }
   }, []);
 
-  const isEmailAdmin = email ? email.toLowerCase() === ADMIN_EMAIL.toLowerCase() : false;
-
   useEffect(() => {
     if (user) {
-      const isUserAdmin = user.email ? user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase() : false;
-      router.replace(isUserAdmin ? '/dashboard/admin' : '/dashboard');
+      // The dashboard sends admins on to the admin panel.
+      router.replace('/dashboard');
     }
   }, [user, router]);
 
@@ -46,9 +43,8 @@ export default function AuthForm({ mode }: { mode: Mode }) {
       if (mode === 'login') {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        const isAdmin = data.user?.email ? data.user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase() : false;
-        toast({ title: isAdmin ? 'Master Key Accepted' : 'Welcome back!', description: isAdmin ? 'System access granted.' : `Signed in as ${data.user?.email}` });
-        router.replace(isAdmin ? '/dashboard/admin' : '/dashboard');
+        toast({ title: 'Welcome back!', description: `Signed in as ${data.user?.email}` });
+        router.replace('/dashboard');
       } else {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
@@ -57,9 +53,6 @@ export default function AuthForm({ mode }: { mode: Mode }) {
       }
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
-      if (isEmailAdmin && error.message.includes('Invalid login credentials')) {
-        toast({ title: 'Admin Setup', description: 'Use Sign Up to register the master account first.' });
-      }
     } finally {
       setIsLoading(false);
     }
@@ -111,9 +104,9 @@ export default function AuthForm({ mode }: { mode: Mode }) {
           {mode === 'login' ? 'Sign in to your account' : 'Sign up to start your AI job search'}
         </p>
 
-        {(isEmailAdmin || isDevPortal) && (
+        {isDevPortal && (
           <div className="mb-5 bg-[#FFF3EB] border border-[#FF6B00]/20 rounded-xl px-4 py-3 text-sm text-[#FF6B00] font-medium text-center">
-            {isEmailAdmin ? 'Admin Master Key Detected' : 'Developer & Admin Access Portal'}
+            Developer & Admin Access Portal
           </div>
         )}
 

@@ -1,6 +1,7 @@
 'use server';
 
 import { ai } from '@/ai/genkit';
+import { requireUser } from '@/ai/require-user';
 import { z } from 'genkit';
 
 const MessageSchema = z.object({
@@ -152,10 +153,12 @@ function buildFallbackCvFromHistory(history: CompanionMessage[]): string {
 }
 
 export async function askCvBuilder(history: CompanionMessage[], prompt: string): Promise<string> {
+  await requireUser();
   return cvBuilderFlow({ history, prompt });
 }
 
 export async function generateProfessionalCv(conversationHistory: CompanionMessage[]): Promise<string> {
+  await requireUser();
   return professionalCvFormatterFlow({ conversationHistory });
 }
 
@@ -219,5 +222,6 @@ CRITICAL INSTRUCTIONS:
 );
 
 export async function parseStepAnswer(step: number, answerText: string) {
+  await requireUser();
   return stepAnswerParserFlow({ step, answerText });
 }

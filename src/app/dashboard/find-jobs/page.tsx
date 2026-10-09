@@ -180,7 +180,8 @@ export default function FindJobsPage() {
       });
 
       if (!res.ok) {
-        throw new Error('Failed to generate application package.');
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error || 'Failed to generate application package.');
       }
 
       const data = await res.json();

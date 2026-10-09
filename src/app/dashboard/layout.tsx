@@ -15,7 +15,6 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { AiCompanion } from '@/components/ui/ai-companion';
 import { isSameWeek, nextMonday, startOfDay } from 'date-fns';
 
-const ADMIN_EMAIL = 'giftmpofud@gmail.com';
 
 type Notification = {
   id: string;
@@ -122,11 +121,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     checkConnection();
   }, []);
 
-  const isAdminUser = Boolean(mounted && user?.email && user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase());
-
-  // Access control for /dashboard/admin is handled inside admin/page.tsx
-
   const { profile: userProfile, isLoading: isProfileLoading } = useProfile();
+
+  // Admin access comes from profiles.role, which RLS policies also check.
+  const isAdminUser = Boolean(mounted && userProfile?.role === 'admin');
 
   useEffect(() => {
     if (userProfile && mounted && user) {
@@ -142,20 +140,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const addScan = useCallback(async () => {
     if (!user) return;
-    const isUserAdmin = Boolean(user.email && user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase());
     const newScansUsed = (userProfile?.scans_used ?? 0) + 1;
-    if (!isUserAdmin && newScansUsed >= usageLimit) {
+    if (!isAdminUser && newScansUsed >= usageLimit) {
       addNotification({ type: 'limit_reached', title: 'Usage Limit Reached', description: 'Your free scans will reset next Monday.' });
     }
     try {
       await supabase.from('profiles').update({ scans_used: newScansUsed }).eq('id', user.id);
     } catch (error) { console.error("Failed to update scan count:", error); }
-  }, [user, userProfile?.scans_used, usageLimit, addNotification, supabase]);
+  }, [user, isAdminUser, userProfile?.scans_used, usageLimit, addNotification, supabase]);
 
   useEffect(() => {
     if (!user) return;
-    const isUserAdmin = Boolean(user.email && user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase());
-    if (isUserAdmin) {
+    if (isAdminUser) {
       setIsLimitActive(false);
       setResetTimeLeft('');
       return;
@@ -183,7 +179,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       }, 1000);
       return () => clearInterval(interval);
     } else { setIsLimitActive(false); setResetTimeLeft(''); }
-  }, [user, userProfile?.last_scan_reset, userProfile?.scans_used, usageLimit, supabase]);
+  }, [user, isAdminUser, userProfile?.last_scan_reset, userProfile?.scans_used, usageLimit, supabase]);
 
   useEffect(() => {
     if (mounted && !isUserLoading && user && !isAdminUser) {

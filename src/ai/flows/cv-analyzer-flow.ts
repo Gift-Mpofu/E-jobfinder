@@ -9,6 +9,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import {requireUser} from '@/ai/require-user';
 
 const CvAnalysisInputSchema = z.object({
   cvContent: z.string().describe("The full text content of the user's CV."),
@@ -31,8 +32,30 @@ const CvAnalysisOutputSchema = z.object({
 });
 export type CvAnalysisOutput = z.infer<typeof CvAnalysisOutputSchema>;
 
-export async function analyzeCv(input: CvAnalysisInput): Promise<CvAnalysisOutput> {
-  return cvAnalysisFlow(input);
+export type CvAnalysisResult =
+  | { ok: true; data: CvAnalysisOutput }
+  | { ok: false; error: string };
+
+// Server actions that throw have their message replaced with a generic one in
+// production builds, so errors are returned as data for the UI to show.
+export async function analyzeCv(input: CvAnalysisInput): Promise<CvAnalysisResult> {
+  try {
+    await requireUser();
+    return { ok: true, data: await cvAnalysisFlow(input) };
+  } catch (err: any) {
+    console.error('analyzeCv failed:', err);
+    return { ok: false, error: friendlyAiError(err) };
+  }
+}
+
+function friendlyAiError(err: any): string {
+  const msg: string = err?.message || String(err);
+  if (/signed in/i.test(msg)) return msg;
+  if (/API key|PERMISSION_DENIED|403/i.test(msg)) return 'The AI service rejected the API key. Check GOOGLE_AI_KEY on the server.';
+  if (/429|quota|RESOURCE_EXHAUSTED/i.test(msg)) return 'The AI service is over its quota right now. Please try again in a minute.';
+  if (/503|overloaded|UNAVAILABLE|high demand/i.test(msg)) return 'The AI service is busy right now. Please try again in a moment.';
+  if (/schema|valid output|parse/i.test(msg)) return 'The AI returned an incomplete analysis. Please try again.';
+  return `Analysis failed: ${msg.slice(0, 200)}`;
 }
 
 const cvAnalysisPrompt = ai.definePrompt({
