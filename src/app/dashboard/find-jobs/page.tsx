@@ -1,5 +1,7 @@
 'use client';
 
+import { getCompanyColour } from '@/lib/company';
+
 import { useState, useEffect } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { useUser } from '@/supabase/provider';
@@ -30,10 +32,6 @@ type LiveJob = {
 };
 
 // Company colour avatar — no "?" bubbles
-const COMPANY_COLOURS = ['#FF6B00','#007AFF','#34C759','#FF9F0A','#AF52DE','#FF2D55','#5AC8FA','#1D9E75'];
-function getCompanyColour(name: string) {
-  return COMPANY_COLOURS[name.charCodeAt(0) % COMPANY_COLOURS.length];
-}
 function CompanyAvatar({ name }: { name: string }) {
   const colour = getCompanyColour(name || 'X');
   const letter = (name || 'X').charAt(0).toUpperCase();

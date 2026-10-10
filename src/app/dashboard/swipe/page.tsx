@@ -1,5 +1,7 @@
 'use client';
 
+import { getCompanyColour } from '@/lib/company';
+
 import { calcMatchScore } from '@/lib/match-score';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -21,11 +23,6 @@ type LiveJob = {
   url?: string;
 };
 
-const COMPANY_COLOURS = ['#FF6B00', '#007AFF', '#34C759', '#FF9F0A', '#AF52DE', '#FF2D55', '#5AC8FA', '#1D9E75'];
-
-function getCompanyColour(name: string) {
-  return COMPANY_COLOURS[(name || 'X').charCodeAt(0) % COMPANY_COLOURS.length];
-}
 
 export default function SwipePage() {
   const supabase = getSupabaseClient();

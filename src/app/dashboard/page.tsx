@@ -1,5 +1,7 @@
 "use client";
 
+import { getCompanyColour } from '@/lib/company';
+
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -32,14 +34,6 @@ import { formatDistanceToNow, subDays, startOfDay, format, subWeeks, nextMonday,
 
 // ─── Shared helpers (mirrors find-jobs page) ───────────────────────────────
 
-const COMPANY_COLOURS = [
-  "#FF6B00","#007AFF","#34C759","#FF9F0A",
-  "#AF52DE","#FF2D55","#5AC8FA","#1D9E75",
-];
-
-function getCompanyColour(name: string) {
-  return COMPANY_COLOURS[(name || "X").charCodeAt(0) % COMPANY_COLOURS.length];
-}
 
 function CompanyAvatar({ name, size = 44 }: { name: string; size?: number }) {
   const colour = getCompanyColour(name || "X");

@@ -28,6 +28,58 @@ interface GeminiResponse {
   }>;
 }
 
+const CONFIDENTIAL_EMPLOYER = "Confidential employer";
+const PLACEHOLDER_COMPANIES = ["Unknown Company", CONFIDENTIAL_EMPLOYER];
+
+// Adzuna omits the company on many recruiter ads. Ask Gemini to pull the
+// employer or agency name from the text, only when it is stated outright.
+async function resolveEmployers(
+  jobs: Array<{ title: string; description: string }>,
+  apiKey: string
+): Promise<Array<string | null>> {
+  const results: Array<string | null> = jobs.map(() => null);
+  for (let start = 0; start < jobs.length; start += 15) {
+    // Stay under the Gemini per-minute request limit.
+    if (start > 0) await new Promise((r) => setTimeout(r, 7000));
+    const chunk = jobs.slice(start, start + 15);
+    const listing = chunk
+      .map((j, i) => `[${i}] ${j.title}\n${j.description.slice(0, 700)}`)
+      .join("\n\n");
+    const prompt = `For each job ad below, give the name of the hiring company or recruitment agency if the text states it explicitly. Do not guess and do not use generic phrases like "our client" or "a leading company". If no name is stated, use null.
+Respond with only a JSON array of {"i": number, "employer": string | null}.
+
+${listing}`;
+    try {
+      const res = await fetch(
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0, responseMimeType: "application/json" },
+          }),
+        }
+      );
+      if (!res.ok) {
+        console.error(`Employer lookup failed: ${res.status}`);
+        continue;
+      }
+      const json: GeminiResponse = await res.json();
+      const parsed = JSON.parse(json?.candidates?.[0]?.content?.parts?.[0]?.text ?? "[]");
+      for (const row of Array.isArray(parsed) ? parsed : []) {
+        const name = typeof row?.employer === "string" ? row.employer.trim() : "";
+        if (Number.isInteger(row?.i) && row.i < chunk.length && name.length > 1 && name.length < 80) {
+          results[start + row.i] = name;
+        }
+      }
+    } catch (err) {
+      console.error("Employer lookup error:", err);
+    }
+  }
+  return results;
+}
+
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -51,6 +103,34 @@ Deno.serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, serviceKey);
+
+    // One-off/maintenance mode: { "backfillCompanies": true } resolves
+    // placeholder company names on existing listings instead of ingesting.
+    let body: Record<string, unknown> = {};
+    try { body = await req.clone().json(); } catch (_e) { /* no body */ }
+    if (body?.backfillCompanies === true) {
+      const { data: rows, error } = await supabase
+        .from("live_jobs")
+        .select("id, title, description_text")
+        .in("company", PLACEHOLDER_COMPANIES)
+        .order("id")
+        .range(Number(body.offset ?? 0), Number(body.offset ?? 0) + 59);
+      if (error) throw error;
+      const names = await resolveEmployers(
+        (rows ?? []).map(r => ({ title: r.title, description: r.description_text ?? "" })),
+        googleAiKey
+      );
+      let named = 0;
+      for (let i = 0; i < (rows ?? []).length; i++) {
+        const company = names[i] ?? CONFIDENTIAL_EMPLOYER;
+        if (names[i]) named++;
+        await supabase.from("live_jobs").update({ company }).eq("id", rows![i].id);
+      }
+      return new Response(
+        JSON.stringify({ checked: rows?.length ?? 0, named }),
+        { headers: { ...CORS_HEADERS, "Content-Type": "application/json" } }
+      );
+    }
 
     // ── PHASE 1: Fetch and Ingest Jobs from Adzuna ──
     const jobsToUpsert = [];
@@ -76,7 +156,7 @@ Deno.serve(async (req) => {
         return results.map(r => ({
           external_id: `adzuna_${r.id}`,
           title: r.title ?? "Untitled",
-          company: r.company?.display_name ?? "Unknown Company",
+          company: r.company?.display_name?.trim() || null,
           location: r.location?.display_name ?? "Unknown Location",
           description_text: r.description ?? "",
           url: r.redirect_url ?? "",
@@ -96,6 +176,28 @@ Deno.serve(async (req) => {
 
     const categoryResults = await Promise.all(fetchPromises);
     jobsToUpsert.push(...categoryResults.flat());
+
+    // Fill in missing company names: keep a name resolved on an earlier run,
+    // otherwise ask Gemini, otherwise mark the employer as confidential.
+    const missing = jobsToUpsert.filter(j => !j.company);
+    if (missing.length > 0) {
+      const { data: existing } = await supabase
+        .from("live_jobs")
+        .select("external_id, company")
+        .in("external_id", missing.map(j => j.external_id));
+      const known = new Map(
+        (existing ?? [])
+          .filter(e => e.company && !PLACEHOLDER_COMPANIES.includes(e.company))
+          .map(e => [e.external_id, e.company])
+      );
+      const unresolved = missing.filter(j => !known.has(j.external_id));
+      const names = await resolveEmployers(
+        unresolved.map(j => ({ title: j.title, description: j.description_text })),
+        googleAiKey
+      );
+      unresolved.forEach((j, i) => { known.set(j.external_id, names[i] ?? CONFIDENTIAL_EMPLOYER); });
+      for (const j of missing) j.company = known.get(j.external_id) ?? CONFIDENTIAL_EMPLOYER;
+    }
 
     let ingestedCount = 0;
     if (jobsToUpsert.length > 0) {
