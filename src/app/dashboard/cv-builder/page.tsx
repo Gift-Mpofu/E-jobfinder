@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { useUser } from '@/supabase/provider';
-import { useDashboard } from '../layout';
+import { useDashboard } from '../dashboard-shell';
 import { useToast } from '@/hooks/use-toast';
 import { askCvBuilder, generateProfessionalCv, parseStepAnswer, type CompanionMessage } from '@/ai/flows/cv-builder-flow';
 
@@ -344,7 +344,6 @@ export default function CvBuilderPage() {
     ];
 
     setMessages(newHistory);
-    updateCvDataFromStep(questionStep, userMessage);
 
     // Check if user pasted a multi-section full CV
     const multiExtracted = detectAndExtractMultiSections(userMessage);
@@ -377,37 +376,44 @@ export default function CvBuilderPage() {
       return;
     }
 
-    // Asynchronously trigger AI parsing for clean live document updates
-    parseStepAnswer(questionStep, userMessage)
-      .then(extracted => {
-        if (extracted && Object.keys(extracted).length > 0) {
-          setCvData(prev => ({
-            ...prev,
-            ...(extracted.fullName ? { fullName: extracted.fullName } : {}),
-            ...(extracted.targetRole ? { targetRole: extracted.targetRole } : {}),
-            ...(extracted.summary ? { summary: extracted.summary } : {}),
-            ...(extracted.recentExperience ? { recentExperience: extracted.recentExperience } : {}),
-            ...(extracted.otherExperience ? { otherExperience: extracted.otherExperience } : {}),
-            ...(extracted.skills && extracted.skills.length > 0 ? { skills: extracted.skills } : {}),
-            ...(extracted.education ? { education: extracted.education } : {}),
-            ...(extracted.projects ? { projects: extracted.projects } : {}),
-            ...(extracted.contactInfo ? { contactInfo: extracted.contactInfo } : {}),
-          }));
-        }
-      })
-      .catch(e => console.error('Background AI step parsing error:', e));
-
     setIsLoading(true);
 
     try {
-      const aiReply = await askCvBuilder(newHistory.slice(0, -1), userMessage);
+      const turn = await askCvBuilder(newHistory.slice(0, -1), userMessage, questionStep);
+      if (!turn.ok) throw new Error(turn.error);
 
       const updatedHistory: CompanionMessage[] = [
         ...newHistory,
-        { role: 'model', content: aiReply }
+        { role: 'model', content: turn.reply }
       ];
-
       setMessages(updatedHistory);
+
+      // Small talk like "hey" doesn't count as an answer: no preview update,
+      // and the same question is asked again.
+      if (!turn.answered && !isEditingAnswer) return;
+
+      updateCvDataFromStep(questionStep, userMessage);
+      // Asynchronously trigger AI parsing for clean live document updates
+      parseStepAnswer(questionStep, userMessage)
+        .then(extracted => {
+          if (extracted && Object.keys(extracted).length > 0) {
+            setCvData(prev => ({
+              ...prev,
+              ...(extracted.fullName ? { fullName: extracted.fullName } : {}),
+              ...(extracted.targetRole ? { targetRole: extracted.targetRole } : {}),
+              ...(extracted.summary ? { summary: extracted.summary } : {}),
+              ...(extracted.recentExperience ? { recentExperience: extracted.recentExperience } : {}),
+              ...(extracted.otherExperience ? { otherExperience: extracted.otherExperience } : {}),
+              ...(extracted.skills && extracted.skills.length > 0 ? { skills: extracted.skills } : {}),
+              ...(extracted.education ? { education: extracted.education } : {}),
+              ...(extracted.projects ? { projects: extracted.projects } : {}),
+              ...(extracted.contactInfo ? { contactInfo: extracted.contactInfo } : {}),
+            }));
+          }
+        })
+        .catch(e => console.error('Background AI step parsing error:', e));
+
+
       const nextStep = isEditingAnswer ? questionStep : questionStep + 1;
       setQuestionStep(nextStep);
 

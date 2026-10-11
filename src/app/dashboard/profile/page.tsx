@@ -14,7 +14,7 @@ import { formatDistanceToNow, isSameWeek } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useDashboard } from '../layout';
+import { useDashboard } from '../dashboard-shell';
 import { NumberedSuggestionsList } from '@/components/ui/numbered-suggestions';
 
 type CV = { id: string; fileName: string; uploadDate: string; fileContent: string; };
@@ -260,7 +260,7 @@ export default function ProfilePage() {
   const displayName = userProfile?.full_name || user?.user_metadata?.full_name || (user?.email ? user.email.split('@')[0] : 'Anonymous User');
 
   const onSignOut = async () => {
-    try { await supabase.auth.signOut(); router.push('/login'); }
+    try { await supabase.auth.signOut(); window.location.href = '/login'; }
     catch { toast({ variant: "destructive", title: "Sign Out Failed" }); }
   };
 

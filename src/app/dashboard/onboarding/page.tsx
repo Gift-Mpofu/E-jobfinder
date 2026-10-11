@@ -12,7 +12,7 @@ import { Progress } from '@/components/ui/progress';
 import { ArrowRight, Briefcase, Star, Award, Target, Rocket, MapPin, UploadCloud, BrainCircuit, LineChart, Sparkles, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
-import { useDashboard } from '../layout';
+import { useDashboard } from '../dashboard-shell';
 
 export default function OnboardingPage() {
   const router = useRouter();

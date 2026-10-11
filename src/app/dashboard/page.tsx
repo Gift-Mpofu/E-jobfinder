@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { useUser } from "@/supabase/provider";
-import { useDashboard } from "@/app/dashboard/layout";
+import { useDashboard } from "@/app/dashboard/dashboard-shell";
 import { calcMatchScore } from "@/lib/match-score";
 import { formatDistanceToNow, subDays, startOfDay, format, subWeeks, nextMonday, startOfWeek } from "date-fns";
 
@@ -215,7 +215,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const { user, isUserLoading } = useUser();
   const supabase = getSupabaseClient();
-  const { userProfile, isProfileLoading, isAdmin } = useDashboard();
+  const { userProfile, isProfileLoading, isAdmin, scansUsed } = useDashboard();
 
   const [isLoading, setIsLoading] = useState(true);
   const [latestJobs, setLatestJobs] = useState<LiveJob[]>([]);
@@ -481,7 +481,7 @@ export default function DashboardPage() {
             { value: newJobsThisWeek, label: "New jobs this week" },
             { value: totalApps, label: "Applications sent" },
             { value: savedCount, label: "Jobs saved" },
-            { value: userProfile?.scans_used ?? 0, label: "Scans used this week" },
+            { value: scansUsed, label: "Scans used this week" },
           ].map((stat, i) => (
             <div key={i} className="sm:px-6 first:pl-0 last:pr-0 text-center sm:text-left">
               <p style={{ fontSize: 28, fontWeight: 700, color: "#FFFFFF" }}>{stat.value}</p>

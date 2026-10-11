@@ -60,7 +60,7 @@ import {
 } from "@/components/ui/dialog";
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { useUser } from "@/supabase/provider";
-import { useDashboard } from "@/app/dashboard/layout";
+import { useDashboard } from "@/app/dashboard/dashboard-shell";
 
 const hireRateChartConfig = {
   rate: {
@@ -457,7 +457,7 @@ export default function ScannerPage() {
       if (!response.ok) throw new Error(response.error);
       const result = response.data;
       setAnalysisResult(result);
-      await addScan();
+      addScan(response.scansUsed);
       addNotification({
         type: "scan_complete",
         title: "Analysis Complete",

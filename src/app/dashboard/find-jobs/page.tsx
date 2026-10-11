@@ -12,7 +12,7 @@ import { Bookmark, BookmarkCheck, Search, AlertCircle, Sparkles, Copy, Download,
 import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { useDashboard } from '../layout';
+import { useDashboard } from '../dashboard-shell';
 import { calcMatchScore } from '@/lib/match-score';
 
 type LiveJob = {

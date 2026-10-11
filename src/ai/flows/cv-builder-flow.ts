@@ -23,54 +23,56 @@ const FALLBACK_QUESTIONS: string[] = [
   "Perfect! Generating your CV now..."
 ];
 
+const SMALL_TALK = /^(hi|hey|hello|hallo|howzit|yo|ok|okay|yes|no|sure|thanks?|thank you|test|\?+)[\s!.?]*$/i;
+
+const CvTurnSchema = z.object({
+  answered: z.boolean().describe('True if the message actually answers the current question.'),
+  reply: z.string().describe('What to say to the user next.'),
+});
+
 const cvBuilderFlow = ai.defineFlow(
   {
     name: 'cvBuilderFlow',
     inputSchema: z.object({
       history: z.array(MessageSchema),
       prompt: z.string(),
+      step: z.number(),
     }),
-    outputSchema: z.string(),
+    outputSchema: CvTurnSchema,
   },
-  async ({ history, prompt }) => {
-    const systemPrompt = `You are a professional CV writer helping a South African job seeker build their CV. Ask the provided questions one at a time. After each answer, give a brief encouraging response (1 sentence max) then ask the next question. After all 8 questions are answered, say 'Perfect! Generating your CV now...' and output the full CV content. Keep responses concise. Never give career advice unless directly asked. Focus on collecting information.`;
+  async ({ history, prompt, step }) => {
+    const current = FALLBACK_QUESTIONS[step - 1] ?? FALLBACK_QUESTIONS[0];
+    const next = FALLBACK_QUESTIONS[step] ?? FALLBACK_QUESTIONS[8];
+    const systemPrompt = `You are a professional CV writer helping a South African job seeker build their CV through 8 questions.
+The user is on question ${step} of 8: "${current}"
+- If their message answers that question (even partly), set answered=true and reply with one short encouraging sentence followed by the next question: "${next}"
+- If it does not answer it (a greeting, "ok", a question back, something unrelated), set answered=false and reply briefly, then ask question ${step} again in your own words.
+Keep replies concise. Never invent details about the user.`;
 
     const messages: any[] = [
       { role: 'system', content: [{ text: systemPrompt }] },
-      ...history.map(msg => ({ 
-        role: msg.role === 'model' ? 'model' : 'user', 
-        content: [{ text: msg.content }] 
+      ...history.map(msg => ({
+        role: msg.role === 'model' ? 'model' : 'user',
+        content: [{ text: msg.content }]
       })),
       { role: 'user', content: [{ text: prompt }] }
     ];
 
-    let text = '';
     try {
-      const response = await ai.generate({
+      const { output } = await ai.generate({
         messages,
-        config: {
-          temperature: 0.7,
-        }
+        output: { schema: CvTurnSchema },
+        config: { temperature: 0.4, thinkingConfig: { thinkingBudget: 0 } },
       });
-      text = response.text;
+      if (output) return output;
     } catch (err: any) {
-      console.warn('cvBuilderFlow API retry attempt...', err?.message);
-      try {
-        await new Promise(r => setTimeout(r, 1000));
-        const retryRes = await ai.generate({
-          messages,
-          config: { temperature: 0.7 }
-        });
-        text = retryRes.text;
-      } catch (retryErr: any) {
-        console.warn('cvBuilderFlow using graceful fallback question due to API high demand:', retryErr?.message);
-        const userMsgCount = history.filter(m => m.role === 'user').length + 1;
-        const fallbackQ = FALLBACK_QUESTIONS[userMsgCount] || FALLBACK_QUESTIONS[8];
-        text = `Got it! ${fallbackQ}`;
-      }
+      console.warn('cvBuilderFlow falling back to scripted question:', err?.message);
     }
-
-    return text;
+    // AI unavailable: use the scripted questions so the interview keeps going.
+    const answered = !SMALL_TALK.test(prompt.trim()) && prompt.trim().length > 2;
+    return answered
+      ? { answered, reply: `Got it! ${next}` }
+      : { answered, reply: `No problem. ${current}` };
   }
 );
 
@@ -152,13 +154,28 @@ function buildFallbackCvFromHistory(history: CompanionMessage[]): string {
   return `${name.toUpperCase()}\nContact: ${contact}\n\n========================================\n\nPROFESSIONAL SUMMARY\n${summary}\n\nTECHNICAL SKILLS\n${skills}\n\nWORK EXPERIENCE\n${exp}\n${otherExp ? '\n' + otherExp : ''}\n\nEDUCATION & QUALIFICATIONS\n${edu}\n\nPROJECTS\n${proj}`;
 }
 
-export async function askCvBuilder(history: CompanionMessage[], prompt: string): Promise<string> {
-  await requireUser();
-  return cvBuilderFlow({ history, prompt });
+export type CvTurnResult =
+  | { ok: true; answered: boolean; reply: string }
+  | { ok: false; error: string };
+
+// Returns errors as data: production builds hide the message of a thrown error.
+export async function askCvBuilder(history: CompanionMessage[], prompt: string, step: number): Promise<CvTurnResult> {
+  try {
+    await requireUser();
+    return { ok: true, ...(await cvBuilderFlow({ history, prompt, step })) };
+  } catch (err: any) {
+    console.error('askCvBuilder failed:', err);
+    return { ok: false, error: err?.message || 'The AI CV Writer is unavailable right now.' };
+  }
 }
 
 export async function generateProfessionalCv(conversationHistory: CompanionMessage[]): Promise<string> {
-  await requireUser();
+  // Never throws: falls back to a plain layout built from the answers.
+  try {
+    await requireUser();
+  } catch {
+    return buildFallbackCvFromHistory(conversationHistory);
+  }
   return professionalCvFormatterFlow({ conversationHistory });
 }
 
@@ -207,7 +224,7 @@ CRITICAL INSTRUCTIONS:
     try {
       const { text } = await ai.generate({
         prompt,
-        config: { temperature: 0.2 },
+        config: { temperature: 0.2, thinkingConfig: { thinkingBudget: 0 } },
       });
 
       const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -222,6 +239,10 @@ CRITICAL INSTRUCTIONS:
 );
 
 export async function parseStepAnswer(step: number, answerText: string) {
-  await requireUser();
+  try {
+    await requireUser();
+  } catch {
+    return {};
+  }
   return stepAnswerParserFlow({ step, answerText });
 }

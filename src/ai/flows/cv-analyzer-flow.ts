@@ -9,7 +9,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import {requireUser} from '@/ai/require-user';
+import {requireUser, consumeScan, refundScan} from '@/ai/require-user';
 
 const CvAnalysisInputSchema = z.object({
   cvContent: z.string().describe("The full text content of the user's CV."),
@@ -34,17 +34,26 @@ const CvAnalysisOutputSchema = z.object({
 export type CvAnalysisOutput = z.infer<typeof CvAnalysisOutputSchema>;
 
 export type CvAnalysisResult =
-  | { ok: true; data: CvAnalysisOutput }
+  | { ok: true; data: CvAnalysisOutput; scansUsed: number }
   | { ok: false; error: string };
 
 // Server actions that throw have their message replaced with a generic one in
 // production builds, so errors are returned as data for the UI to show.
 export async function analyzeCv(input: CvAnalysisInput): Promise<CvAnalysisResult> {
+  let scansUsed: number;
+  let userId: string;
   try {
-    await requireUser();
-    return { ok: true, data: await cvAnalysisFlow(input) };
+    userId = (await requireUser()).id;
+    scansUsed = await consumeScan();
+  } catch (err: any) {
+    return { ok: false, error: err?.message || 'Could not start the scan.' };
+  }
+  try {
+    return { ok: true, data: await cvAnalysisFlow(input), scansUsed };
   } catch (err: any) {
     console.error('analyzeCv failed:', err);
+    // The scan didn't produce a result, so don't count it.
+    await refundScan(userId).catch(() => {});
     return { ok: false, error: friendlyAiError(err) };
   }
 }
